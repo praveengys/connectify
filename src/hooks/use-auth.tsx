@@ -41,56 +41,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleAuthChange = async (fbUser: User | null) => {
-      if (fbUser) {
-        let profile = await getUserProfile(fbUser.uid);
+    // This function handles the logic for a signed-in user
+    const handleSignedInUser = async (fbUser: User) => {
+      let profile = await getUserProfile(fbUser.uid);
 
-        if (!profile) {
-          const newUserProfileData = {
-            uid: fbUser.uid,
-            displayName: fbUser.displayName || 'New Member',
-            email: fbUser.email,
-            emailVerified: fbUser.emailVerified,
-            avatarUrl: fbUser.photoURL,
-            authProvider: fbUser.providerData[0]?.providerId || 'password',
-            profileVisibility: 'public' as 'public' | 'private',
-            role: 'member' as 'member',
-            username: '',
-            bio: '',
-            interests: [],
-            skills: [],
-            languages: [],
-            location: '',
-            currentlyExploring: '',
-            profileScore: 0,
-            postCount: 0,
-            commentCount: 0,
-          };
-          await createUserProfile(fbUser.uid, newUserProfileData);
-          profile = await getUserProfile(fbUser.uid);
-        }
-        setUserProfile(profile as UserProfile);
-      } else {
-        setUserProfile(null);
+      if (!profile) {
+        // If no profile exists, create one.
+        const newUserProfileData = {
+          uid: fbUser.uid,
+          displayName: fbUser.displayName || 'New Member',
+          email: fbUser.email,
+          emailVerified: fbUser.emailVerified,
+          avatarUrl: fbUser.photoURL,
+          authProvider: fbUser.providerData[0]?.providerId || 'password',
+          profileVisibility: 'public' as 'public' | 'private',
+          role: 'member' as 'member',
+          username: '',
+          bio: '',
+          interests: [],
+          skills: [],
+          languages: [],
+          location: '',
+          currentlyExploring: '',
+          profileScore: 0,
+          postCount: 0,
+          commentCount: 0,
+        };
+        await createUserProfile(fbUser.uid, newUserProfileData);
+        profile = await getUserProfile(fbUser.uid); // Re-fetch the newly created profile
       }
-       setLoading(false);
+      setUserProfile(profile as UserProfile);
+      setLoading(false); // Stop loading only after profile is fetched/created
     };
-    
-    if(!isUserLoading) {
-      handleAuthChange(firebaseUser);
+
+    // This function handles the logic for a signed-out user
+    const handleSignedOutUser = () => {
+      setUserProfile(null);
+      setLoading(false);
+    };
+
+    if (isUserLoading) {
+      // If the initial auth state check is still running, do nothing and wait.
+      setLoading(true);
+      return;
+    }
+
+    if (firebaseUser) {
+      handleSignedInUser(firebaseUser);
+    } else {
+      handleSignedOutUser();
     }
   }, [firebaseUser, isUserLoading]);
 
+  // The AuthProvider now only passes the context, the loading UI is handled by layouts.
   return (
     <AuthContext.Provider value={{ user: userProfile, loading }}>
-      {loading ? (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="sr-only">Loading application...</p>
-        </div>
-      ) : (
-        children
-      )}
+      {children}
     </AuthContext.Provider>
   );
 };

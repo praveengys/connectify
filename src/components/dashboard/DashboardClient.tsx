@@ -21,8 +21,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -38,14 +36,6 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
   };
   
   const handleVisibilityChange = async (newVisibility: 'public' | 'private') => {
-    if (!user?.uid) {
-      toast({
-        title: 'Error',
-        description: 'User information not available yet. Please try again in a moment.',
-        variant: 'destructive',
-      });
-      return;
-    }
     if (user.profileVisibility === newVisibility) return;
 
     try {
@@ -100,7 +90,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
           <div className="flex shrink-0 items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2" disabled={!user?.uid}>
+                <Button variant="outline" size="sm" className="gap-2">
                   {user.profileVisibility === 'public' ? <Eye size={16} /> : <EyeOff size={16} />}
                   <span className="capitalize">{user.profileVisibility}</span>
                 </Button>

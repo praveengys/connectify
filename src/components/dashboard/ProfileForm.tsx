@@ -84,15 +84,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (!user?.uid) {
-        toast({
-          title: 'Authentication Error',
-          description: 'User information not available. Please try again in a moment.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
       setPhotoLoading(true);
       try {
         const formData = new FormData();
@@ -137,7 +128,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         <Button
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
-          disabled={photoLoading || !user?.uid}
+          disabled={photoLoading}
         >
           {photoLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

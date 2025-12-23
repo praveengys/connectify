@@ -7,12 +7,13 @@ import { signOutUser } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from './ui/popover';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { LayoutDashboard, LogOut, User as UserIcon } from 'lucide-react';
-import { Separator } from './ui/separator';
 
 export default function Header() {
   const { user, loading } = useAuth();
@@ -36,38 +37,36 @@ export default function Header() {
             {loading ? (
               <div className="h-8 w-20 animate-pulse rounded-md bg-muted"></div>
             ) : user ? (
-              <Popover>
-                <PopoverTrigger asChild>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? 'user'} />
                       <AvatarFallback>{user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon />}</AvatarFallback>
                     </Avatar>
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56" align="end">
-                  <div className="flex flex-col space-y-1 mb-4">
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <div className="flex flex-col space-y-1 p-2">
                     <p className="text-sm font-medium leading-none">{user.displayName}</p>
                     <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                   </div>
-                  <Separator />
-                  <div className="mt-4 flex flex-col space-y-1">
-                    <Button variant="ghost" className="w-full justify-start" onClick={() => router.push('/dashboard')}>
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      <span>Dashboard</span>
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start" onClick={() => router.push('/dashboard')}>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>Dashboard</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/dashboard')}>
                       <UserIcon className="mr-2 h-4 w-4" />
                       <span>Edit Profile</span>
-                    </Button>
-                  </div>
-                  <Separator className="my-2" />
-                  <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
+                    </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
-                  </Button>
-                </PopoverContent>
-              </Popover>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <div className="flex items-center gap-2">
                 <Button asChild variant="ghost">

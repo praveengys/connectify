@@ -28,12 +28,13 @@ service cloud.firestore {
       // The new document's ID must match the creator's UID.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      // UPDATE: Allow an owner to update their own profile fields.
-      // Do not allow them to change their UID, role, username, or creation date.
+      // UPDATE: Allow an owner to update their own profile, but prevent them
+      // from changing their UID, username, role, or creation date. This
+      // rule correctly handles partial updates (like changing only profileVisibility).
       allow update: if isOwner(userId)
                     && request.resource.data.uid == resource.data.uid
-                    && request.resource.data.role == resource.data.role
                     && request.resource.data.username == resource.data.username
+                    && request.resource.data.role == resource.data.role
                     && request.resource.data.createdAt == resource.data.createdAt;
       
       // DELETE: Allow an owner to delete their own profile.

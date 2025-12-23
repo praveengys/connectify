@@ -28,11 +28,13 @@ service cloud.firestore {
       // The new document's ID must match the creator's UID.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      // UPDATE: Allow an owner to update their own profile.
-      // Do not allow them to change their UID or role.
-      allow update: if isOwner(userId) 
+      // UPDATE: Allow an owner to update their own profile fields.
+      // Do not allow them to change their UID, role, username, or creation date.
+      allow update: if isOwner(userId)
                     && request.resource.data.uid == resource.data.uid
-                    && request.resource.data.role == resource.data.role;
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.username == resource.data.username
+                    && request.resource.data.createdAt == resource.data.createdAt;
       
       // DELETE: Allow an owner to delete their own profile.
       allow delete: if isOwner(userId);

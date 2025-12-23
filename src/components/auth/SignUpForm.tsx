@@ -56,10 +56,6 @@ export default function SignUpForm() {
         variant: 'destructive',
       });
     } else {
-      toast({
-        title: 'Success!',
-        description: 'Your account has been created.',
-      });
       router.push('/dashboard');
     }
     setLoading(false);
@@ -75,10 +71,6 @@ export default function SignUpForm() {
         variant: 'destructive',
       });
     } else {
-      toast({
-        title: 'Success!',
-        description: 'Your account has been created.',
-      });
       router.push('/dashboard');
     }
     setGoogleLoading(false);

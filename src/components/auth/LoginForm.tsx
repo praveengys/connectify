@@ -55,10 +55,6 @@ export default function LoginForm() {
         variant: 'destructive',
       });
     } else {
-      toast({
-        title: 'Success!',
-        description: 'You are now signed in.',
-      });
       router.push('/dashboard');
     }
     setLoading(false);
@@ -74,10 +70,6 @@ export default function LoginForm() {
         variant: 'destructive',
       });
     } else {
-      toast({
-        title: 'Success!',
-        description: 'You are now signed in.',
-      });
       router.push('/dashboard');
     }
     setGoogleLoading(false);

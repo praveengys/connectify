@@ -12,30 +12,10 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
+// Initialize Firebase for SSR and SSG, and reuse on the client
+const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
+const storage: FirebaseStorage = getStorage(app);
 
-if (typeof window !== 'undefined' && !getApps().length) {
-  try {
-    app = initializeApp();
-  } catch (e) {
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-    }
-    app = initializeApp(firebaseConfig);
-  }
-} else if (getApps().length) {
-    app = getApp();
-}
-
-// Ensure services are initialized only on the client
-if (typeof window !== 'undefined') {
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-}
-
-// @ts-ignore
 export { app, auth, db, storage };

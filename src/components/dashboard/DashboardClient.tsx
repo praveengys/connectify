@@ -46,6 +46,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
         description: `Your profile is now ${newVisibility}.`,
       });
     } catch (error) {
+      console.error('Visibility update failed:', error);
       toast({
         title: 'Error',
         description: 'Failed to update profile visibility.',

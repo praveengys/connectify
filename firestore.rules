@@ -19,6 +19,7 @@ service cloud.firestore {
     match /users/{userId} {
       // READ: Allow reads if the user is the owner, or if the profile is public.
       allow get: if isOwner(userId) || (isSignedIn() && resource.data.profileVisibility == 'public');
+      
       // LIST: Allow any signed-in user to list public profiles.
       // IMPORTANT: The client query MUST include `where('profileVisibility', '==', 'public')`.
       allow list: if isSignedIn();
@@ -27,8 +28,7 @@ service cloud.firestore {
       // The new document's ID must match the creator's UID.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      // UPDATE: Allow an owner to update their profile.
-      // Prevent changing immutable fields like UID and creation date.
+      // UPDATE: Allow an owner to update their own profile.
       allow update: if isOwner(userId);
       
       // DELETE: Allow an owner to delete their own profile.

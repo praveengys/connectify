@@ -13,7 +13,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     // Add the user's UID to the data object to satisfy security rules.
     await setDoc(doc(db, 'users', uid), {
       ...data,
-      id: uid, // This field is required by the security rules.
+      uid: uid, 
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }, { merge: true });
@@ -53,10 +53,10 @@ export async function updateUserProfile(uid: string | undefined, data: Partial<U
     }
     try {
         const userRef = doc(db, 'users', uid);
-        await updateDoc(userRef, {
+        await setDoc(userRef, {
             ...data,
             updatedAt: serverTimestamp(),
-        });
+        }, { merge: true });
     } catch (error) {
         console.error("Error updating user profile: ", error);
         throw error;

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, FirestoreError } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { UserProfile } from '@/hooks/use-auth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { Badge } from '../ui/badge';
@@ -26,6 +26,7 @@ export default function MembersClient() {
             const data = doc.data();
             return {
                 ...data,
+                uid: doc.id, // Ensure uid is the document ID
                 createdAt: data.createdAt?.toDate(),
                 updatedAt: data.updatedAt?.toDate(),
             } as UserProfile

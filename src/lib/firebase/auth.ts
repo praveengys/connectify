@@ -11,11 +11,10 @@ import {
   sendPasswordResetEmail,
   type User,
 } from 'firebase/auth';
-import { getAuth } from 'firebase/auth';
-import { app } from './config';
+import { initializeFirebase } from '@/firebase';
 import { createUserProfile } from './firestore';
 
-const auth = getAuth(app);
+const { auth } = initializeFirebase();
 
 // Sign up with email and password
 export async function signUpWithEmail(email: string, password: string, displayName: string) {

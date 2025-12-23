@@ -1,7 +1,9 @@
 
-import { db } from './config';
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData } from 'firebase/firestore';
 import type { UserProfile } from '@/hooks/use-auth';
+import { initializeFirebase } from '@/firebase';
+
+const { firestore } = initializeFirebase();
 
 // Create a new user profile document in Firestore
 export async function createUserProfile(uid: string, data: Partial<UserProfile>) {
@@ -11,7 +13,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   }
   try {
     // Add the user's UID to the data object to satisfy security rules.
-    await setDoc(doc(db, 'users', uid), {
+    await setDoc(doc(firestore, 'users', uid), {
       ...data,
       uid: uid, 
       createdAt: serverTimestamp(),
@@ -25,7 +27,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
 // Get a user profile from Firestore
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     try {
-        const docRef = doc(db, 'users', uid);
+        const docRef = doc(firestore, 'users', uid);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -52,7 +54,7 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
         throw new Error('updateUserProfile called without a valid uid');
     }
     try {
-        const userRef = doc(db, 'users', uid);
+        const userRef = doc(firestore, 'users', uid);
         await setDoc(userRef, {
             ...data,
             updatedAt: serverTimestamp(),

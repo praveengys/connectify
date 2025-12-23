@@ -18,12 +18,12 @@ import { uploadPhoto } from '@/lib/actions';
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
   username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.'),
-  bio: z.string().max(160, 'Bio cannot be more than 160 characters.').optional(),
-  interests: z.string().optional(),
-  skills: z.string().optional(),
-  location: z.string().optional(),
-  currentlyExploring: z.string().max(60, 'Cannot be more than 60 characters.').optional(),
-  languages: z.string().optional(),
+  bio: z.string().max(160, 'Bio cannot be more than 160 characters.').optional().default(''),
+  interests: z.string().optional().default(''),
+  skills: z.string().optional().default(''),
+  location: z.string().optional().default(''),
+  currentlyExploring: z.string().max(60, 'Cannot be more than 60 characters.').optional().default(''),
+  languages: z.string().optional().default(''),
 });
 
 type ProfileFormProps = {
@@ -62,23 +62,27 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     try {
       const updatedData = {
         ...values,
-        interests: values.interests ? values.interests.split(',').map(s => s.trim()) : [],
-        skills: values.skills ? values.skills.split(',').map(s => s.trim()) : [],
-        languages: values.languages ? values.languages.split(',').map(s => s.trim()) : [],
+        interests: values.interests ? values.interests.split(',').map(s => s.trim()).filter(Boolean) : [],
+        skills: values.skills ? values.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
+        languages: values.languages ? values.languages.split(',').map(s => s.trim()).filter(Boolean) : [],
       };
 
       await updateUserProfile(user.uid, updatedData);
+      
+      // We need to construct the full UserProfile object for the onUpdate callback
       const updatedUser: UserProfile = { ...user, ...updatedData };
+
       onUpdate(updatedUser);
+      
       toast({
         title: 'Success',
         description: 'Your profile has been updated.',
       });
       closeDialog();
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: 'Error',
-        description: 'Failed to update your profile. Username might already be taken.',
+        title: 'Error updating profile',
+        description: error.message || 'An unexpected error occurred.',
         variant: 'destructive',
       });
     }
@@ -94,12 +98,17 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       const formData = new FormData();
       formData.append('photo', file);
       const result: any = await uploadPhoto(formData);
+      
+      if (!result?.secure_url) {
+        throw new Error('Image upload failed to return a URL.');
+      }
       const avatarUrl = result.secure_url;
       
       await updateUserProfile(user.uid, { avatarUrl });
       const updatedUser = { ...user, avatarUrl };
       onUpdate(updatedUser);
       setPreviewUrl(avatarUrl);
+
       toast({
         title: 'Success',
         description: 'Profile photo updated.',
@@ -107,7 +116,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     } catch (error: any) {
       toast({
         title: 'Upload Failed',
-        description: error.message || 'Could not upload your profile photo. Please try again.',
+        description: error.message || 'Could not upload your profile photo.',
         variant: 'destructive',
       });
     }
@@ -187,12 +196,12 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
           />
           <FormField
             control={form.control}
-            name="interests"
+            name="skills"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Interests / Topics</FormLabel>
+                <FormLabel>Skills</FormLabel>
                 <FormControl>
-                  <Input placeholder="Technology, Startups, Design" {...field} />
+                  <Input placeholder="JavaScript, Photography, Public Speaking" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -200,12 +209,12 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
           />
            <FormField
             control={form.control}
-            name="skills"
+            name="interests"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Skills</FormLabel>
+                <FormLabel>Interests / Topics</FormLabel>
                 <FormControl>
-                  <Input placeholder="JavaScript, Photography, Public Speaking" {...field} />
+                  <Input placeholder="Technology, Startups, Design" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

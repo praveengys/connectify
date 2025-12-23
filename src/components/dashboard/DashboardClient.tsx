@@ -40,7 +40,8 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
 
     try {
       await updateUserProfile(user.uid, { profileVisibility: newVisibility });
-      setUser({ ...user, profileVisibility: newVisibility });
+      const updatedUser = { ...user, profileVisibility: newVisibility };
+      setUser(updatedUser);
       toast({
         title: 'Success',
         description: `Your profile is now ${newVisibility}.`,
@@ -57,14 +58,25 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
 
   const getProfileCompleteness = (profile: UserProfile): number => {
     let score = 0;
-    if (profile.username) score += 15;
-    if (profile.bio) score += 20;
-    if (profile.avatarUrl) score += 15;
-    if (profile.interests && profile.interests.length > 0) score += 15;
-    if (profile.skills && profile.skills.length > 0) score += 10;
-    if (profile.location) score += 10;
-    if (profile.languages && profile.languages.length > 0) score += 5;
-    if (profile.currentlyExploring) score += 10;
+    const fields = [
+        { value: profile.username, weight: 15 },
+        { value: profile.bio, weight: 20 },
+        { value: profile.avatarUrl, weight: 15 },
+        { value: profile.interests, weight: 15, isArray: true },
+        { value: profile.skills, weight: 10, isArray: true },
+        { value: profile.location, weight: 10 },
+        { value: profile.languages, weight: 5, isArray: true },
+        { value: profile.currentlyExploring, weight: 10 }
+    ];
+
+    fields.forEach(field => {
+        if (field.isArray) {
+            if (field.value && (field.value as string[]).length > 0) score += field.weight;
+        } else {
+            if (field.value) score += field.weight;
+        }
+    });
+
     return Math.min(score, 100);
   };
   
@@ -85,7 +97,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
                 <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'} className="capitalize">{user.role}</Badge>
               </div>
               <CardDescription className="text-base">@{user.username || 'username_not_set'}</CardDescription>
-              <p className="mt-2 text-muted-foreground">{user.bio || 'No bio yet.'}</p>
+              <p className="mt-2 text-muted-foreground">{user.bio || 'No bio yet. Click "Edit Profile" to add one.'}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -122,9 +134,9 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
                   <Edit size={16} /> Edit Profile
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Edit Your Profile</DialogTitle>
+                  <DialogTitle>Edit Your Profile</DialogHeader>
                 </DialogHeader>
                 <ProfileForm user={user} onUpdate={handleProfileUpdate} closeDialog={() => setEditDialogOpen(false)} />
               </DialogContent>

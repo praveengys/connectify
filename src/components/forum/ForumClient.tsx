@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Category, Thread, UserProfile, Forum } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -26,15 +26,15 @@ export default function ForumClient() {
       try {
         const { firestore } = initializeFirebase();
         
-        // Fetch active, public forums
+        // Fetch all forums and filter/sort on the client
         const forumsQuery = query(
             collection(firestore, 'forums'),
-            where('status', '==', 'active'),
-            where('visibility', '==', 'public'),
             orderBy('createdAt', 'desc')
         );
         const forumsSnapshot = await getDocs(forumsQuery);
-        const forumsData = forumsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum));
+        const forumsData = forumsSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Forum))
+            .filter(forum => forum.status === 'active' && forum.visibility === 'public');
         setForums(forumsData);
 
         // Fetch categories
@@ -45,7 +45,6 @@ export default function ForumClient() {
         // Fetch recent threads - MUST filter by status to comply with security rules
         const threadsQuery = query(
             collection(firestore, 'threads'), 
-            where('status', '==', 'published'),
             orderBy('createdAt', 'desc'), 
             limit(10)
         );
@@ -55,7 +54,7 @@ export default function ForumClient() {
           ...doc.data(),
           createdAt: doc.data().createdAt.toDate(),
           latestReplyAt: doc.data().latestReplyAt?.toDate(),
-        } as Thread));
+        } as Thread)).filter(thread => thread.status === 'published');
         setThreads(threadsData);
 
         // Fetch authors for threads

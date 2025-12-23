@@ -40,8 +40,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const { toast } = useToast();
 
   useEffect(() => {
-    // Keep the preview URL in sync with the user prop from the parent.
-    // This ensures that if the parent's avatarUrl changes, the preview updates.
     setPreviewUrl(user.avatarUrl);
   }, [user.avatarUrl]);
 
@@ -60,8 +58,16 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user?.uid) {
+      toast({
+        title: 'Authentication Error',
+        description: 'User information not available. Please try again in a moment.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
-    // The Dashboard layout now guarantees the user object is present.
     try {
       const updatedData = {
         ...values,
@@ -91,7 +97,15 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // The Dashboard layout now guarantees the user object is present.
+      if (!user?.uid) {
+        toast({
+          title: 'Authentication Error',
+          description: 'User information not available. Please try again in a moment.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       setPhotoLoading(true);
       try {
         const formData = new FormData();

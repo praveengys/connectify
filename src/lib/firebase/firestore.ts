@@ -62,5 +62,3 @@ export async function updateUserProfile(uid: string | undefined, data: Partial<U
         throw error;
     }
 }
-
-    

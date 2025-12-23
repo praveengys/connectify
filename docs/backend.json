@@ -6,107 +6,94 @@
       "type": "object",
       "description": "Represents a user profile in the Connectify Hub community platform.",
       "properties": {
-        "uid": {
-          "type": "string",
-          "description": "The unique identifier for the user, matching their Firebase Auth UID."
-        },
-        "username": {
-          "type": "string",
-          "description": "A unique, immutable community handle for the user."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The user's display name."
-        },
-        "bio": {
-          "type": "string",
-          "description": "A short, personal biography for the user."
-        },
-        "avatarUrl": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL of the user's profile photo or avatar."
-        },
-        "interests": {
-          "type": "array",
-          "description": "A list of the user's interests or topics.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "skills": {
-          "type": "array",
-          "description": "A list of the user's skills (can be professional or hobby-level).",
-          "items": {
-            "type": "string"
-          }
-        },
-        "languages": {
-          "type": "array",
-          "description": "A list of languages the user speaks.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "location": {
-          "type": "string",
-          "description": "The user's city or country."
-        },
-        "currentlyExploring": {
-          "type": "string",
-          "description": "A short free-text field about what the user is currently learning or exploring."
-        },
-        "role": {
-          "type": "string",
-          "description": "The user's role in the community.",
-          "enum": ["member", "moderator", "admin"]
-        },
-        "profileVisibility": {
-          "type": "string",
-          "description": "The visibility setting of the user's profile.",
-          "enum": ["public", "private"]
-        },
-        "emailVerified": {
-          "type": "boolean",
-          "description": "Indicates if the user has verified their email address."
-        },
-        "profileScore": {
-          "type": "number",
-          "description": "A calculated score representing profile completeness."
-        },
-        "postCount": {
-          "type": "number",
-          "description": "The number of posts the user has created."
-        },
-        "commentCount": {
-          "type": "number",
-          "description": "The number of replies the user has made."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the user profile was created."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the user profile was last updated."
-        },
-        "lastActiveAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp of the user's last activity."
-        }
+        "uid": { "type": "string", "description": "The unique identifier for the user, matching their Firebase Auth UID." },
+        "username": { "type": "string", "description": "A unique, immutable community handle for the user." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "bio": { "type": "string", "description": "A short, personal biography for the user." },
+        "avatarUrl": { "type": "string", "format": "uri", "description": "URL of the user's profile photo or avatar." },
+        "interests": { "type": "array", "description": "A list of the user's interests or topics.", "items": { "type": "string" } },
+        "skills": { "type": "array", "description": "A list of the user's skills.", "items": { "type": "string" } },
+        "languages": { "type": "array", "description": "A list of languages the user speaks.", "items": { "type": "string" } },
+        "location": { "type": "string", "description": "The user's city or country." },
+        "currentlyExploring": { "type": "string", "description": "A short free-text field about what the user is currently learning or exploring." },
+        "role": { "type": "string", "description": "The user's role in the community.", "enum": ["member", "moderator", "admin"] },
+        "profileVisibility": { "type": "string", "description": "The visibility setting of the user's profile.", "enum": ["public", "private"] },
+        "emailVerified": { "type": "boolean", "description": "Indicates if the user has verified their email address." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user profile was created." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user profile was last updated." }
       },
-      "required": [
-        "uid",
-        "displayName",
-        "role",
-        "profileVisibility",
-        "emailVerified",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["uid", "displayName", "role", "profileVisibility", "emailVerified", "createdAt", "updatedAt"]
+    },
+    "Thread": {
+      "title": "Thread",
+      "type": "object",
+      "description": "Represents a single discussion topic within a category.",
+      "properties": {
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "authorId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["published", "hidden", "deleted"] },
+        "isLocked": { "type": "boolean" },
+        "isPinned": { "type": "boolean" },
+        "replyCount": { "type": "number" },
+        "latestReplyAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "body", "authorId", "categoryId", "status", "isLocked", "isPinned", "createdAt", "updatedAt"]
+    },
+    "Reply": {
+      "title": "Reply",
+      "type": "object",
+      "description": "A single-level reply to a thread.",
+      "properties": {
+        "threadId": { "type": "string" },
+        "body": { "type": "string" },
+        "authorId": { "type": "string" },
+        "status": { "type": "string", "enum": ["published", "hidden", "deleted"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["threadId", "body", "authorId", "status", "createdAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "type": "object",
+      "description": "A topic to group threads.",
+      "properties": {
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "threadCount": { "type": "number" }
+      },
+      "required": ["name", "slug", "description"]
+    },
+    "Tag": {
+      "title": "Tag",
+      "type": "object",
+      "description": "A metadata tag for discoverability.",
+      "properties": {
+        "name": { "type": "string" },
+        "threadCount": { "type": "number" }
+      },
+      "required": ["name"]
+    },
+    "Report": {
+      "title": "Report",
+      "type": "object",
+      "description": "A user-submitted report against a piece of content.",
+      "properties": {
+        "reporterId": { "type": "string" },
+        "contentType": { "type": "string", "enum": ["thread", "reply"] },
+        "contentId": { "type": "string" },
+        "threadId": { "type": "string" },
+        "reason": { "type": "string", "enum": ["spam", "harassment", "inappropriate_content", "other"] },
+        "comment": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "in_review", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "contentType", "contentId", "reason", "status", "createdAt"]
     }
   },
   "auth": {
@@ -120,37 +107,40 @@
     "structure": [
       {
         "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profile data. Authorization is based on path-based ownership (user can only access their own document). Includes 'profileVisibility' field to determine public or private access.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the user, corresponding to their Firebase Auth UID."
-            }
-          ]
-        }
+        "definition": { "entityName": "User", "schema": { "$ref": "#/entities/User" } }
       },
       {
         "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "roles_admin",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores admin roles. Existence of document dictates admin role.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the user, corresponding to their Firebase Auth UID."
-            }
-          ]
-        }
+        "definition": { "description": "Stores admin roles. Existence of document dictates admin role." }
+      },
+       {
+        "path": "/roles_moderator/{userId}",
+        "definition": { "description": "Stores moderator roles. Existence of document dictates moderator role." }
+      },
+      {
+        "path": "/threads/{threadId}",
+        "definition": { "entityName": "Thread", "schema": { "$ref": "#/entities/Thread" } }
+      },
+      {
+        "path": "/threads/{threadId}/replies/{replyId}",
+        "definition": { "entityName": "Reply", "schema": { "$ref": "#/entities/Reply" } }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": { "entityName": "Category", "schema": { "$ref": "#/entities/Category" } }
+      },
+      {
+        "path": "/tags/{tagId}",
+        "definition": { "entityName": "Tag", "schema": { "$ref": "#/entities/Tag" } }
+      },
+      {
+        "path": "/reports/{reportId}",
+        "definition": { "entityName": "Report", "schema": { "$ref": "#/entities/Report" } }
+      },
+      {
+        "path": "/moderation_queue/{queueItemId}",
+        "definition": { "description": "Denormalized collection for efficient moderation queue retrieval." }
       }
-    ],
-    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, DBAC, and QAPs. The core principle is path-based ownership for user data, simplifying security rules and eliminating the need for `get()` calls within the rules. The `/users/{userId}` collection stores user profiles. Profile visibility (`public` or `private`) is directly stored in the user document to facilitate QAPs (list operation security). This design ensures that all documents in a given collection share the same security posture. The structure directly supports the application requirements for secure user profiles and access control based on authentication and profile visibility."
+    ]
   }
 }

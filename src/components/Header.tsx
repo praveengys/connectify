@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { LayoutDashboard, LogOut, User as UserIcon, Users } from 'lucide-react';
+import { LayoutDashboard, LogOut, User as UserIcon } from 'lucide-react';
 import ProfileCard from './auth/ProfileCard';
 
 export default function Header() {
@@ -38,6 +38,12 @@ export default function Header() {
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
               Members
+            </Link>
+            <Link
+              href="/forum"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              Forum
             </Link>
           </nav>
         </div>

@@ -2,7 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for reusable logic
+    /* ---------- Helper Functions ---------- */
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -10,11 +11,25 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
+
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
+    function isModerator() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/roles_moderator/$(request.auth.uid));
+    }
+
+    function isModeratorOrAdmin() {
+      return isModerator() || isAdmin();
+    }
+
+    function isNotDeleted(resource) {
+      return resource.data.status != 'deleted';
+    }
+    
     // Rules for user profile documents
     match /users/{userId} {
       // READ: Allow reads if the user is the owner, or if the profile is public.
@@ -28,21 +43,140 @@ service cloud.firestore {
       // The new document's ID must match the creator's UID.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      // UPDATE: Allow an owner to update their own profile.
-      allow update: if isOwner(userId);
+      // UPDATE: Allow an owner to update their own profile, but protect critical fields.
+      allow update: if isOwner(userId)
+                  && request.resource.data.uid == resource.data.uid
+                  && request.resource.data.role == resource.data.role
+                  && request.resource.data.createdAt == resource.data.createdAt;
       
-      // DELETE: Allow an owner to delete their own profile.
-      allow delete: if isOwner(userId);
+      // DELETE: Deny all client-side deletes.
+      allow delete: if false;
     }
     
-    // Rules for the admin roles collection.
-    // The existence of a document here grants admin privileges.
+    /* ---------- Forum Rules ---------- */
+    
+    match /threads/{threadId} {
+
+      /* READ */
+      allow get, list: if
+        isNotDeleted(resource) &&
+        (
+          resource.data.status == 'published' ||
+          isModeratorOrAdmin()
+        );
+
+      /* CREATE */
+      allow create: if
+        isSignedIn() &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.status == 'published' &&
+        request.resource.data.isLocked == false &&
+        request.resource.data.isPinned == false;
+
+      /* UPDATE */
+      allow update: if
+        (
+          // Owner updates (content edits only)
+          isOwner(resource.data.authorId) &&
+          !resource.data.isLocked &&
+          request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['title', 'body', 'tags', 'updatedAt'])
+        )
+        ||
+        (
+          // Moderator / Admin updates
+          isModeratorOrAdmin() &&
+          request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['status', 'isPinned', 'isLocked', 'updatedAt'])
+        );
+
+      /* DELETE (SOFT ONLY) */
+      allow delete: if false;
+    }
+
+    match /threads/{threadId}/replies/{replyId} {
+
+      /* READ */
+      allow get, list: if
+        isNotDeleted(resource) &&
+        (
+          resource.data.status == 'published' ||
+          isModeratorOrAdmin()
+        );
+
+      /* CREATE */
+      allow create: if
+        isSignedIn() &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.status == 'published' &&
+        get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
+
+      /* UPDATE */
+      allow update: if
+        (
+          isOwner(resource.data.authorId) &&
+          request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['body', 'updatedAt'])
+        )
+        ||
+        (
+          isModeratorOrAdmin() &&
+          request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['status', 'updatedAt'])
+        );
+
+      /* DELETE */
+      allow delete: if false;
+    }
+    
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /tags/{tagId} {
+      allow read: if true;
+      allow write: if isModeratorOrAdmin();
+    }
+
+    match /reports/{reportId} {
+
+      /* CREATE */
+      allow create: if
+        isSignedIn() &&
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.status == 'open';
+
+      /* READ */
+      allow get, list: if isModeratorOrAdmin();
+
+      /* UPDATE */
+      allow update: if isModeratorOrAdmin();
+
+      /* DELETE */
+      allow delete: if false;
+    }
+    
+     match /moderationQueue/{queueItemId} {
+
+      allow read: if isModeratorOrAdmin();
+
+      allow update: if isModeratorOrAdmin();
+
+      allow create: if false; // created only via backend logic
+
+      allow delete: if false;
+    }
+
+    /* ---------- Roles Rules ---------- */
+
     match /roles_admin/{userId} {
-      // READ: Only admins can see who other admins are.
-      allow get, list: if isAdmin();
-      
-      // WRITE: Deny all client-side writes to prevent self-promotion to admin.
-      // Admin roles must be assigned via a secure backend (e.g., Firebase Console or Cloud Function).
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    
+    match /roles_moderator/{userId} {
+      allow read: if isAdmin();
       allow write: if false;
     }
   }

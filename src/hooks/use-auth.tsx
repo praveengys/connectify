@@ -31,10 +31,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser) {
+        // First, check if a profile already exists.
         let userProfile = await getUserProfile(firebaseUser.uid);
 
+        // If not, it's a new sign-up, so create the profile.
         if (!userProfile) {
-          // New user, create profile
           const newUserProfileData = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
@@ -43,18 +44,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             authProvider: firebaseUser.providerData[0]?.providerId || 'password',
             profileVisibility: 'public' as 'public' | 'private',
           };
+          // The create operation happens here.
           await createUserProfile(firebaseUser.uid, newUserProfileData);
+          // After creating, fetch the complete profile.
           userProfile = await getUserProfile(firebaseUser.uid);
         }
         
+        // Set the user profile state which will unblock the UI.
         setUser(userProfile as UserProfile);
 
       } else {
+        // No firebase user, so no app user.
         setUser(null);
       }
+      // Finished loading.
       setLoading(false);
     });
 
+    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 

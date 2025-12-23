@@ -3,12 +3,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2 } from 'lucide-react';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Header from '@/components/Header';
 
 export default function Home() {
-  const heroImage = PlaceHolderImages.find((img) => img.id === 'hero-community');
-
   const features = [
     {
       icon: <CheckCircle2 className="h-8 w-8 text-primary" />,
@@ -51,21 +48,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {heroImage && (
-          <section className="w-full py-12 md:py-24">
-            <div className="container mx-auto px-4 md:px-6">
-              <Image
-                src={heroImage.imageUrl}
-                alt={heroImage.description}
-                data-ai-hint={heroImage.imageHint}
-                width={1200}
-                height={600}
-                className="rounded-xl shadow-2xl mx-auto aspect-video overflow-hidden object-cover"
-              />
-            </div>
-          </section>
-        )}
 
         <section className="w-full py-12 md:py-24 bg-card">
           <div className="container mx-auto px-4 md:px-6">

@@ -15,15 +15,14 @@ import { Progress } from '@/components/ui/progress';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu';
-import { Label } from './ui/label';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -101,7 +100,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
           <div className="flex shrink-0 items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2" disabled={!user?.uid}>
                   {user.profileVisibility === 'public' ? <Eye size={16} /> : <EyeOff size={16} />}
                   <span className="capitalize">{user.profileVisibility}</span>
                 </Button>

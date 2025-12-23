@@ -58,12 +58,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user?.uid) {
-      // This should ideally not be reached due to the auth gate, but it's a final safeguard.
-      console.error('onSubmit called without user.uid');
-      return;
-    }
-
     setLoading(true);
     try {
       const updatedData = {
@@ -94,12 +88,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (!user?.uid) {
-        // This safeguard prevents calling the upload action without a UID.
-        console.error('handleFileChange called without user.uid');
-        return;
-      }
-
       setPhotoLoading(true);
       try {
         const formData = new FormData();
@@ -140,12 +128,12 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
           ref={fileInputRef}
           onChange={handleFileChange}
           className="hidden"
-          disabled={photoLoading || !user?.uid}
+          disabled={photoLoading}
         />
         <Button
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
-          disabled={photoLoading || !user?.uid}
+          disabled={photoLoading}
         >
           {photoLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -265,7 +253,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="ghost" onClick={closeDialog}>Cancel</Button>
-            <Button type="submit" disabled={loading || !user?.uid}>
+            <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes
             </Button>

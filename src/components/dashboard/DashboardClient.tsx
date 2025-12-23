@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Edit, Eye, EyeOff, Globe, Languages, Lightbulb, MapPin, Briefcase, Check } from 'lucide-react';
+import { Edit, Eye, EyeOff, Globe, Languages, Lightbulb, MapPin, Briefcase, Check, User, Mail, Calendar, TrendingUp } from 'lucide-react';
 import ProfileForm from './ProfileForm';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { formatDistanceToNow } from 'date-fns';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -62,7 +63,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
         { value: profile.username, weight: 15 },
         { value: profile.bio, weight: 20 },
         { value: profile.avatarUrl, weight: 15 },
-        { value: profile.interests, weight: 15, isArray: true },
+        { value: profile.interests, weight: 10, isArray: true },
         { value: profile.skills, weight: 10, isArray: true },
         { value: profile.location, weight: 10 },
         { value: profile.languages, weight: 5, isArray: true },
@@ -76,6 +77,9 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
             if (field.value) score += field.weight;
         }
     });
+
+    // A base score for just having an account
+    score += 5; 
 
     return Math.min(score, 100);
   };
@@ -96,8 +100,8 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
                 <CardTitle className="text-3xl font-bold">{user.displayName}</CardTitle>
                 <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'} className="capitalize">{user.role}</Badge>
               </div>
-              <CardDescription className="text-base">@{user.username || 'username_not_set'}</CardDescription>
-              <p className="mt-2 text-muted-foreground">{user.bio || 'No bio yet. Click "Edit Profile" to add one.'}</p>
+              <CardDescription className="text-base text-muted-foreground">@{user.username || 'username_not_set'}</CardDescription>
+              <p className="mt-2 max-w-xl text-muted-foreground">{user.bio || 'No bio yet. Click "Edit Profile" to add one.'}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -136,7 +140,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Edit Your Profile</DialogHeader>
+                  <DialogTitle>Edit Your Profile</DialogTitle>
                 </DialogHeader>
                 <ProfileForm user={user} onUpdate={handleProfileUpdate} closeDialog={() => setEditDialogOpen(false)} />
               </DialogContent>
@@ -151,7 +155,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
                   <p className="text-sm font-bold text-primary">{completeness}%</p>
               </div>
               <Progress value={completeness} className="mt-2 h-2" />
-              {completeness < 40 && <p className="text-xs text-muted-foreground mt-2">Complete your profile to unlock all community features!</p>}
+              {completeness < 40 && <p className="text-xs text-muted-foreground mt-2">Your profile is just getting started. Complete it to unlock all community features!</p>}
           </div>
         )}
 
@@ -163,17 +167,20 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
             <InfoSection icon={Lightbulb} title="Interests">
               {user.interests?.length > 0 ? user.interests.map(interest => <Badge key={interest} variant="outline">{interest}</Badge>) : <p className="text-sm text-muted-foreground">No interests listed.</p>}
             </InfoSection>
+             <InfoSection icon={Globe} title="Currently Exploring">
+              <p className="text-sm">{user.currentlyExploring || 'Not specified'}</p>
+            </InfoSection>
           </div>
 
           <div className="space-y-6">
-            <InfoSection icon={Globe} title="Currently Exploring">
-              <p className="text-sm">{user.currentlyExploring || 'Not specified'}</p>
-            </InfoSection>
             <InfoSection icon={MapPin} title="Location">
               <p className="text-sm">{user.location || 'Not specified'}</p>
             </InfoSection>
             <InfoSection icon={Languages} title="Languages">
               {user.languages?.length > 0 ? user.languages.map(lang => <Badge key={lang} variant="secondary">{lang}</Badge>) : <p className="text-sm text-muted-foreground">No languages listed.</p>}
+            </InfoSection>
+            <InfoSection icon={Calendar} title="Member Since">
+              <p className="text-sm">{user.createdAt ? formatDistanceToNow(user.createdAt, { addSuffix: true }) : 'N/A'}</p>
             </InfoSection>
           </div>
         </CardContent>

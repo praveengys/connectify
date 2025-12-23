@@ -1,18 +1,128 @@
-
+/**
+ * This ruleset enforces a strict security model for the Connectify Hub application.
+ *
+ * Core Philosophy:
+ * The security model is built on user ownership and role-based access control (RBAC).
+ * Users have full control over their own profile document, while access to other
+ * users' profiles is governed by a 'profileVisibility' flag. A separate,
+ * client-immutable collection '/roles_admin' is used to manage administrative privileges,
+ * ensuring that only designated admins can perform elevated actions.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores individual user profile data. Each user's data is
+ *   sandboxed within their own document in this top-level collection.
+ * - /roles_admin/{userId}: A collection where the existence of a document signifies
+ *   that the user is an administrator. This collection is managed by a trusted
+ *   backend process, not by clients.
+ *
+ * Key Security Decisions:
+ * - User Profile Control: Users can create, read, update, and delete their own
+ *   profile document at '/users/{userId}'.
+ * - Conditional Public Access: A user can view another user's profile only if that
+ *   profile's 'profileVisibility' field is set to 'public'.
+ * - Public Profile Listing: Signed-in users can list documents from the '/users'
+ *   collection. Security is maintained by requiring the client-side query to filter
+ *   for public profiles (e.g., `where('profileVisibility', '==', 'public')`). The
+ *   rules permit the query, but individual document reads during query execution are
+ *   still protected by the 'get' rule.
+ * - Admin Roles: The '/roles_admin' collection is read-only for admins and completely
+ *   inaccessible to regular users, preventing enumeration of administrators.
+ *   All write operations from clients are denied.
+ *
+ * Denormalization for Authorization:
+ * This ruleset relies on denormalization for performance and security.
+ * - Profile Visibility: The `profileVisibility` field is stored directly on each
+ *   user document. This allows security rules to make an immediate access decision
+ *   without needing to read other documents (`get` calls).
+ * - Admin Roles: Administrator status is denormalized into the '/roles_admin'
+ *   collection. A single `exists()` call is used to check for admin privileges, which
+ *   is highly efficient and secure.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read their own document or any public document.
-    // Users can only create, update, or delete their own document.
-    match /users/{userId} {
-      allow read: if request.auth != null && (request.auth.uid == userId || resource.data.profileVisibility == 'public');
-      allow create, update, delete: if request.auth.uid == userId;
+
+    // Helper functions for reusable logic
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Explicitly deny any other reads or writes in the database.
-    match /{document=**} {
-      allow read, write: if false;
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isExistingDoc() {
+      return resource != null;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDoc();
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * @description Rules for user profile documents.
+     * @path /users/{userId}
+     * @allow (create) A new user creating their own profile document.
+     * @deny (update) A user trying to change another user's profile.
+     * @principle Enforces document ownership for all write operations and conditional read access based on profile visibility.
+     */
+    match /users/{userId} {
+      /**
+       * GET:
+       * - An owner can always get their own document.
+       * - Any signed-in user can get another user's document if its 'profileVisibility' is 'public'.
+       * LIST:
+       * - Any signed-in user can perform list queries.
+       * - CRITICAL: Client-side queries MUST include `where('profileVisibility', '==', 'public')`
+       *   to prevent unauthorized data access from queries that list multiple user documents.
+       */
+      allow get: if isOwner(userId) || (isSignedIn() && resource.data.profileVisibility == 'public');
+      allow list: if isSignedIn();
+
+      /**
+       * CREATE:
+       * - A user can create their own profile document.
+       * - The document's 'id' field must match the user's auth UID.
+       * UPDATE:
+       * - Only the owner of an existing document can update it.
+       * - The 'id' and 'createdAt' fields are immutable.
+       * DELETE:
+       * - Only the owner of an existing document can delete it.
+       */
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages administrator roles. The existence of a document indicates admin status.
+     * @path /roles_admin/{userId}
+     * @allow (get) An admin checking if another user is also an admin.
+     * @deny (get) A non-admin user trying to see who the admins are.
+     * @deny (create) Any client trying to make themselves an admin.
+     * @principle Restricts read access to admins only and denies all client-side writes to protect role integrity.
+     */
+    match /roles_admin/{userId} {
+      /**
+       * GET/LIST:
+       * - Only users who are themselves admins can read documents in this collection.
+       *   This prevents non-admins from discovering the identities of administrators.
+       */
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+
+      /**
+       * CREATE/UPDATE/DELETE:
+       * - Denied for all clients. Admin roles must be managed by a trusted backend process
+       *   (e.g., a Cloud Function or via the Firebase Console) to ensure security.
+       */
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }

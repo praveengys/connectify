@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile in the Connectify Hub community platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile photo. Can be null.",
+          "format": "uri"
+        },
+        "authProvider": {
+          "type": "string",
+          "description": "The authentication provider used by the user (e.g., 'email', 'google')."
+        },
+        "profileVisibility": {
+          "type": "string",
+          "description": "The visibility setting of the user's profile ('public' or 'private').",
+          "format": "enum",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "authProvider",
+        "profileVisibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile data.  Authorization is based on path-based ownership (user can only access their own document). Includes 'profileVisibility' field to determine public or private access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user, corresponding to their Firebase Auth UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "roles_admin",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores admin roles. Existence of document dictates admin role.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user, corresponding to their Firebase Auth UID."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, DBAC, and QAPs. The core principle is path-based ownership for user data, simplifying security rules and eliminating the need for `get()` calls within the rules. The `/users/{userId}` collection stores user profiles. Profile visibility (`public` or `private`) is directly stored in the user document to facilitate QAPs (list operation security).  Since there are no collaborative documents, the membership map pattern is not applicable here.  This design ensures that all documents in a given collection share the same security posture, aiding in debuggability and maintainability. The structure directly supports the application requirements for secure user profiles and access control based on authentication and profile visibility."
+  }
+}

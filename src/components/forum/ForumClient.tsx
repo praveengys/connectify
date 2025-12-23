@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Category, Thread, UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -30,8 +30,13 @@ export default function ForumClient() {
         const categoriesData = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
         setCategories(categoriesData);
 
-        // Fetch recent threads
-        const threadsQuery = query(collection(firestore, 'threads'), orderBy('createdAt', 'desc'), limit(10));
+        // Fetch recent threads - MUST filter by status to comply with security rules
+        const threadsQuery = query(
+            collection(firestore, 'threads'), 
+            where('status', '==', 'published'),
+            orderBy('createdAt', 'desc'), 
+            limit(10)
+        );
         const threadsSnapshot = await getDocs(threadsQuery);
         const threadsData = threadsSnapshot.docs.map(doc => ({
           id: doc.id,
@@ -42,16 +47,18 @@ export default function ForumClient() {
         setThreads(threadsData);
 
         // Fetch authors for threads
-        const authorIds = [...new Set(threadsData.map(t => t.authorId))];
-        const authorPromises = authorIds.map(id => getUserProfile(id));
-        const authorResults = await Promise.all(authorPromises);
-        const authorMap: Record<string, UserProfile> = {};
-        authorResults.forEach((author, index) => {
-          if (author) {
-            authorMap[authorIds[index]] = author;
-          }
-        });
-        setAuthors(authorMap);
+        if (threadsData.length > 0) {
+            const authorIds = [...new Set(threadsData.map(t => t.authorId))];
+            const authorPromises = authorIds.map(id => getUserProfile(id));
+            const authorResults = await Promise.all(authorPromises);
+            const authorMap: Record<string, UserProfile> = {};
+            authorResults.forEach((author, index) => {
+              if (author) {
+                authorMap[authorIds[index]] = author;
+              }
+            });
+            setAuthors(authorMap);
+        }
 
       } catch (e: any) {
         console.error("Error fetching forum data: ", e);
@@ -118,7 +125,7 @@ export default function ForumClient() {
                     </div>
                   </div>
                   <div className="flex flex-col items-center justify-center text-center w-20 shrink-0">
-                    <p className="font-bold text-xl">{thread.replyCount}</p>
+                    <p className="font-bold text-xl">{thread.replyCount ?? 0}</p>
                     <p className="text-xs text-muted-foreground">Replies</p>
                   </div>
                 </CardContent>

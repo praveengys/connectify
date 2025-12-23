@@ -61,16 +61,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-    if (!user?.uid) {
-      toast({
-        title: 'Authentication Error',
-        description: 'User information not available. Please try again.',
-        variant: 'destructive',
-      });
-      setLoading(false);
-      return;
-    }
-
+    // The Dashboard layout now guarantees the user object is present.
     try {
       const updatedData = {
         ...values,
@@ -100,14 +91,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (!user?.uid) {
-        toast({
-          title: 'Authentication Error',
-          description: 'User information not available. Please try again in a moment.',
-          variant: 'destructive',
-        });
-        return;
-      }
+      // The Dashboard layout now guarantees the user object is present.
       setPhotoLoading(true);
       try {
         const formData = new FormData();
@@ -118,7 +102,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         await updateUserProfile(user.uid, { avatarUrl });
         const updatedUser = { ...user, avatarUrl };
         onUpdate(updatedUser);
-        // The useEffect will now handle setting the previewUrl, but we can set it here for immediate feedback too.
         setPreviewUrl(avatarUrl);
         toast({
           title: 'Success',

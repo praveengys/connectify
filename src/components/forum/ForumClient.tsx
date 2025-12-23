@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, orderBy, query, where } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, where, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Category, Thread, UserProfile, Forum } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';

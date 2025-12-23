@@ -276,5 +276,3 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     </div>
   );
 }
-
-    

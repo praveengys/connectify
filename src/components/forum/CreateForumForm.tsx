@@ -57,8 +57,8 @@ export default function CreateForumForm({ onForumCreated }: CreateForumFormProps
       const newForum = await createForum(newForumData);
       
       toast({
-        title: 'Forum Submitted!',
-        description: 'Your new forum has been submitted for review. It will be visible once approved.',
+        title: 'Forum Created!',
+        description: 'Your new forum is now live and public.',
       });
       onForumCreated(newForum);
     } catch (error: any) {
@@ -103,7 +103,7 @@ export default function CreateForumForm({ onForumCreated }: CreateForumFormProps
         <div className="flex justify-end">
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Submit for Review
+            Create Forum
           </Button>
         </div>
       </form>

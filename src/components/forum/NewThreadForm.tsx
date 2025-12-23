@@ -41,8 +41,7 @@ export default function NewThreadForm() {
       if (!user) return;
       const { firestore } = initializeFirebase();
       
-      // TEMP WORKAROUND: Fetch all forums, not just active ones.
-      const forumQuery = query(collection(firestore, 'forums'));
+      const forumQuery = query(collection(firestore, 'forums'), where('status', '==', 'active'));
       const forumSnapshot = await getDocs(forumQuery);
       setForums(forumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum)));
       

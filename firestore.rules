@@ -55,22 +55,22 @@ service cloud.firestore {
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      // READ: Public can see active forums. Owners/mods/admins can see their own under-review/suspended forums.
+      // READ: Public can see active forums. Owners/admins can see their own suspended forums.
       allow get: if (resource.data.status == 'active' && resource.data.visibility == 'public') 
                   || isOwner(resource.data.createdBy) 
-                  || isModeratorOrAdmin();
+                  || isAdmin();
       allow list: if isSignedIn(); // Client must filter correctly.
 
-      // CREATE: Any signed-in user can submit a forum for review.
+      // CREATE: Any signed-in user can create an active forum.
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.status == 'under_review';
+                    && request.resource.data.status == 'active';
 
-      // UPDATE: Only moderators/admins can activate, suspend, or update forums.
-      allow update: if isModeratorOrAdmin();
+      // UPDATE: Only admins can suspend or update forums.
+      allow update: if isAdmin();
 
-      // DELETE: Only moderators/admins can delete (reject).
-      allow delete: if isModeratorOrAdmin();
+      // DELETE: Only admins can delete.
+      allow delete: if isAdmin();
     }
 
     match /threads/{threadId} {

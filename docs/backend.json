@@ -16,7 +16,7 @@
         "languages": { "type": "array", "description": "A list of languages the user speaks.", "items": { "type": "string" } },
         "location": { "type": "string", "description": "The user's city or country." },
         "currentlyExploring": { "type": "string", "description": "A short free-text field about what the user is currently learning or exploring." },
-        "role": { "type": "string", "description": "The user's role in the community.", "enum": ["member", "moderator", "admin"] },
+        "role": { "type": "string", "description": "The user's role in the community.", "enum": ["member", "admin"] },
         "profileVisibility": { "type": "string", "description": "The visibility setting of the user's profile.", "enum": ["public", "private"] },
         "emailVerified": { "type": "boolean", "description": "Indicates if the user has verified their email address." },
         "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user profile was created." },
@@ -33,7 +33,7 @@
         "description": { "type": "string" },
         "createdBy": { "type": "string", "description": "UID of the user who created the forum." },
         "visibility": { "type": "string", "enum": ["public", "private"] },
-        "status": { "type": "string", "enum": ["active", "under_review", "suspended"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "description", "createdBy", "visibility", "status", "createdAt"]
@@ -130,10 +130,6 @@
       {
         "path": "/roles_admin/{userId}",
         "definition": { "description": "Stores admin roles. Existence of document dictates admin role." }
-      },
-       {
-        "path": "/roles_moderator/{userId}",
-        "definition": { "description": "Stores moderator roles. Existence of document dictates moderator role." }
       },
       {
         "path": "/forums/{forumId}",

@@ -1,5 +1,5 @@
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, limit, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
@@ -114,61 +114,14 @@ export async function createForum(forumData: Omit<Forum, 'id' | 'createdAt' | 's
         const forumsCollection = collection(firestore, 'forums');
         const docRef = await addDoc(forumsCollection, {
             ...forumData,
-            status: 'under_review',
+            status: 'active',
             visibility: 'public', // Default to public, can be changed by mods
             createdAt: serverTimestamp(),
         });
-        const newForumData = { id: docRef.id, status: 'under_review', ...forumData };
+        const newForumData = { id: docRef.id, status: 'active', ...forumData };
         return newForumData as Forum;
     } catch (error) {
         console.error("Error creating forum: ", error);
         throw error;
     }
-}
-
-// --- MODERATION FUNCTIONS ---
-
-export async function getForumsForReview(): Promise<Forum[]> {
-  try {
-    const forumsRef = collection(firestore, 'forums');
-    const q = query(forumsRef, where('status', '==', 'under_review'), orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt.toDate(),
-      } as Forum;
-    });
-  } catch (error) {
-    console.error('Error fetching forums for review:', error);
-    throw error; // Re-throw to be caught by the component
-  }
-}
-
-export async function approveForum(forumId: string) {
-  try {
-    const forumRef = doc(firestore, 'forums', forumId);
-    await updateDoc(forumRef, {
-      status: 'active',
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error('Error approving forum:', error);
-    throw error;
-  }
-}
-
-export async function rejectForum(forumId: string) {
-  try {
-    const forumRef = doc(firestore, 'forums', forumId);
-    // Instead of deleting, you could also set status to 'rejected'
-    // For Phase 1, deleting is simpler.
-    await deleteDoc(forumRef);
-  } catch (error) {
-    console.error('Error rejecting forum:', error);
-    throw error;
-  }
 }

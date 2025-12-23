@@ -21,7 +21,6 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { Progress } from '../ui/progress';
-import ModerationPanel from './ModerationPanel';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -84,7 +83,6 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
   };
   
   const completeness = getProfileCompleteness(user);
-  const isModeratorOrAdmin = user.role === 'admin' || user.role === 'moderator';
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
@@ -174,7 +172,6 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
            </div>
         </CardContent>
       </Card>
-      {isModeratorOrAdmin && <ModerationPanel />}
     </div>
   );
 }

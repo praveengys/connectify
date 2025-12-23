@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import type { UserProfile } from '@/hooks/use-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -9,10 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MessageSquare, Users, Settings, Edit, Eye, EyeOff } from 'lucide-react';
+import { Edit, Eye, EyeOff, Globe, Languages, Lightbulb, MapPin, Briefcase } from 'lucide-react';
 import ProfileForm from './ProfileForm';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Progress } from '@/components/ui/progress';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -45,27 +45,40 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
     }
   };
 
-  const navItems = [
-    { name: 'Discussions', icon: MessageSquare, future: true },
-    { name: 'Groups / Chats', icon: Users, future: true },
-    { name: 'Settings', icon: Settings, future: true },
-  ];
+  const getProfileCompleteness = (profile: UserProfile): number => {
+    let score = 0;
+    if (profile.username) score += 15;
+    if (profile.bio) score += 20;
+    if (profile.avatarUrl) score += 15;
+    if (profile.interests && profile.interests.length > 0) score += 15;
+    if (profile.skills && profile.skills.length > 0) score += 10;
+    if (profile.location) score += 10;
+    if (profile.languages && profile.languages.length > 0) score += 5;
+    if (profile.currentlyExploring) score += 10;
+    return Math.min(score, 100);
+  };
+  
+  const completeness = getProfileCompleteness(user);
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <Card>
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20 border-2 border-primary">
-              <AvatarImage src={user.photoURL ?? undefined} alt={user.name ?? 'User'} />
-              <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-card p-6">
+          <div className="flex items-center gap-6">
+            <Avatar className="h-24 w-24 border-4 border-primary">
+              <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? 'User'} />
+              <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-3xl font-bold">Welcome, {user.name}!</CardTitle>
-              <CardDescription>{user.email}</CardDescription>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-3xl font-bold">{user.displayName}</CardTitle>
+                <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'} className="capitalize">{user.role}</Badge>
+              </div>
+              <CardDescription className="text-base">@{user.username || 'username_not_set'}</CardDescription>
+              <p className="mt-2 text-muted-foreground">{user.bio || 'No bio yet.'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleVisibilityToggle} className="gap-2">
               {user.profileVisibility === 'public' ? <Eye size={16} /> : <EyeOff size={16} />}
               {user.profileVisibility === 'public' ? 'Public' : 'Private'}
@@ -85,20 +98,53 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
             </Dialog>
           </div>
         </CardHeader>
-        <Separator />
-        <CardContent className="pt-6">
-          <h3 className="text-lg font-semibold mb-4">Your Workspace</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {navItems.map((item) => (
-              <Card key={item.name} className="flex flex-col items-center justify-center p-6 text-center bg-secondary/50 hover:bg-secondary transition-colors">
-                <item.icon className="h-10 w-10 text-muted-foreground mb-2" />
-                <p className="font-medium text-foreground">{item.name}</p>
-                {item.future && <Badge variant="outline" className="mt-2">Coming Soon</Badge>}
-              </Card>
-            ))}
+        
+        {completeness < 100 && (
+          <div className="border-t border-b bg-secondary/30 px-6 py-3">
+              <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Profile Completeness</p>
+                  <p className="text-sm font-bold text-primary">{completeness}%</p>
+              </div>
+              <Progress value={completeness} className="mt-2 h-2" />
+              {completeness < 40 && <p className="text-xs text-muted-foreground mt-2">Complete your profile to unlock all community features!</p>}
+          </div>
+        )}
+
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-6">
+            <InfoSection icon={Briefcase} title="Skills">
+              {user.skills?.length > 0 ? user.skills.map(skill => <Badge key={skill} variant="outline">{skill}</Badge>) : <p className="text-sm text-muted-foreground">No skills listed.</p>}
+            </InfoSection>
+            <InfoSection icon={Lightbulb} title="Interests">
+              {user.interests?.length > 0 ? user.interests.map(interest => <Badge key={interest} variant="outline">{interest}</Badge>) : <p className="text-sm text-muted-foreground">No interests listed.</p>}
+            </InfoSection>
+          </div>
+
+          <div className="space-y-6">
+            <InfoSection icon={Globe} title="Currently Exploring">
+              <p className="text-sm">{user.currentlyExploring || 'Not specified'}</p>
+            </InfoSection>
+            <InfoSection icon={MapPin} title="Location">
+              <p className="text-sm">{user.location || 'Not specified'}</p>
+            </InfoSection>
+            <InfoSection icon={Languages} title="Languages">
+              {user.languages?.length > 0 ? user.languages.map(lang => <Badge key={lang} variant="secondary">{lang}</Badge>) : <p className="text-sm text-muted-foreground">No languages listed.</p>}
+            </InfoSection>
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+const InfoSection = ({ icon: Icon, title, children }: { icon: React.ElementType, title: string, children: React.ReactNode }) => (
+  <div>
+    <h3 className="text-md font-semibold flex items-center gap-2 mb-3 text-muted-foreground">
+      <Icon size={18} />
+      <span>{title}</span>
+    </h3>
+    <div className="flex flex-wrap gap-2">
+      {children}
+    </div>
+  </div>
+);

@@ -8,13 +8,24 @@ import { useUser } from '@/firebase';
 
 export interface UserProfile {
   uid: string;
-  email: string | null;
-  name: string | null;
-  photoURL: string | null;
-  authProvider: string;
+  username: string;
+  displayName: string;
+  bio: string;
+  avatarUrl: string | null;
+  interests: string[];
+  skills: string[];
+  languages: string[];
+  location: string;
+  currentlyExploring: string;
+  role: 'member' | 'moderator' | 'admin';
   profileVisibility: 'public' | 'private';
+  emailVerified: boolean;
+  profileScore: number;
+  postCount: number;
+  commentCount: number;
   createdAt: Date;
   updatedAt: Date;
+  lastActiveAt: Date;
 }
 
 interface AuthContextType {
@@ -37,11 +48,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!profile) {
           const newUserProfileData = {
             uid: fbUser.uid,
+            displayName: fbUser.displayName || 'New Member',
             email: fbUser.email,
-            name: fbUser.displayName,
-            photoURL: fbUser.photoURL,
+            emailVerified: fbUser.emailVerified,
+            avatarUrl: fbUser.photoURL,
             authProvider: fbUser.providerData[0]?.providerId || 'password',
             profileVisibility: 'public' as 'public' | 'private',
+            role: 'member' as 'member',
+            username: '',
+            bio: '',
+            interests: [],
+            skills: [],
+            languages: [],
+            location: '',
+            currentlyExploring: '',
+            profileScore: 0,
+            postCount: 0,
+            commentCount: 0,
           };
           await createUserProfile(fbUser.uid, newUserProfileData);
           profile = await getUserProfile(fbUser.uid);

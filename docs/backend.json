@@ -6,53 +6,104 @@
       "type": "object",
       "description": "Represents a user profile in the Connectify Hub community platform.",
       "properties": {
-        "id": {
+        "uid": {
           "type": "string",
-          "description": "Unique identifier for the user entity."
+          "description": "The unique identifier for the user, matching their Firebase Auth UID."
         },
-        "name": {
+        "username": {
           "type": "string",
-          "description": "The user's full name."
+          "description": "A unique, immutable community handle for the user."
         },
-        "email": {
+        "displayName": {
           "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
+          "description": "The user's display name."
         },
-        "photoURL": {
+        "bio": {
           "type": "string",
-          "description": "URL of the user's profile photo. Can be null.",
-          "format": "uri"
+          "description": "A short, personal biography for the user."
         },
-        "authProvider": {
+        "avatarUrl": {
           "type": "string",
-          "description": "The authentication provider used by the user (e.g., 'email', 'google')."
+          "format": "uri",
+          "description": "URL of the user's profile photo or avatar."
         },
-        "profileVisibility": {
-          "type": "string",
-          "description": "The visibility setting of the user's profile ('public' or 'private').",
-          "format": "enum",
+        "interests": {
+          "type": "array",
+          "description": "A list of the user's interests or topics.",
           "items": {
             "type": "string"
           }
         },
+        "skills": {
+          "type": "array",
+          "description": "A list of the user's skills (can be professional or hobby-level).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "languages": {
+          "type": "array",
+          "description": "A list of languages the user speaks.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "location": {
+          "type": "string",
+          "description": "The user's city or country."
+        },
+        "currentlyExploring": {
+          "type": "string",
+          "description": "A short free-text field about what the user is currently learning or exploring."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role in the community.",
+          "enum": ["member", "moderator", "admin"]
+        },
+        "profileVisibility": {
+          "type": "string",
+          "description": "The visibility setting of the user's profile.",
+          "enum": ["public", "private"]
+        },
+        "emailVerified": {
+          "type": "boolean",
+          "description": "Indicates if the user has verified their email address."
+        },
+        "profileScore": {
+          "type": "number",
+          "description": "A calculated score representing profile completeness."
+        },
+        "postCount": {
+          "type": "number",
+          "description": "The number of posts the user has created."
+        },
+        "commentCount": {
+          "type": "number",
+          "description": "The number of replies the user has made."
+        },
         "createdAt": {
           "type": "string",
-          "description": "Timestamp indicating when the user profile was created.",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Timestamp indicating when the user profile was created."
         },
         "updatedAt": {
           "type": "string",
-          "description": "Timestamp indicating when the user profile was last updated.",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Timestamp indicating when the user profile was last updated."
+        },
+        "lastActiveAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the user's last activity."
         }
       },
       "required": [
-        "id",
-        "name",
-        "email",
-        "authProvider",
+        "uid",
+        "displayName",
+        "role",
         "profileVisibility",
+        "emailVerified",
         "createdAt",
         "updatedAt"
       ]
@@ -61,7 +112,8 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google.com"
     ]
   },
   "firestore": {
@@ -73,7 +125,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile data.  Authorization is based on path-based ownership (user can only access their own document). Includes 'profileVisibility' field to determine public or private access.",
+          "description": "Stores user profile data. Authorization is based on path-based ownership (user can only access their own document). Includes 'profileVisibility' field to determine public or private access.",
           "params": [
             {
               "name": "userId",
@@ -99,6 +151,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, DBAC, and QAPs. The core principle is path-based ownership for user data, simplifying security rules and eliminating the need for `get()` calls within the rules. The `/users/{userId}` collection stores user profiles. Profile visibility (`public` or `private`) is directly stored in the user document to facilitate QAPs (list operation security).  Since there are no collaborative documents, the membership map pattern is not applicable here.  This design ensures that all documents in a given collection share the same security posture, aiding in debuggability and maintainability. The structure directly supports the application requirements for secure user profiles and access control based on authentication and profile visibility."
+    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, DBAC, and QAPs. The core principle is path-based ownership for user data, simplifying security rules and eliminating the need for `get()` calls within the rules. The `/users/{userId}` collection stores user profiles. Profile visibility (`public` or `private`) is directly stored in the user document to facilitate QAPs (list operation security). This design ensures that all documents in a given collection share the same security posture. The structure directly supports the application requirements for secure user profiles and access control based on authentication and profile visibility."
   }
 }

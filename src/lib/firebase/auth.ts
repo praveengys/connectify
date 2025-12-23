@@ -11,19 +11,22 @@ import {
   sendPasswordResetEmail,
   type User,
 } from 'firebase/auth';
-import { auth } from './config';
+import { getAuth } from 'firebase/auth';
+import { app } from './config';
 import { createUserProfile } from './firestore';
 
+const auth = getAuth(app);
+
 // Sign up with email and password
-export async function signUpWithEmail(email: string, password: string, name: string) {
+export async function signUpWithEmail(email: string, password: string, displayName: string) {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    await updateProfile(user, { displayName: name });
+    await updateProfile(user, { displayName });
     
     // Create user profile in Firestore
     await createUserProfile(user.uid, {
-        name,
+        displayName,
         email,
         authProvider: 'password',
         profileVisibility: 'public',
@@ -54,9 +57,9 @@ export async function signInWithGoogle() {
     
     // On first sign-in, this will create the profile.
     await createUserProfile(user.uid, {
-        name: user.displayName,
+        displayName: user.displayName,
         email: user.email,
-        photoURL: user.photoURL,
+        avatarUrl: user.photoURL,
         authProvider: 'google.com',
         profileVisibility: 'public',
     });

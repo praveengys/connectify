@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { Category, Thread, UserProfile } from '@/lib/types';
+import type { Category, Thread, UserProfile, Forum } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Loader2, MessageSquare, ServerCrash } from 'lucide-react';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ import { getUserProfile } from '@/lib/firebase/firestore';
 import { Badge } from '../ui/badge';
 
 export default function ForumClient() {
+  const [forums, setForums] = useState<Forum[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [authors, setAuthors] = useState<Record<string, UserProfile>>({});
@@ -25,6 +26,17 @@ export default function ForumClient() {
       try {
         const { firestore } = initializeFirebase();
         
+        // Fetch active, public forums
+        const forumsQuery = query(
+            collection(firestore, 'forums'),
+            where('status', '==', 'active'),
+            where('visibility', '==', 'public'),
+            orderBy('createdAt', 'desc')
+        );
+        const forumsSnapshot = await getDocs(forumsQuery);
+        const forumsData = forumsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum));
+        setForums(forumsData);
+
         // Fetch categories
         const categoriesSnapshot = await getDocs(collection(firestore, 'categories'));
         const categoriesData = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
@@ -115,9 +127,12 @@ export default function ForumClient() {
                     <Link href={`/forum/threads/${thread.id}`}>
                       <h3 className="font-semibold text-lg hover:text-primary">{thread.title}</h3>
                     </Link>
-                    <p className="text-sm text-muted-foreground">
-                      Started by {authors[thread.authorId]?.displayName ?? '...'} · {formatDistanceToNow(thread.createdAt, { addSuffix: true })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="capitalize">{thread.intent}</Badge>
+                      <p className="text-sm text-muted-foreground">
+                        Started by {authors[thread.authorId]?.displayName ?? '...'} · {formatDistanceToNow(thread.createdAt, { addSuffix: true })}
+                      </p>
+                    </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                         {thread.tags?.map(tag => (
                             <Badge key={tag} variant="secondary">{tag}</Badge>
@@ -141,8 +156,31 @@ export default function ForumClient() {
           </div>
         </div>
 
-        {/* Sidebar: Categories */}
-        <div className="md:col-span-1">
+        {/* Sidebar: Categories & Forums */}
+        <div className="md:col-span-1 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Forums</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {forums.length > 0 ? (
+                    <ul className="space-y-2">
+                        {forums.map(forum => (
+                        <li key={forum.id}>
+                            <Link href={`/forum/${forum.id}`}>
+                            <div className="p-3 rounded-md hover:bg-secondary">
+                                <p className="font-semibold">{forum.name}</p>
+                                <p className="text-sm text-muted-foreground line-clamp-2">{forum.description}</p>
+                            </div>
+                            </Link>
+                        </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-sm text-muted-foreground">No active forums.</p>
+                )}
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Categories</CardTitle>

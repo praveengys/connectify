@@ -1,12 +1,24 @@
 import { type Timestamp } from 'firebase/firestore';
 
+export type Forum = {
+  id: string;
+  name: string;
+  description: string;
+  createdBy: string;
+  visibility: 'public' | 'private';
+  status: 'active' | 'under_review' | 'suspended';
+  createdAt: Timestamp | Date;
+};
+
 export type Thread = {
   id: string;
   title: string;
   body: string;
+  intent: 'question' | 'discussion' | 'announcement' | 'feedback' | 'help';
   authorId: string;
   author?: UserProfile; // Optional: denormalized author data
   categoryId: string;
+  forumId: string;
   tags: string[];
   status: 'published' | 'hidden' | 'deleted';
   isLocked: boolean;
@@ -15,6 +27,7 @@ export type Thread = {
   latestReplyAt: Timestamp | Date | null;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
+  moderatorNotes?: string;
   moderation?: {
     status: 'clean' | 'under_review' | 'action_taken';
     moderatorId: string;
@@ -30,6 +43,7 @@ export type Reply = {
   author?: UserProfile; // Optional: denormalized author data
   status: 'published' | 'hidden' | 'deleted';
   createdAt: Timestamp | Date;
+  moderatorNotes?: string;
   moderation?: {
     status: 'clean' | 'under_review' | 'action_taken';
     moderatorId: string;

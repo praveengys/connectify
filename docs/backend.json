@@ -24,6 +24,20 @@
       },
       "required": ["uid", "displayName", "role", "profileVisibility", "emailVerified", "createdAt", "updatedAt"]
     },
+    "Forum": {
+      "title": "Forum",
+      "type": "object",
+      "description": "A user-created container for discussion threads.",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdBy": { "type": "string", "description": "UID of the user who created the forum." },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "status": { "type": "string", "enum": ["active", "under_review", "suspended"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "description", "createdBy", "visibility", "status", "createdAt"]
+    },
     "Thread": {
       "title": "Thread",
       "type": "object",
@@ -31,8 +45,10 @@
       "properties": {
         "title": { "type": "string" },
         "body": { "type": "string" },
+        "intent": { "type": "string", "enum": ["question", "discussion", "announcement", "feedback", "help"] },
         "authorId": { "type": "string" },
         "categoryId": { "type": "string" },
+        "forumId": { "type": "string" },
         "tags": { "type": "array", "items": { "type": "string" } },
         "status": { "type": "string", "enum": ["published", "hidden", "deleted"] },
         "isLocked": { "type": "boolean" },
@@ -40,9 +56,10 @@
         "replyCount": { "type": "number" },
         "latestReplyAt": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "moderatorNotes": { "type": "string", "description": "Internal notes for moderators." }
       },
-      "required": ["title", "body", "authorId", "categoryId", "status", "isLocked", "isPinned", "createdAt", "updatedAt"]
+      "required": ["title", "body", "intent", "authorId", "categoryId", "forumId", "status", "isLocked", "isPinned", "createdAt", "updatedAt"]
     },
     "Reply": {
       "title": "Reply",
@@ -53,7 +70,8 @@
         "body": { "type": "string" },
         "authorId": { "type": "string" },
         "status": { "type": "string", "enum": ["published", "hidden", "deleted"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "moderatorNotes": { "type": "string", "description": "Internal notes for moderators." }
       },
       "required": ["threadId", "body", "authorId", "status", "createdAt"]
     },
@@ -116,6 +134,10 @@
        {
         "path": "/roles_moderator/{userId}",
         "definition": { "description": "Stores moderator roles. Existence of document dictates moderator role." }
+      },
+      {
+        "path": "/forums/{forumId}",
+        "definition": { "entityName": "Forum", "schema": { "$ref": "#/entities/Forum" } }
       },
       {
         "path": "/threads/{threadId}",

@@ -54,7 +54,23 @@ service cloud.firestore {
     }
     
     /* ---------- Forum Rules ---------- */
-    
+    match /forums/{forumId} {
+      // READ: Public can see active forums. Owners/mods/admins can see their own under-review/suspended forums.
+      allow get: if (resource.data.status == 'active' && resource.data.visibility == 'public') || isOwner(resource.data.createdBy) || isModeratorOrAdmin();
+      allow list: if isSignedIn(); // Client must filter by status == 'active' and visibility == 'public'
+
+      // CREATE: Any signed-in user can submit a forum for review.
+      allow create: if isSignedIn()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.status == 'under_review';
+
+      // UPDATE: Only moderators/admins can activate, suspend, or update forums.
+      allow update: if isModeratorOrAdmin();
+
+      // DELETE: No client-side deletes.
+      allow delete: if false;
+    }
+
     match /threads/{threadId} {
 
       /* READ */
@@ -87,7 +103,7 @@ service cloud.firestore {
           // Moderator / Admin updates
           isModeratorOrAdmin() &&
           request.resource.data.diff(resource.data).changedKeys()
-            .hasOnly(['status', 'isPinned', 'isLocked', 'updatedAt'])
+            .hasOnly(['status', 'isPinned', 'isLocked', 'updatedAt', 'moderatorNotes'])
         );
 
       /* DELETE (SOFT ONLY) */
@@ -122,7 +138,7 @@ service cloud.firestore {
         (
           isModeratorOrAdmin() &&
           request.resource.data.diff(resource.data).changedKeys()
-            .hasOnly(['status', 'updatedAt'])
+            .hasOnly(['status', 'updatedAt', 'moderatorNotes'])
         );
 
       /* DELETE */

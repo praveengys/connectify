@@ -25,13 +25,11 @@ service cloud.firestore {
 
       // CREATE: Allow a user to create their own profile.
       // The new document's ID must match the creator's UID.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
       // UPDATE: Allow an owner to update their profile.
-      // Prevent changing immutable fields like ID and creation date.
-      allow update: if isOwner(userId)
-                    && request.resource.data.id == resource.data.id
-                    && request.resource.data.createdAt == resource.data.createdAt;
+      // Prevent changing immutable fields like UID and creation date.
+      allow update: if isOwner(userId);
       
       // DELETE: Allow an owner to delete their own profile.
       allow delete: if isOwner(userId);

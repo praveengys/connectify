@@ -137,7 +137,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         <Button
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
-          disabled={photoLoading}
+          disabled={photoLoading || !user?.uid}
         >
           {photoLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

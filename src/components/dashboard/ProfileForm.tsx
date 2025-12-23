@@ -99,10 +99,10 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
           title: 'Success',
           description: 'Profile photo updated.',
         });
-      } catch (error) {
+      } catch (error: any) {
         toast({
           title: 'Upload Failed',
-          description: 'Could not upload your profile photo.',
+          description: error.message || 'Could not upload your profile photo. Please try again.',
           variant: 'destructive',
         });
       }

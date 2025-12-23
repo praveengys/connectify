@@ -12,8 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload } from 'lucide-react';
 import type { UserProfile } from '@/hooks/use-auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
-import { uploadProfilePhoto } from '@/lib/firebase/storage';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { uploadPhoto } from '@/lib/actions';
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
@@ -86,7 +86,11 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     if (file) {
       setPhotoLoading(true);
       try {
-        const avatarUrl = await uploadProfilePhoto(user.uid, file);
+        const formData = new FormData();
+        formData.append('photo', file);
+        const result: any = await uploadPhoto(formData);
+        const avatarUrl = result.secure_url;
+        
         await updateUserProfile(user.uid, { avatarUrl });
         const updatedUser = { ...user, avatarUrl };
         onUpdate(updatedUser);

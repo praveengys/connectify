@@ -87,31 +87,31 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      setPhotoLoading(true);
-      try {
-        const formData = new FormData();
-        formData.append('photo', file);
-        const result: any = await uploadPhoto(formData);
-        const avatarUrl = result.secure_url;
-        
-        await updateUserProfile(user.uid, { avatarUrl });
-        const updatedUser = { ...user, avatarUrl };
-        onUpdate(updatedUser);
-        setPreviewUrl(avatarUrl);
-        toast({
-          title: 'Success',
-          description: 'Profile photo updated.',
-        });
-      } catch (error: any) {
-        toast({
-          title: 'Upload Failed',
-          description: error.message || 'Could not upload your profile photo. Please try again.',
-          variant: 'destructive',
-        });
-      }
-      setPhotoLoading(false);
+    if (!file) return;
+
+    setPhotoLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const result: any = await uploadPhoto(formData);
+      const avatarUrl = result.secure_url;
+      
+      await updateUserProfile(user.uid, { avatarUrl });
+      const updatedUser = { ...user, avatarUrl };
+      onUpdate(updatedUser);
+      setPreviewUrl(avatarUrl);
+      toast({
+        title: 'Success',
+        description: 'Profile photo updated.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Upload Failed',
+        description: error.message || 'Could not upload your profile photo. Please try again.',
+        variant: 'destructive',
+      });
     }
+    setPhotoLoading(false);
   };
 
   return (

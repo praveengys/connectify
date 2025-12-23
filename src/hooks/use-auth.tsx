@@ -3,7 +3,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { createUserProfile, getUserProfile } from '@/lib/firebase/firestore';
-import { Loader2 } from 'lucide-react';
 import { useUser } from '@/firebase';
 
 export interface UserProfile {
@@ -43,6 +42,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // This function handles the logic for a signed-in user
     const handleSignedInUser = async (fbUser: User) => {
+      // Ensure we don't re-fetch if the profile is already loaded for the current user
+      if (userProfile?.uid === fbUser.uid) {
+        setLoading(false);
+        return;
+      }
+      
       let profile = await getUserProfile(fbUser.uid);
 
       if (!profile) {
@@ -80,15 +85,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     };
 
+    // Always show loading state while the initial Firebase user check is running
     if (isUserLoading) {
-      // If the initial auth state check is still running, do nothing and wait.
       setLoading(true);
       return;
     }
 
     if (firebaseUser) {
+      // We have a firebase user, now fetch their profile. `handleSignedInUser` will set loading to false.
+      setLoading(true);
       handleSignedInUser(firebaseUser);
     } else {
+      // No firebase user, we are done loading.
       handleSignedOutUser();
     }
   }, [firebaseUser, isUserLoading]);

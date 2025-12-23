@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -38,6 +38,12 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const [previewUrl, setPreviewUrl] = useState<string | null>(user.avatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Keep the preview URL in sync with the user prop from the parent.
+    // This ensures that if the parent's avatarUrl changes, the preview updates.
+    setPreviewUrl(user.avatarUrl);
+  }, [user.avatarUrl]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -112,6 +118,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         await updateUserProfile(user.uid, { avatarUrl });
         const updatedUser = { ...user, avatarUrl };
         onUpdate(updatedUser);
+        // The useEffect will now handle setting the previewUrl, but we can set it here for immediate feedback too.
         setPreviewUrl(avatarUrl);
         toast({
           title: 'Success',

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, orderBy, query, limit } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, limit, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Category, Thread, UserProfile, Forum } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -45,6 +45,7 @@ export default function ForumClient() {
         // Fetch recent threads - MUST filter by status to comply with security rules
         const threadsQuery = query(
             collection(firestore, 'threads'), 
+            where('status', '==', 'published'),
             orderBy('createdAt', 'desc'), 
             limit(10)
         );
@@ -54,7 +55,7 @@ export default function ForumClient() {
           ...doc.data(),
           createdAt: doc.data().createdAt.toDate(),
           latestReplyAt: doc.data().latestReplyAt?.toDate(),
-        } as Thread)).filter(thread => thread.status === 'published');
+        } as Thread));
         setThreads(threadsData);
 
         // Fetch authors for threads

@@ -49,7 +49,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 // Update a user profile document
 export async function updateUserProfile(uid: string | undefined, data: Partial<UserProfile>) {
     if (!uid) {
-        throw new Error('updateUserProfile called without a valid uid');
+        return Promise.reject(new Error('updateUserProfile called without a valid uid'));
     }
     try {
         const userRef = doc(db, 'users', uid);
@@ -62,3 +62,5 @@ export async function updateUserProfile(uid: string | undefined, data: Partial<U
         throw error;
     }
 }
+
+    

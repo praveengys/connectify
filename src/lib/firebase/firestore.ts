@@ -1,5 +1,5 @@
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import type { UserProfile } from '@/hooks/use-auth';
 import { initializeFirebase } from '@/firebase';
 
@@ -63,4 +63,31 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
         console.error("Error updating user profile: ", error);
         throw error;
     }
+}
+
+// Get all public user profiles
+export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]> {
+  try {
+    const usersRef = collection(firestore, 'users');
+    const q = query(
+      usersRef,
+      where('profileVisibility', '==', 'public'),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+      } as UserProfile;
+    });
+  } catch (error) {
+    console.error('Error fetching public profiles:', error);
+    // Depending on the app's needs, you might want to throw the error
+    // or return an empty array. Returning an empty array for now.
+    return [];
+  }
 }

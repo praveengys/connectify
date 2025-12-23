@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { LayoutDashboard, LogOut, User as UserIcon } from 'lucide-react';
+import { LayoutDashboard, LogOut, User as UserIcon, Users } from 'lucide-react';
 import ProfileCard from './auth/ProfileCard';
 
 export default function Header() {
@@ -32,6 +32,14 @@ export default function Header() {
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <span className="font-bold font-headline sm:inline-block">Connectify Hub</span>
           </Link>
+          <nav className="flex items-center space-x-6 text-sm font-medium">
+            <Link
+              href="/members"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              Members
+            </Link>
+          </nav>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
           <nav className="flex items-center">

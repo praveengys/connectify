@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-community",
+      "description": "A diverse group of people collaborating and connecting.",
+      "imageUrl": "https://images.unsplash.com/photo-1564368587612-f303d38c9063?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjb21tdW5pdHklMjBjb25uZWN0aW9ufGVufDB8fHx8MTc2NjQ3MTM5OXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "community connection"
+    },
+    {
+      "id": "default-avatar",
+      "description": "A generic user avatar placeholder.",
+      "imageUrl": "https://images.unsplash.com/photo-1630910561339-4e22c7150093?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBhdmF0YXJ8ZW58MHx8fHwxNzY2MzcxMjg5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person avatar"
+    }
+  ]
 }

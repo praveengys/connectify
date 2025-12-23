@@ -1,0 +1,18 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read their own document or any public document.
+    // Users can only create, update, or delete their own document.
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || resource.data.profileVisibility == 'public');
+      allow create, update, delete: if request.auth.uid == userId;
+    }
+
+    // Explicitly deny any other reads or writes in the database.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

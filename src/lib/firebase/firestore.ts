@@ -1,3 +1,4 @@
+
 import { db } from './config';
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData } from 'firebase/firestore';
 import type { UserProfile } from '@/hooks/use-auth';
@@ -5,8 +6,10 @@ import type { UserProfile } from '@/hooks/use-auth';
 // Create a new user profile document in Firestore
 export async function createUserProfile(uid: string, data: Partial<UserProfile>) {
   try {
+    // Add the user's UID to the data object to satisfy security rules.
     await setDoc(doc(db, 'users', uid), {
       ...data,
+      id: uid, // This field is required by the security rules.
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }, { merge: true });

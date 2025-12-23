@@ -5,14 +5,25 @@ import type { UserProfile } from '@/hooks/use-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Edit, Eye, EyeOff, Globe, Languages, Lightbulb, MapPin, Briefcase } from 'lucide-react';
+import { Edit, Eye, EyeOff, Globe, Languages, Lightbulb, MapPin, Briefcase, Check } from 'lucide-react';
 import ProfileForm from './ProfileForm';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import { Label } from './ui/label';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -27,7 +38,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
     setUser(updatedUser);
   };
   
-  const handleVisibilityToggle = async () => {
+  const handleVisibilityChange = async (newVisibility: 'public' | 'private') => {
     if (!user?.uid) {
       toast({
         title: 'Error',
@@ -36,7 +47,8 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
       });
       return;
     }
-    const newVisibility = user.profileVisibility === 'public' ? 'private' : 'public';
+    if (user.profileVisibility === newVisibility) return;
+
     try {
       await updateUserProfile(user.uid, { profileVisibility: newVisibility });
       setUser({ ...user, profileVisibility: newVisibility });
@@ -87,10 +99,33 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleVisibilityToggle} className="gap-2" disabled={!user?.uid}>
-              {user.profileVisibility === 'public' ? <Eye size={16} /> : <EyeOff size={16} />}
-              {user.profileVisibility === 'public' ? 'Public' : 'Private'}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  {user.profileVisibility === 'public' ? <Eye size={16} /> : <EyeOff size={16} />}
+                  <span className="capitalize">{user.profileVisibility}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuLabel>Profile Visibility</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={user.profileVisibility} onValueChange={(value) => handleVisibilityChange(value as 'public' | 'private')}>
+                  <DropdownMenuRadioItem value="public">
+                    <div className="flex items-center justify-between w-full">
+                        <span>Public</span>
+                        <Eye className="mr-2 h-4 w-4" />
+                    </div>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="private">
+                    <div className="flex items-center justify-between w-full">
+                        <span>Private</span>
+                        <EyeOff className="mr-2 h-4 w-4" />
+                    </div>
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2">

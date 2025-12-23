@@ -5,6 +5,10 @@ import type { UserProfile } from '@/hooks/use-auth';
 
 // Create a new user profile document in Firestore
 export async function createUserProfile(uid: string, data: Partial<UserProfile>) {
+  if (!uid) {
+    console.error("createUserProfile called without a valid uid");
+    return;
+  }
   try {
     // Add the user's UID to the data object to satisfy security rules.
     await setDoc(doc(db, 'users', uid), {
@@ -43,7 +47,10 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 // Update a user profile document
-export async function updateUserProfile(uid: string, data: Partial<UserProfile>) {
+export async function updateUserProfile(uid: string | undefined, data: Partial<UserProfile>) {
+    if (!uid) {
+        throw new Error('updateUserProfile called without a valid uid');
+    }
     try {
         const userRef = doc(db, 'users', uid);
         await updateDoc(userRef, {

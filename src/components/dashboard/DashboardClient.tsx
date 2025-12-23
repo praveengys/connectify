@@ -28,6 +28,14 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
   };
   
   const handleVisibilityToggle = async () => {
+    if (!user?.uid) {
+      toast({
+        title: 'Error',
+        description: 'User information not available yet. Please try again in a moment.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const newVisibility = user.profileVisibility === 'public' ? 'private' : 'public';
     try {
       await updateUserProfile(user.uid, { profileVisibility: newVisibility });
@@ -79,7 +87,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleVisibilityToggle} className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleVisibilityToggle} className="gap-2" disabled={!user?.uid}>
               {user.profileVisibility === 'public' ? <Eye size={16} /> : <EyeOff size={16} />}
               {user.profileVisibility === 'public' ? 'Public' : 'Private'}
             </Button>

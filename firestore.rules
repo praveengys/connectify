@@ -29,7 +29,10 @@ service cloud.firestore {
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
       // UPDATE: Allow an owner to update their own profile.
-      allow update: if isOwner(userId);
+      // Do not allow them to change their UID or role.
+      allow update: if isOwner(userId) 
+                    && request.resource.data.uid == resource.data.uid
+                    && request.resource.data.role == resource.data.role;
       
       // DELETE: Allow an owner to delete their own profile.
       allow delete: if isOwner(userId);

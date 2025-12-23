@@ -2,16 +2,12 @@
 
 import { useState } from 'react';
 import type { UserProfile } from '@/hooks/use-auth';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Edit, Eye, EyeOff, Globe, Languages, Lightbulb, MapPin, Briefcase, Check, User, Mail, Calendar, TrendingUp } from 'lucide-react';
+import { Edit, Globe, Languages, Lightbulb, MapPin, Briefcase } from 'lucide-react';
 import ProfileForm from './ProfileForm';
-import { updateUserProfile } from '@/lib/firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +17,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Eye, EyeOff } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { updateUserProfile } from '@/lib/firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
+import { Progress } from '../ui/progress';
+import ProfileCard from '../auth/ProfileCard';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -48,7 +49,6 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
         description: `Your profile is now ${newVisibility}.`,
       });
     } catch (error) {
-      console.error('Visibility update failed:', error);
       toast({
         title: 'Error',
         description: 'Failed to update profile visibility.',
@@ -89,22 +89,13 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
   return (
     <div className="container mx-auto p-4 md:p-8">
       <Card className="overflow-hidden">
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-card p-6">
-          <div className="flex items-center gap-6">
-            <Avatar className="h-24 w-24 border-4 border-primary">
-              <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? 'User'} />
-              <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
+        <CardHeader className="bg-card p-6">
+          <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-3xl font-bold">{user.displayName}</CardTitle>
-                <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'} className="capitalize">{user.role}</Badge>
-              </div>
-              <CardDescription className="text-base text-muted-foreground">@{user.username || 'username_not_set'}</CardDescription>
-              <p className="mt-2 max-w-xl text-muted-foreground">{user.bio || 'No bio yet. Click "Edit Profile" to add one.'}</p>
+              <CardTitle className="text-2xl font-bold">Dashboard</CardTitle>
+              <CardDescription>Welcome back, {user.displayName}. Here's what's new.</CardDescription>
             </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
+             <div className="flex shrink-0 items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
@@ -146,6 +137,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
               </DialogContent>
             </Dialog>
           </div>
+          </div>
         </CardHeader>
         
         {completeness < 100 && (
@@ -160,29 +152,26 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
         )}
 
         <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6">
-            <InfoSection icon={Briefcase} title="Skills">
-              {user.skills?.length > 0 ? user.skills.map(skill => <Badge key={skill} variant="outline">{skill}</Badge>) : <p className="text-sm text-muted-foreground">No skills listed.</p>}
-            </InfoSection>
-            <InfoSection icon={Lightbulb} title="Interests">
-              {user.interests?.length > 0 ? user.interests.map(interest => <Badge key={interest} variant="outline">{interest}</Badge>) : <p className="text-sm text-muted-foreground">No interests listed.</p>}
-            </InfoSection>
-             <InfoSection icon={Globe} title="Currently Exploring">
-              <p className="text-sm">{user.currentlyExploring || 'Not specified'}</p>
-            </InfoSection>
-          </div>
-
-          <div className="space-y-6">
-            <InfoSection icon={MapPin} title="Location">
-              <p className="text-sm">{user.location || 'Not specified'}</p>
-            </InfoSection>
-            <InfoSection icon={Languages} title="Languages">
-              {user.languages?.length > 0 ? user.languages.map(lang => <Badge key={lang} variant="secondary">{lang}</Badge>) : <p className="text-sm text-muted-foreground">No languages listed.</p>}
-            </InfoSection>
-            <InfoSection icon={Calendar} title="Member Since">
-              <p className="text-sm">{user.createdAt ? formatDistanceToNow(user.createdAt, { addSuffix: true }) : 'N/A'}</p>
-            </InfoSection>
-          </div>
+           <div className="md:col-span-3 space-y-6">
+             <h3 className="text-lg font-semibold">Your Information</h3>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InfoSection icon={Briefcase} title="Skills">
+                  {user.skills?.length > 0 ? user.skills.map(skill => <Badge key={skill} variant="outline">{skill}</Badge>) : <p className="text-sm text-muted-foreground">No skills listed.</p>}
+                </InfoSection>
+                <InfoSection icon={Lightbulb} title="Interests">
+                  {user.interests?.length > 0 ? user.interests.map(interest => <Badge key={interest} variant="outline">{interest}</Badge>) : <p className="text-sm text-muted-foreground">No interests listed.</p>}
+                </InfoSection>
+                 <InfoSection icon={Globe} title="Currently Exploring">
+                  <p className="text-sm">{user.currentlyExploring || 'Not specified'}</p>
+                </InfoSection>
+                 <InfoSection icon={MapPin} title="Location">
+                  <p className="text-sm">{user.location || 'Not specified'}</p>
+                </InfoSection>
+                <InfoSection icon={Languages} title="Languages">
+                  {user.languages?.length > 0 ? user.languages.map(lang => <Badge key={lang} variant="secondary">{lang}</Badge>) : <p className="text-sm text-muted-foreground">No languages listed.</p>}
+                </InfoSection>
+             </div>
+           </div>
         </CardContent>
       </Card>
     </div>

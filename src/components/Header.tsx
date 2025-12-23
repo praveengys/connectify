@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { LayoutDashboard, LogOut, User as UserIcon } from 'lucide-react';
+import ProfileCard from './auth/ProfileCard';
 
 export default function Header() {
   const { user, loading } = useAuth();
@@ -46,20 +47,17 @@ export default function Header() {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
-                  <div className="flex flex-col space-y-1 p-2">
-                    <p className="text-sm font-medium leading-none">{user.displayName}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                  </div>
+                <DropdownMenuContent className="w-80" align="end">
+                  <ProfileCard user={user} />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => router.push('/dashboard')}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-                      <UserIcon className="mr-2 h-4 w-4" />
-                      <span>Edit Profile</span>
-                    </DropdownMenuItem>
+                    <UserIcon className="mr-2 h-4 w-4" />
+                    <span>Edit Profile</span>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 h-4 w-4" />

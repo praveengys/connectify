@@ -1,16 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, orderBy, query, limit, where } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Category, Thread, UserProfile, Forum } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Loader2, MessageSquare, ServerCrash } from 'lucide-react';
+import { Loader2, MessageSquare, PlusCircle, ServerCrash } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { getUserProfile } from '@/lib/firebase/firestore';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import CreateForumForm from './CreateForumForm';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
 
 export default function ForumClient() {
   const [forums, setForums] = useState<Forum[]>([]);
@@ -19,6 +24,10 @@ export default function ForumClient() {
   const [authors, setAuthors] = useState<Record<string, UserProfile>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreateForumOpen, setCreateForumOpen] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,23 +35,17 @@ export default function ForumClient() {
       try {
         const { firestore } = initializeFirebase();
         
-        // Fetch all forums and filter/sort on the client
-        const forumsQuery = query(
-            collection(firestore, 'forums'),
-            orderBy('createdAt', 'desc')
-        );
+        const forumsQuery = query(collection(firestore, 'forums'), orderBy('createdAt', 'desc'));
         const forumsSnapshot = await getDocs(forumsQuery);
         const forumsData = forumsSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as Forum))
             .filter(forum => forum.status === 'active' && forum.visibility === 'public');
         setForums(forumsData);
 
-        // Fetch categories
         const categoriesSnapshot = await getDocs(collection(firestore, 'categories'));
         const categoriesData = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
         setCategories(categoriesData);
 
-        // Fetch recent threads - MUST filter by status to comply with security rules
         const threadsQuery = query(
             collection(firestore, 'threads'), 
             where('status', '==', 'published'),
@@ -58,7 +61,6 @@ export default function ForumClient() {
         } as Thread));
         setThreads(threadsData);
 
-        // Fetch authors for threads
         if (threadsData.length > 0) {
             const authorIds = [...new Set(threadsData.map(t => t.authorId))];
             const authorPromises = authorIds.map(id => getUserProfile(id));
@@ -82,6 +84,12 @@ export default function ForumClient() {
     fetchData();
   }, []);
 
+  const handleForumCreated = (newForum: Forum) => {
+    setCreateForumOpen(false);
+    // Optionally, you could show a toast or a confirmation message.
+    // For now, we just close the dialog. The forum will appear once approved by a moderator.
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -104,15 +112,22 @@ export default function ForumClient() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold">Community Forum</h1>
-        <p className="text-muted-foreground mt-2">
-          Ask questions, share knowledge, and connect with peers.
-        </p>
+      <div className="flex justify-between items-center mb-8">
+        <div className="text-center md:text-left">
+            <h1 className="text-4xl font-bold">Community Forum</h1>
+            <p className="text-muted-foreground mt-2">
+            Ask questions, share knowledge, and connect with peers.
+            </p>
+        </div>
+        {user && (
+            <Button onClick={() => router.push('/forum/threads/new')}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                New Discussion
+            </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        {/* Main Content: Recent Threads */}
         <div className="md:col-span-3">
           <h2 className="text-2xl font-bold mb-4">Recent Discussions</h2>
           <div className="space-y-4">
@@ -156,11 +171,26 @@ export default function ForumClient() {
           </div>
         </div>
 
-        {/* Sidebar: Categories & Forums */}
         <div className="md:col-span-1 space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Forums</CardTitle>
+              {user && (
+                 <Dialog open={isCreateForumOpen} onOpenChange={setCreateForumOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Create
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Create a new Forum</DialogTitle>
+                        </DialogHeader>
+                        <CreateForumForm onForumCreated={handleForumCreated} />
+                    </DialogContent>
+                 </Dialog>
+              )}
             </CardHeader>
             <CardContent>
                 {forums.length > 0 ? (

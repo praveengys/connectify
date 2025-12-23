@@ -1,6 +1,6 @@
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, limit } from 'firebase/firestore';
-import type { UserProfile } from '@/hooks/use-auth';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, limit, addDoc } from 'firebase/firestore';
+import type { UserProfile, Thread, Forum } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
 const { firestore } = initializeFirebase();
@@ -86,8 +86,41 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
     });
   } catch (error) {
     console.error('Error fetching public profiles:', error);
-    // Depending on the app's needs, you might want to throw the error
-    // or return an empty array. Returning an empty array for now.
     return [];
   }
+}
+
+// Create a new discussion thread
+export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'author' | 'replyCount'>) {
+    try {
+        const threadsCollection = collection(firestore, 'threads');
+        const docRef = await addDoc(threadsCollection, {
+            ...threadData,
+            replyCount: 0,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+        return { id: docRef.id, ...threadData };
+    } catch (error) {
+        console.error("Error creating thread: ", error);
+        throw error;
+    }
+}
+
+// Create a new forum for review
+export async function createForum(forumData: Omit<Forum, 'id' | 'createdAt' | 'status'>) {
+    try {
+        const forumsCollection = collection(firestore, 'forums');
+        const docRef = await addDoc(forumsCollection, {
+            ...forumData,
+            status: 'under_review',
+            visibility: 'public', // Default to public, can be changed by mods
+            createdAt: serverTimestamp(),
+        });
+        const newForumData = { id: docRef.id, status: 'under_review', ...forumData };
+        return newForumData as Forum;
+    } catch (error) {
+        console.error("Error creating forum: ", error);
+        throw error;
+    }
 }

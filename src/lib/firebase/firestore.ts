@@ -2,7 +2,7 @@
 
 'use server';
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
@@ -220,46 +220,43 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
 
 // Create a new reply
 export async function createReply(replyData: Omit<Reply, 'id' | 'createdAt' | 'status'>) {
+    const firestore = getFirestoreInstance();
+    const { threadId } = replyData;
+
+    if (!threadId) {
+        throw new Error('threadId must be provided to create a reply.');
+    }
+
+    const threadRef = doc(firestore, 'threads', threadId);
+    const repliesCollection = collection(threadRef, 'replies');
+    const newReplyRef = doc(repliesCollection); // Auto-generate ID
+
+    const newReplyData = {
+        ...replyData,
+        id: newReplyRef.id,
+        status: 'published' as const,
+        createdAt: serverTimestamp(),
+    };
+
     try {
-        const firestore = getFirestoreInstance();
-        const { threadId } = replyData;
-        const repliesCollection = collection(firestore, 'threads', threadId, 'replies');
-        
-        // Use a temporary ID for the optimistic update
-        const tempId = doc(collection(firestore, '_')).id;
-
-        const newReplyData = {
-            ...replyData,
-            status: 'published',
-            createdAt: serverTimestamp(),
-        };
-
-        const docRef = doc(repliesCollection, tempId);
-        // Don't await setDoc for optimistic updates
-        setDoc(docRef, newReplyData);
-
-        // Increment replyCount on the parent thread in the background
-        const threadRef = doc(firestore, 'threads', threadId);
-        getDoc(threadRef).then(threadSnap => {
-            if (threadSnap.exists()) {
-                const currentCount = threadSnap.data().replyCount || 0;
-                updateDoc(threadRef, { 
-                    replyCount: currentCount + 1,
-                    latestReplyAt: serverTimestamp()
-                });
+        // Use a transaction to ensure atomicity of reply creation and counter update
+        await runTransaction(firestore, async (transaction) => {
+            const threadDoc = await transaction.get(threadRef);
+            if (!threadDoc.exists()) {
+                throw new Error("Thread does not exist!");
             }
-        });
 
-        // Return the data with the temporary ID for the UI
-        return {
-            id: tempId,
-            ...replyData,
-            status: 'published',
-            createdAt: new Date(), // Use local time for optimistic UI
-            pending: true,
-        };
+            const currentCount = threadDoc.data().replyCount || 0;
+            transaction.update(threadRef, {
+                replyCount: currentCount + 1,
+                latestReplyAt: serverTimestamp()
+            });
+            
+            transaction.set(newReplyRef, newReplyData);
+        });
     } catch (error) {
         console.error("Error creating reply: ", error);
+        // Re-throw the error so the calling component can handle it
         throw error;
     }
 }

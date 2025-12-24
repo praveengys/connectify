@@ -36,7 +36,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
   const [thread, setThread] = useState<Thread>(initialThread);
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [authors, setAuthors] = useState<Record<string, UserProfile>>(initialAuthors);
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyTo, setReplyTo] = useState<{ authorId: string; displayName: string } | null>(null);
   const replyFormBodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,8 +51,8 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       const authorIdsToFetch = new Set<string>();
 
       querySnapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.status !== 'published') return; // Skip non-published replies
+        const data = doc.data({ serverTimestamps: 'estimate' }); // Use estimate for real-time feel
+        if (data.status !== 'published') return;
 
         const reply = {
           id: doc.id,
@@ -98,20 +98,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       toast({ title: 'Not logged in', description: 'Please sign in to reply.', variant: 'destructive' });
       return;
     }
-    setLoading(true);
-
-    const optimisticReply: Reply = {
-      id: `pending-${Date.now()}`,
-      threadId: thread.id,
-      body: values.body,
-      authorId: user.uid,
-      replyToAuthorId: replyTo?.authorId,
-      status: 'published',
-      createdAt: new Date(),
-      pending: true,
-    };
-    
-    setReplies(prev => [...prev, optimisticReply]);
+    setIsSubmitting(true);
 
     try {
       await createReply({
@@ -125,10 +112,8 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       setReplyTo(null);
     } catch (error: any) {
       toast({ title: 'Error', description: `Could not post reply: ${error.message}`, variant: 'destructive' });
-      // Remove optimistic reply on failure
-      setReplies(prev => prev.filter(r => r.id !== optimisticReply.id));
     }
-    setLoading(false);
+    setIsSubmitting(false);
   };
   
   const handleReplyTo = (author: UserProfile) => {
@@ -137,6 +122,10 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
   }
 
   const threadAuthor = useMemo(() => authors[thread.authorId], [authors, thread.authorId]);
+  
+  const sortedReplies = useMemo(() => {
+    return replies.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }, [replies]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -166,15 +155,15 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
         </CardContent>
       </Card>
 
-      <h2 className="text-2xl font-bold mb-4">{replies.length} {replies.length === 1 ? 'Reply' : 'Replies'}</h2>
+      <h2 className="text-2xl font-bold mb-4">{sortedReplies.length} {sortedReplies.length === 1 ? 'Reply' : 'Replies'}</h2>
       
       <div className="space-y-6">
-        {replies.map(reply => {
+        {sortedReplies.map(reply => {
           const replyAuthor = authors[reply.authorId];
           const repliedToAuthor = reply.replyToAuthorId ? authors[reply.replyToAuthorId] : null;
 
           return (
-            <Card key={reply.id} className={`p-5 ${reply.pending ? 'opacity-60' : ''}`}>
+            <Card key={reply.id} className="p-5">
               <div className="flex items-start gap-4">
                 <Avatar className="h-9 w-9">
                   <AvatarImage src={replyAuthor?.avatarUrl ?? undefined} />
@@ -192,7 +181,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                         )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {reply.pending ? 'Sending...' : formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
                     </p>
                   </div>
                   <p className="mt-2 text-muted-foreground whitespace-pre-wrap">{reply.body}</p>
@@ -241,8 +230,8 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                 )}
               />
               <div className="flex justify-end">
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Post Reply
                 </Button>
               </div>

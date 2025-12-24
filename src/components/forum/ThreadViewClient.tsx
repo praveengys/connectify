@@ -42,9 +42,6 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
 
   useEffect(() => {
-    // **CRITICAL FIX**: Do not attach listener until auth state is fully resolved and user is present.
-    if (loading || !user) return;
-
     const { firestore } = initializeFirebase();
     const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
     const q = query(repliesRef, orderBy('createdAt', 'asc'));
@@ -96,7 +93,9 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     });
 
     return () => unsubscribe();
-  }, [thread.id, authors, user, loading, toast]);
+    // The dependency array is intentionally sparse to avoid re-subscribing on every author/reply change.
+    // The listener handles those updates internally.
+  }, [thread.id, toast]);
 
   const form = useForm<z.infer<typeof replySchema>>({
     resolver: zodResolver(replySchema),

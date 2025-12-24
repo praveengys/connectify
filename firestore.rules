@@ -57,7 +57,7 @@ service cloud.firestore {
       allow get: if (resource.data.status == 'active' && resource.data.visibility == 'public') 
                   || isOwner(resource.data.createdBy) 
                   || isAdmin();
-      allow list: if isSignedIn(); // Client must filter correctly.
+      allow list: if true;
 
       // CREATE: Any signed-in user can create an active forum.
       allow create: if isSignedIn()

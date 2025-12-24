@@ -31,8 +31,7 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
   const [open, setOpen] = React.useState(false)
   
   const handleSelect = (currentValue: string) => {
-    const newValue = currentValue === value ? "" : currentValue;
-    onChange(newValue);
+    onChange(currentValue);
     setOpen(false);
   };
 
@@ -57,21 +56,22 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
             placeholder="Search or create..."
           />
           <CommandList>
-             <CommandEmpty>
-              {createLabel && (
+            <CommandEmpty>
+              {(createLabel) && (
                 <CommandItem
                   onSelect={(inputValue) => {
                     if (inputValue) {
-                      onChange(inputValue)
-                      setOpen(false)
+                      handleSelect(inputValue);
                     }
                   }}
                   className="cursor-pointer"
                 >
-                  {createLabel}
+                  {createLabel} "{
+                    // This is a bit of a hack to get the current input value from the empty state
+                    (document.querySelector(`[cmdk-input]`) as HTMLInputElement)?.value
+                  }"
                 </CommandItem>
               )}
-              {!createLabel && "No option found."}
             </CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
@@ -79,20 +79,16 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
                   key={option.value}
                   value={option.label}
                   onSelect={(currentLabel) => {
-                    const selectedOption = options.find(o => o.label.toLowerCase() === currentLabel.toLowerCase());
+                     const selectedOption = options.find(o => o.label.toLowerCase() === currentLabel.toLowerCase());
                     if (selectedOption) {
                       handleSelect(selectedOption.value)
-                    } else {
-                        // This handles the case where the user types something and hits enter
-                        // The `onSelect` of CommandItem gives the label.
-                        handleSelect(currentLabel)
                     }
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
+                      value?.toLowerCase() === option.value.toLowerCase() ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {option.label}

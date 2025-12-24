@@ -1,8 +1,7 @@
 
-
 'use server';
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, arrayUnion, Transaction } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
@@ -105,14 +104,13 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
 }
 
 // Create a new discussion thread
-export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'author' | 'replyCount' | 'categoryId'> & { categoryId: string }) {
+export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'categoryId'> & { categoryId: string }) {
     try {
         const firestore = getFirestoreInstance();
         const threadsCollection = collection(firestore, 'threads');
         const docRef = await addDoc(threadsCollection, {
             ...threadData,
             replyCount: 0,
-            replies: [],
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
@@ -184,16 +182,9 @@ export async function getThread(threadId: string): Promise<Thread | null> {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
-            // Handle replies array: convert Timestamps to Dates
-            const replies = (data.replies || []).map((reply: any) => ({
-                ...reply,
-                createdAt: reply.createdAt?.toDate()
-            }));
-
             return {
                 id: docSnap.id,
                 ...data,
-                replies,
                 createdAt: data.createdAt?.toDate(),
                 updatedAt: data.updatedAt?.toDate(),
             } as Thread;
@@ -205,43 +196,83 @@ export async function getThread(threadId: string): Promise<Thread | null> {
     }
 }
 
-// Get all replies for a given thread (no longer needed with embedded replies)
-export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
-    return []; // This function is now obsolete
+export async function getReply(threadId: string, replyId: string): Promise<Reply | null> {
+  try {
+    const firestore = getFirestoreInstance();
+    const docRef = doc(firestore, 'threads', threadId, 'replies', replyId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+        createdAt: data.createdAt.toDate(),
+      } as Reply;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching reply:', error);
+    return null;
+  }
 }
 
-// Create a new reply by embedding it in the thread document
-export async function createReply(threadId: string, replyData: Omit<Reply, 'id' | 'threadId' | 'createdAt' | 'status'>) {
+// Get all replies for a given thread
+export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
+    const firestore = getFirestoreInstance();
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+    const q = query(repliesRef, orderBy('createdAt', 'asc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt.toDate(),
+    } as Reply));
+}
+
+// Create a new reply in the subcollection
+export async function createReply(threadId: string, replyData: { authorId: string; body: string; parentReplyId: string | null; }) {
     const firestore = getFirestoreInstance();
     const threadRef = doc(firestore, 'threads', threadId);
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
 
-    if (!threadId) {
-        throw new Error('threadId must be provided to create a reply.');
+    if (!threadId || !replyData.authorId) {
+        throw new Error('Thread ID and Author ID are required.');
     }
-    
+
     try {
-        await runTransaction(firestore, async (transaction: Transaction) => {
+        await runTransaction(firestore, async (transaction) => {
             const threadDoc = await transaction.get(threadRef);
-            if (!threadDoc.exists()) {
-                throw new Error("Thread does not exist!");
+            if (!threadDoc.exists() || threadDoc.data().isLocked) {
+                throw new Error("Thread does not exist or is locked!");
             }
 
-            const newReply = {
-                ...replyData,
-                id: doc(collection(firestore, '_')).id, // Generate a unique client-side ID
-                status: 'published' as const,
-                createdAt: new Date(), // Use client-side date for optimistic update, server will overwrite
-            };
+            let depth: 0 | 1 = 0;
+            if (replyData.parentReplyId) {
+                const parentReplyRef = doc(repliesRef, replyData.parentReplyId);
+                const parentReplyDoc = await transaction.get(parentReplyRef);
+                if (!parentReplyDoc.exists() || parentReplyDoc.data().depth !== 0) {
+                    throw new Error("Parent reply does not exist or is not a top-level reply.");
+                }
+                depth = 1;
+            }
 
-            // Atomically update the replies array and metadata
+            const newReplyRef = doc(repliesRef);
+            transaction.set(newReplyRef, {
+                ...replyData,
+                depth,
+                status: 'published',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+
+            // Atomically update the reply count on the parent thread
             transaction.update(threadRef, {
-                replies: arrayUnion(newReply),
                 replyCount: (threadDoc.data().replyCount || 0) + 1,
                 latestReplyAt: serverTimestamp()
             });
         });
     } catch (error) {
-        console.error("Error creating reply in transaction: ", error);
+        console.error("Error creating reply:", error);
         throw error;
     }
 }

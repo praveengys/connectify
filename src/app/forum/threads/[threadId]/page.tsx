@@ -1,3 +1,4 @@
+
 import Header from '@/components/Header';
 import ThreadViewClient from '@/components/forum/ThreadViewClient';
 import { getThread, getRepliesForThread, getUserProfile } from '@/lib/firebase/firestore';
@@ -11,24 +12,30 @@ export default async function ThreadPage({ params }: { params: { threadId: strin
     notFound();
   }
 
-  const [replies, threadAuthor] = await Promise.all([
+  // Initial data load. Real-time updates will be handled by the client component.
+  const [initialReplies, threadAuthor] = await Promise.all([
     getRepliesForThread(params.threadId),
     getUserProfile(thread.authorId),
   ]);
 
   // Fetch authors for all replies
-  const replyAuthorIds = [...new Set(replies.map(r => r.authorId))];
-  const replyAuthorPromises = replyAuthorIds.map(id => getUserProfile(id));
-  const replyAuthorResults = await Promise.all(replyAuthorPromises);
+  const authorIds = new Set<string>([thread.authorId]);
+  initialReplies.forEach(reply => authorIds.add(reply.authorId));
+
   const authors: Record<string, UserProfile> = {};
-  
   if (threadAuthor) {
     authors[thread.authorId] = threadAuthor;
   }
   
-  replyAuthorResults.forEach((author, index) => {
+  const authorPromises = Array.from(authorIds)
+    .filter(id => !authors[id]) // Only fetch authors we don't have yet
+    .map(id => getUserProfile(id));
+  
+  const authorResults = await Promise.all(authorPromises);
+  
+  authorResults.forEach((author) => {
     if (author) {
-      authors[replyAuthorIds[index]] = author;
+      authors[author.uid] = author;
     }
   });
 
@@ -39,7 +46,7 @@ export default async function ThreadPage({ params }: { params: { threadId: strin
       <main className="flex-grow container mx-auto px-4 py-8">
         <ThreadViewClient
           initialThread={thread}
-          initialReplies={replies}
+          initialReplies={initialReplies}
           initialAuthors={authors}
         />
       </main>

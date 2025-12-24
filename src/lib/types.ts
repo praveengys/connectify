@@ -1,3 +1,4 @@
+
 import { type Timestamp } from 'firebase/firestore';
 
 export type Forum = {
@@ -24,7 +25,6 @@ export type Thread = {
   isLocked: boolean;
   isPinned: boolean;
   replyCount: number;
-  replies: Reply[]; // Embedded replies
   latestReplyAt: Timestamp | Date | null;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
@@ -41,16 +41,12 @@ export type Reply = {
   threadId: string;
   body: string;
   authorId: string;
-  author?: UserProfile; // Optional: denormalized author data
-  replyToAuthorId?: string; // UID of the user this reply is directed at
+  parentReplyId: string | null;
+  depth: 0 | 1;
   status: 'published' | 'hidden' | 'deleted';
   createdAt: Timestamp | Date;
+  updatedAt?: Timestamp | Date;
   moderatorNotes?: string;
-  moderation?: {
-    status: 'clean' | 'under_review' | 'action_taken';
-    moderatorId: string;
-    actionReason: string;
-  };
   pending?: boolean; // For optimistic UI
 };
 

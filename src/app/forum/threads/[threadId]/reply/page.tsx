@@ -4,8 +4,8 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useParams, notFound, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { getThread, createReply, getUserProfile } from '@/lib/firebase/firestore';
-import type { Thread, UserProfile } from '@/lib/types';
+import { getThread, createReply, getReply } from '@/lib/firebase/firestore';
+import type { Thread, Reply, UserProfile } from '@/lib/types';
 import { Loader2, CornerDownRight } from 'lucide-react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getUserProfile } from '@/lib/firebase/firestore';
+
 
 export default function ReplyPage() {
   const { user, loading: authLoading } = useAuth();
@@ -21,11 +23,12 @@ export default function ReplyPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const threadId = params.threadId as string;
-  const replyToAuthorId = searchParams.get('replyTo');
+  const parentReplyId = searchParams.get('to');
 
   const [content, setContent] = useState('');
   const [thread, setThread] = useState<Thread | null>(null);
-  const [replyToAuthor, setReplyToAuthor] = useState<UserProfile | null>(null);
+  const [parentReply, setParentReply] = useState<Reply | null>(null);
+  const [parentAuthor, setParentAuthor] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setSubmitting] = useState(false);
   const { toast } = useToast();
@@ -33,8 +36,8 @@ export default function ReplyPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      const redirectUrl = replyToAuthorId
-        ? `/forum/threads/${threadId}/reply?replyTo=${replyToAuthorId}`
+      const redirectUrl = parentReplyId
+        ? `/forum/threads/${threadId}/reply?to=${parentReplyId}`
         : `/forum/threads/${threadId}/reply`;
       router.replace(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
       return;
@@ -42,21 +45,41 @@ export default function ReplyPage() {
 
     const fetchData = async () => {
       setLoading(true);
-      const [threadData, authorData] = await Promise.all([
-        getThread(threadId),
-        replyToAuthorId ? getUserProfile(replyToAuthorId) : Promise.resolve(null),
-      ]);
-      
-      if (!threadData || threadData.isLocked) {
-        notFound();
+      try {
+        const threadData = await getThread(threadId);
+        if (!threadData || threadData.isLocked) {
+          notFound();
+        }
+        setThread(threadData);
+
+        if (parentReplyId) {
+          const parentReplyData = await getReply(threadId, parentReplyId);
+          if (!parentReplyData || parentReplyData.depth !== 0) {
+            toast({
+              title: "Cannot reply to this",
+              description: "You can only reply to top-level responses.",
+              variant: "destructive",
+            });
+            router.push(`/forum/threads/${threadId}`);
+            return;
+          }
+          setParentReply(parentReplyData);
+          if (parentReplyData.authorId) {
+            const author = await getUserProfile(parentReplyData.authorId);
+            setParentAuthor(author);
+          }
+        }
+      } catch(error) {
+        console.error("Error fetching data for reply page:", error);
+        toast({ title: "Error", description: "Could not load necessary data.", variant: "destructive" });
+        router.push(`/forum/threads/${threadId}`);
+      } finally {
+        setLoading(false);
       }
-      setThread(threadData);
-      setReplyToAuthor(authorData);
-      setLoading(false);
     };
 
     fetchData();
-  }, [user, authLoading, threadId, replyToAuthorId, router]);
+  }, [user, authLoading, threadId, parentReplyId, router, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +90,7 @@ export default function ReplyPage() {
       await createReply(thread.id, {
         authorId: user.uid,
         body: content,
-        replyToAuthorId: replyToAuthorId || undefined,
+        parentReplyId: parentReplyId || null,
       });
 
       toast({
@@ -87,7 +110,7 @@ export default function ReplyPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="flex h-[calc(100vh-theme(height.14))] w-full items-center justify-center bg-background">
+      <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -107,15 +130,22 @@ export default function ReplyPage() {
             <CardDescription>
               Replying to: <span className="font-semibold text-foreground">{thread.title}</span>
             </CardDescription>
-            {replyToAuthor && (
-              <div className="pt-4 flex items-center gap-2 text-sm text-muted-foreground border-t mt-4">
-                <CornerDownRight size={16} />
-                <span>Replying to</span>
-                <Avatar className="h-6 w-6">
-                    <AvatarImage src={replyToAuthor.avatarUrl ?? undefined} alt={replyToAuthor.displayName} />
-                    <AvatarFallback>{replyToAuthor.displayName.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <span className="font-semibold text-foreground">{replyToAuthor.displayName}</span>
+            {parentReply && parentAuthor && (
+              <div className="pt-4 flex items-start gap-3 text-sm text-muted-foreground border-t mt-4">
+                <CornerDownRight size={16} className="mt-1 shrink-0" />
+                <div className="flex-grow">
+                  <div className="flex items-center gap-2">
+                    <span>Replying to</span>
+                    <Avatar className="h-6 w-6">
+                        <AvatarImage src={parentAuthor.avatarUrl ?? undefined} alt={parentAuthor.displayName} />
+                        <AvatarFallback>{parentAuthor.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="font-semibold text-foreground">{parentAuthor.displayName}</span>
+                  </div>
+                  <blockquote className="mt-2 pl-3 border-l-2 text-foreground/80 italic">
+                    {parentReply.body}
+                  </blockquote>
+                </div>
               </div>
             )}
           </CardHeader>

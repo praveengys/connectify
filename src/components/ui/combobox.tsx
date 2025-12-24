@@ -29,11 +29,14 @@ type ComboboxProps = {
 
 export function Combobox({ options, value, onChange, placeholder, createLabel }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [search, setSearch] = React.useState("");
   
   const handleSelect = (currentValue: string) => {
     onChange(currentValue);
     setOpen(false);
   };
+
+  const filteredOptions = options.filter(option => option.label.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -51,25 +54,19 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
-        <Command>
+        <Command onValueChange={setSearch}>
           <CommandInput 
             placeholder="Search or create..."
           />
           <CommandList>
             <CommandEmpty>
-              {(createLabel) && (
+              {createLabel && search.length > 0 && !filteredOptions.find(o => o.label.toLowerCase() === search.toLowerCase()) && (
                 <CommandItem
-                  onSelect={(inputValue) => {
-                    if (inputValue) {
-                      handleSelect(inputValue);
-                    }
-                  }}
+                  onSelect={() => handleSelect(search)}
                   className="cursor-pointer"
+                  value={search}
                 >
-                  {createLabel} "{
-                    // This is a bit of a hack to get the current input value from the empty state
-                    (document.querySelector(`[cmdk-input]`) as HTMLInputElement)?.value
-                  }"
+                  {createLabel} "{search}"
                 </CommandItem>
               )}
             </CommandEmpty>

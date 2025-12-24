@@ -32,18 +32,16 @@ service cloud.firestore {
     
     // Rules for user profile documents
     match /users/{userId} {
-      // READ: Allow reads if the user is the owner, or if the profile is public.
-      allow get: if isOwner(userId) || (resource.data.profileVisibility == 'public');
+      // READ: Allow a user to read their own profile. This is crucial for login.
+      allow get: if isOwner(userId);
       
-      // LIST: Allow any user (signed in or not) to list public profiles.
-      // IMPORTANT: The client query MUST include `where('profileVisibility', '==', 'public')`.
-      allow list: if request.query.get('profileVisibility') == 'public';
+      // LIST: Allow any signed-in user to list public profiles.
+      allow list: if isSignedIn() && request.query.get('profileVisibility') == 'public';
 
-      // CREATE: Allow a user to create their own profile.
-      // The new document's ID must match the creator's UID.
+      // CREATE: Allow a user to create their own profile document.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      // UPDATE: Allow an owner to update their own profile, but protect critical fields.
+      // UPDATE: Allow an owner to update their own profile, protecting critical fields.
       allow update: if isOwner(userId)
                   && request.resource.data.uid == resource.data.uid
                   && request.resource.data.role == resource.data.role
@@ -195,7 +193,7 @@ service cloud.firestore {
     
     match /roles_moderator/{userId} {
       allow read: if isAdmin();
-      allow write: if false;
+      write: if false;
     }
   }
 }

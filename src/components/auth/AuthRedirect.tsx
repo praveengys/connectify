@@ -27,12 +27,12 @@ export default function AuthRedirect({ children }: { children: ReactNode }) {
   }
 
   // If loading is finished and there's no user, show the children (e.g., the login form).
-  // If a user exists, the useEffect will have already initiated the redirect, and this will be quickly unmounted.
   if (!user) {
     return <>{children}</>;
   }
   
-  // If there IS a user, we should still show a loader while the redirect is happening.
+  // If there IS a user, the useEffect will trigger the redirect.
+  // While that happens, we show a loader to prevent a flash of the login page.
   return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

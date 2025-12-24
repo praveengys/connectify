@@ -85,9 +85,8 @@ export default function ForumClient() {
   }, []);
 
   const handleForumCreated = (newForum: Forum) => {
+    setForums(prev => [newForum, ...prev]);
     setCreateForumOpen(false);
-    // Optionally, you could show a toast or a confirmation message.
-    // For now, we just close the dialog. The forum will appear once approved by a moderator.
   };
 
   if (loading) {
@@ -197,12 +196,10 @@ export default function ForumClient() {
                     <ul className="space-y-2">
                         {forums.map(forum => (
                         <li key={forum.id}>
-                            <Link href={`/forum/${forum.id}`}>
-                            <div className="p-3 rounded-md hover:bg-secondary">
+                            <div className="p-3 rounded-md">
                                 <p className="font-semibold">{forum.name}</p>
                                 <p className="text-sm text-muted-foreground line-clamp-2">{forum.description}</p>
                             </div>
-                            </Link>
                         </li>
                         ))}
                     </ul>
@@ -220,12 +217,10 @@ export default function ForumClient() {
                     <ul className="space-y-2">
                         {categories.map(category => (
                         <li key={category.id}>
-                            <Link href={`/forum/category/${category.slug}`}>
-                            <div className="p-3 rounded-md hover:bg-secondary">
+                            <div className="p-3 rounded-md">
                                 <p className="font-semibold">{category.name}</p>
                                 <p className="text-sm text-muted-foreground">{category.description}</p>
                             </div>
-                            </Link>
                         </li>
                         ))}
                     </ul>

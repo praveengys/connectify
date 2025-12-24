@@ -9,24 +9,34 @@ export default function AuthRedirect({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  // DEBUG: Log every state change
-  console.log('🔍 AuthRedirect render:', { user: !!user, loading, userEmail: user?.email });
-
   useEffect(() => {
-    console.log('⚡ useEffect:', { user: !!user, loading });
+    // Wait until the loading is complete before checking for a user.
     if (!loading && user) {
-      console.log('🚀 REDIRECTING TO /dashboard');
       router.replace('/dashboard');
     }
   }, [user, loading, router]);
 
+  // While the auth state is being determined, show a loader.
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="sr-only">Loading...</p>
       </div>
     );
   }
 
-  return <>{children}</>;
+  // If loading is finished and there's no user, show the children (e.g., the login form).
+  // If a user exists, the useEffect will have already initiated the redirect, and this will be quickly unmounted.
+  if (!user) {
+    return <>{children}</>;
+  }
+  
+  // If there IS a user, we should still show a loader while the redirect is happening.
+  return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="sr-only">Redirecting...</p>
+      </div>
+  );
 }

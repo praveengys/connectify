@@ -21,6 +21,9 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     const firestore = getFirestoreInstance();
     // Add the user's UID to the data object to satisfy security rules.
     await setDoc(doc(firestore, 'users', uid), {
+      username: `user_${uid.substring(0, 8)}`,
+      role: 'member',
+      profileVisibility: 'public',
       ...data,
       uid: uid, 
       createdAt: serverTimestamp(),

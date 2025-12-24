@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { onSnapshot, doc } from 'firebase/firestore';
 import { createUserProfile, getUserProfile } from '@/lib/firebase/firestore';
 import { useFirebaseUser } from '@/firebase/provider';
+import { initializeFirebase } from '@/firebase';
 
 // This defines the rich user profile object, combining auth and firestore data.
 export interface UserProfile {
@@ -38,67 +40,62 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // Get the raw Firebase user and its loading state from the FirebaseProvider.
-  const { user: firebaseUser, isUserLoading: isAuthLoading } = useFirebaseUser();
-  
+  const { user: firebaseUser, isUserLoading } = useFirebaseUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isProfileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
-    // If the initial auth check isn't done, we can't do anything yet.
-    if (isAuthLoading) {
+    if (isUserLoading) {
+      // Still waiting for Firebase to confirm auth state
       return;
     }
 
-    // If there's no Firebase user, reset the profile and finish loading.
     if (!firebaseUser) {
+      // User is logged out
       setUserProfile(null);
       setProfileLoading(false);
       return;
     }
-    
-    // If we already have the correct profile loaded, do nothing.
-    if(userProfile?.uid === firebaseUser.uid) {
-      setProfileLoading(false);
-      return;
-    }
 
-    // Auth is ready and we have a user. Let's fetch their profile.
-    setProfileLoading(true);
-    const fetchProfile = async () => {
-      let profile = await getUserProfile(firebaseUser.uid);
+    // User is logged in, fetch or create profile and listen for updates.
+    const { firestore } = initializeFirebase();
+    const profileRef = doc(firestore, 'users', firebaseUser.uid);
 
-      if (!profile) {
-        // If no profile exists, create a default one.
-        const newUserProfileData = {
-          uid: firebaseUser.uid,
+    const unsubscribe = onSnapshot(profileRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        const profileData = docSnap.data();
+        setUserProfile({
+          ...profileData,
+          uid: docSnap.id,
+          createdAt: profileData.createdAt?.toDate(),
+          updatedAt: profileData.updatedAt?.toDate(),
+          email: firebaseUser.email,
+        } as UserProfile);
+      } else {
+        // First-time user, create a profile.
+        console.log(`Creating profile for new user: ${firebaseUser.uid}`);
+        await createUserProfile(firebaseUser.uid, {
           displayName: firebaseUser.displayName || 'New Member',
           email: firebaseUser.email,
           emailVerified: firebaseUser.emailVerified,
           avatarUrl: firebaseUser.photoURL,
-          profileVisibility: 'public' as 'public',
-          role: 'member' as 'member',
-        };
-        await createUserProfile(firebaseUser.uid, newUserProfileData);
-        profile = await getUserProfile(firebaseUser.uid); // Re-fetch the newly created profile
+        });
+        // The onSnapshot listener will automatically pick up the newly created profile.
       }
-      
-      setUserProfile(profile as UserProfile);
       setProfileLoading(false);
-    };
+    }, (error) => {
+        console.error("Error listening to user profile:", error);
+        setProfileLoading(false);
+    });
 
-    fetchProfile();
-  }, [firebaseUser, isAuthLoading, userProfile?.uid]);
-
-  // The final loading state is true if either the auth check or the profile fetch is ongoing.
-  const isLoading = isAuthLoading || isProfileLoading;
+    return () => unsubscribe(); // Cleanup listener on unmount
+  }, [firebaseUser, isUserLoading]);
 
   return (
-    <AuthContext.Provider value={{ user: userProfile, loading: isLoading }}>
+    <AuthContext.Provider value={{ user: userProfile, loading: isUserLoading || isProfileLoading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// The hook that all components will use to get the final user profile and loading state.
 export const useAuth = () => useContext(AuthContext);

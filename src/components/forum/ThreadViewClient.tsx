@@ -42,6 +42,9 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
 
   useEffect(() => {
+    // **CRITICAL FIX**: Do not attach listener until auth state is resolved.
+    if (!user) return;
+
     const { firestore } = initializeFirebase();
     const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
     const q = query(repliesRef, orderBy('createdAt', 'asc'));
@@ -83,10 +86,17 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       }
       
       setReplies(newReplies);
+    }, (error) => {
+        console.error("Snapshot listener error:", error);
+        toast({
+            title: 'Real-time connection failed',
+            description: 'Could not listen for new replies. Please refresh the page.',
+            variant: 'destructive',
+        })
     });
 
     return () => unsubscribe();
-  }, [thread.id, authors]);
+  }, [thread.id, authors, user, toast]);
 
   const form = useForm<z.infer<typeof replySchema>>({
     resolver: zodResolver(replySchema),

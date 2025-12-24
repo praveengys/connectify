@@ -35,8 +35,8 @@ service cloud.firestore {
       // READ: Allow a user to read their own profile. This is crucial for login.
       allow get: if isOwner(userId);
       
-      // LIST: Allow any signed-in user to list public profiles.
-      allow list: if isSignedIn() && request.query.get('profileVisibility') == 'public';
+      // LIST: Allow any user (signed in or not) to list public profiles.
+      allow list: if request.query.get('profileVisibility') == 'public';
 
       // CREATE: Allow a user to create their own profile document.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
@@ -74,12 +74,7 @@ service cloud.firestore {
     match /threads/{threadId} {
 
       /* READ */
-      allow get, list: if
-        isNotDeleted(resource) &&
-        (
-          resource.data.status == 'published' ||
-          isModeratorOrAdmin()
-        );
+      allow get, list: if isSignedIn();
 
       /* CREATE */
       allow create: if
@@ -108,41 +103,39 @@ service cloud.firestore {
 
       /* DELETE (SOFT ONLY) */
       allow delete: if false;
-    }
 
-    match /threads/{threadId}/replies/{replyId} {
+        match /replies/{replyId} {
+          /* READ */
+          // Any signed-in user can read replies in a thread.
+          allow get, list: if isSignedIn();
 
-      /* READ */
-      allow get, list: if
-        isNotDeleted(resource) &&
-        (
-          resource.data.status == 'published' ||
-          isModeratorOrAdmin()
-        );
+          /* CREATE */
+          allow create: if
+            isSignedIn() &&
+            request.resource.data.authorId == request.auth.uid &&
+            request.resource.data.status == 'published' &&
+            // Check that the parent thread is not locked before allowing a reply
+            get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
 
-      /* CREATE */
-      allow create: if
-        isSignedIn() &&
-        request.resource.data.authorId == request.auth.uid &&
-        request.resource.data.status == 'published' &&
-        get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
+          /* UPDATE */
+          allow update: if
+            (
+              // Author can only update the body of their own reply
+              isOwner(resource.data.authorId) &&
+              request.resource.data.diff(resource.data).changedKeys()
+                .hasOnly(['body', 'updatedAt'])
+            )
+            ||
+            (
+              // Moderators/admins can change the status (e.g., to hide a reply)
+              isModeratorOrAdmin() &&
+              request.resource.data.diff(resource.data).changedKeys()
+                .hasOnly(['status', 'updatedAt', 'moderatorNotes'])
+            );
 
-      /* UPDATE */
-      allow update: if
-        (
-          isOwner(resource.data.authorId) &&
-          request.resource.data.diff(resource.data).changedKeys()
-            .hasOnly(['body', 'updatedAt'])
-        )
-        ||
-        (
-          isModeratorOrAdmin() &&
-          request.resource.data.diff(resource.data).changedKeys()
-            .hasOnly(['status', 'updatedAt', 'moderatorNotes'])
-        );
-
-      /* DELETE */
-      allow delete: if false;
+          /* DELETE */
+          allow delete: if false; // Soft-delete by changing status instead
+        }
     }
     
     match /categories/{categoryId} {

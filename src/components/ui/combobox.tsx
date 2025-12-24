@@ -37,6 +37,7 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
   };
 
   const filteredOptions = options.filter(option => option.label.toLowerCase().includes(search.toLowerCase()));
+  const showCreateOption = createLabel && search.length > 0 && !filteredOptions.some(o => o.label.toLowerCase() === search.toLowerCase());
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -54,38 +55,37 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
-        <Command onValueChange={setSearch}>
+        <Command>
           <CommandInput 
             placeholder="Search or create..."
+            onValueChange={setSearch}
           />
           <CommandList>
             <CommandEmpty>
-              {createLabel && search.length > 0 && !filteredOptions.find(o => o.label.toLowerCase() === search.toLowerCase()) && (
+              {showCreateOption ? null : "No results found."}
+            </CommandEmpty>
+             {showCreateOption && (
                 <CommandItem
                   onSelect={() => handleSelect(search)}
-                  className="cursor-pointer"
                   value={search}
+                  className="cursor-pointer"
                 >
                   {createLabel} "{search}"
                 </CommandItem>
               )}
-            </CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.label}
                   onSelect={(currentLabel) => {
-                     const selectedOption = options.find(o => o.label.toLowerCase() === currentLabel.toLowerCase());
-                    if (selectedOption) {
-                      handleSelect(selectedOption.value)
-                    }
+                    handleSelect(currentLabel)
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value?.toLowerCase() === option.value.toLowerCase() ? "opacity-100" : "opacity-0"
+                      value?.toLowerCase() === option.label.toLowerCase() ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {option.label}

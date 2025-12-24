@@ -229,7 +229,7 @@ export async function createReply(replyData: Omit<Reply, 'id' | 'createdAt' | 's
 
     const threadRef = doc(firestore, 'threads', threadId);
     const repliesCollection = collection(threadRef, 'replies');
-    const newReplyRef = doc(repliesCollection); // Auto-generate ID
+    const newReplyRef = doc(repliesCollection);
 
     const newReplyData = {
         ...replyData,
@@ -239,7 +239,6 @@ export async function createReply(replyData: Omit<Reply, 'id' | 'createdAt' | 's
     };
 
     try {
-        // Use a transaction to ensure atomicity of reply creation and counter update
         await runTransaction(firestore, async (transaction) => {
             const threadDoc = await transaction.get(threadRef);
             if (!threadDoc.exists()) {
@@ -256,7 +255,6 @@ export async function createReply(replyData: Omit<Reply, 'id' | 'createdAt' | 's
         });
     } catch (error) {
         console.error("Error creating reply: ", error);
-        // Re-throw the error so the calling component can handle it
         throw error;
     }
 }

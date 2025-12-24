@@ -1,6 +1,6 @@
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc } from 'firebase/firestore';
-import type { UserProfile, Thread, Forum, Category } from '@/lib/types';
+import type { UserProfile, Thread, Forum, Category, Reply } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
 const { firestore } = initializeFirebase();
@@ -108,7 +108,7 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
     }
 }
 
-// Create a new forum for review
+// Create a new forum
 export async function createForum(forumData: Omit<Forum, 'id' | 'createdAt' | 'status' | 'visibility'>) {
     try {
         const forumsCollection = collection(firestore, 'forums');
@@ -157,4 +157,74 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
     console.error("Error in getOrCreateCategory: ", error);
     throw error;
   }
+}
+
+// Get a single thread from Firestore
+export async function getThread(threadId: string): Promise<Thread | null> {
+    try {
+        const docRef = doc(firestore, 'threads', threadId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            return {
+                id: docSnap.id,
+                ...data,
+                createdAt: data.createdAt?.toDate(),
+                updatedAt: data.updatedAt?.toDate(),
+            } as Thread;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching thread:', error);
+        return null;
+    }
+}
+
+// Get all replies for a given thread
+export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
+    try {
+        const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+        const q = query(repliesRef, orderBy('createdAt', 'asc'));
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt?.toDate(),
+            } as Reply;
+        });
+    } catch (error) {
+        console.error('Error fetching replies:', error);
+        return [];
+    }
+}
+
+// Create a new reply
+export async function createReply(replyData: Omit<Reply, 'id' | 'createdAt' | 'status'>) {
+    try {
+        const { threadId } = replyData;
+        const repliesCollection = collection(firestore, 'threads', threadId, 'replies');
+        const docRef = await addDoc(repliesCollection, {
+            ...replyData,
+            status: 'published',
+            createdAt: serverTimestamp(),
+        });
+
+        // Increment replyCount on the parent thread
+        const threadRef = doc(firestore, 'threads', threadId);
+        const threadSnap = await getDoc(threadRef);
+        if (threadSnap.exists()) {
+            const currentCount = threadSnap.data().replyCount || 0;
+            await updateDoc(threadRef, { 
+                replyCount: currentCount + 1,
+                latestReplyAt: serverTimestamp()
+            });
+        }
+
+        return { id: docRef.id, ...replyData, status: 'published' };
+    } catch (error) {
+        console.error("Error creating reply: ", error);
+        throw error;
+    }
 }

@@ -52,9 +52,14 @@ export default function LoginForm() {
         description: error.message,
         variant: 'destructive',
       });
+    } else {
+      toast({
+        title: 'Login Successful!',
+        description: "You're now signed in. Redirecting...",
+      });
+      // The AuthRedirect component will handle redirecting the user.
     }
     setLoading(false);
-    // The AuthRedirect component will handle redirecting the user.
   }
   
   async function handleGoogleSignIn() {
@@ -65,6 +70,11 @@ export default function LoginForm() {
         title: 'Login Failed',
         description: error.message,
         variant: 'destructive',
+      });
+    } else {
+       toast({
+        title: 'Login Successful!',
+        description: "You're now signed in. Redirecting...",
       });
     }
     setGoogleLoading(false);

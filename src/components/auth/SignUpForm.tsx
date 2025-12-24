@@ -53,9 +53,14 @@ export default function SignUpForm() {
         description: error.message,
         variant: 'destructive',
       });
+    } else {
+      toast({
+        title: 'Account Created!',
+        description: "You're now signed in. Redirecting...",
+      });
+      // The AuthRedirect component will handle redirecting the user.
     }
     setLoading(false);
-    // The AuthRedirect component will handle redirecting the user.
   }
 
   async function handleGoogleSignIn() {
@@ -66,6 +71,11 @@ export default function SignUpForm() {
         title: 'Sign Up Failed',
         description: error.message,
         variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Account Created!',
+        description: "You're now signed in. Redirecting...",
       });
     }
     setGoogleLoading(false);

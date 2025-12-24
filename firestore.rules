@@ -149,7 +149,7 @@ service cloud.firestore {
     
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
 
     match /tags/{tagId} {

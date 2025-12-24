@@ -1,6 +1,6 @@
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc } from 'firebase/firestore';
-import type { UserProfile, Thread, Forum } from '@/lib/types';
+import type { UserProfile, Thread, Forum, Category } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
 const { firestore } = initializeFirebase();
@@ -73,7 +73,7 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
     const q = query(
       usersRef,
       where('profileVisibility', '==', 'public'),
-      limit(limitCount)
+      orderBy('createdAt', 'desc'),
     );
     const querySnapshot = await getDocs(q);
     
@@ -92,7 +92,7 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
 }
 
 // Create a new discussion thread
-export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'author' | 'replyCount'>) {
+export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'author' | 'replyCount' | 'categoryId'> & { categoryId: string }) {
     try {
         const threadsCollection = collection(firestore, 'threads');
         const docRef = await addDoc(threadsCollection, {
@@ -109,19 +109,52 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
 }
 
 // Create a new forum for review
-export async function createForum(forumData: Omit<Forum, 'id' | 'createdAt' | 'status'>) {
+export async function createForum(forumData: Omit<Forum, 'id' | 'createdAt' | 'status' | 'visibility'>) {
     try {
         const forumsCollection = collection(firestore, 'forums');
         const docRef = await addDoc(forumsCollection, {
             ...forumData,
             status: 'active',
-            visibility: 'public', // Default to public, can be changed by mods
+            visibility: 'public',
             createdAt: serverTimestamp(),
         });
-        const newForumData = { id: docRef.id, status: 'active', ...forumData };
+        const newForumData = { id: docRef.id, status: 'active', visibility: 'public', ...forumData };
         return newForumData as Forum;
     } catch (error) {
         console.error("Error creating forum: ", error);
         throw error;
     }
+}
+
+// Get or create a category
+export async function getOrCreateCategory(name: string): Promise<Category | null> {
+  const normalizedName = name.trim();
+  const slug = normalizedName.toLowerCase().replace(/\s+/g, '-');
+  
+  if (!normalizedName) return null;
+
+  const categoriesRef = collection(firestore, 'categories');
+  const q = query(categoriesRef, where('slug', '==', slug));
+
+  try {
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      // Category exists, return it
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as Category;
+    } else {
+      // Category does not exist, create it
+      const newCategoryData = {
+        name: normalizedName,
+        slug: slug,
+        description: `Discussions about ${normalizedName}`, // Default description
+        threadCount: 0,
+      };
+      const docRef = await addDoc(categoriesRef, newCategoryData);
+      return { id: docRef.id, ...newCategoryData } as Category;
+    }
+  } catch (error) {
+    console.error("Error in getOrCreateCategory: ", error);
+    throw error;
+  }
 }

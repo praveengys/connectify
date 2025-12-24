@@ -15,13 +15,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { Category, Forum } from '@/lib/types';
-import { createThread } from '@/lib/firebase/firestore';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { createThread, getOrCreateCategory } from '@/lib/firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { Combobox } from '@/components/ui/combobox';
 
 const formSchema = z.object({
   forumId: z.string().min(1, { message: 'Please select a forum.' }),
-  categoryId: z.string().min(1, { message: 'Please select a category.' }),
+  categoryName: z.string().min(1, { message: 'Please select or create a category.' }),
   intent: z.enum(['question', 'discussion', 'announcement', 'feedback', 'help'], { required_error: 'You must select a thread intent.' }),
   title: z.string().min(10, 'Title must be at least 10 characters.').max(150, 'Title cannot exceed 150 characters.'),
   body: z.string().min(20, 'The body of your post must be at least 20 characters.'),
@@ -41,11 +42,10 @@ export default function NewThreadForm() {
       if (!user) return;
       const { firestore } = initializeFirebase();
       
-      const forumQuery = query(collection(firestore, 'forums'), where('status', '==', 'active'));
+      const forumQuery = query(collection(firestore, 'forums'), orderBy('createdAt', 'desc'));
       const forumSnapshot = await getDocs(forumQuery);
       setForums(forumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum)));
       
-      // Fetch all categories
       const categoryQuery = query(collection(firestore, 'categories'), orderBy('name'));
       const categorySnapshot = await getDocs(categoryQuery);
       setCategories(categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
@@ -59,6 +59,7 @@ export default function NewThreadForm() {
       title: '',
       body: '',
       tags: '',
+      categoryName: '',
     },
   });
 
@@ -69,8 +70,15 @@ export default function NewThreadForm() {
     }
     setLoading(true);
     try {
+      // Get or create the category
+      const category = await getOrCreateCategory(values.categoryName);
+      if (!category) {
+        throw new Error('Could not create or find the specified category.');
+      }
+
       const threadData = {
         ...values,
+        categoryId: category.id,
         authorId: user.uid,
         tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
         status: 'published' as const,
@@ -87,6 +95,8 @@ export default function NewThreadForm() {
     }
     setLoading(false);
   }
+
+  const categoryOptions = categories.map(c => ({ value: c.name.toLowerCase(), label: c.name }));
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -116,23 +126,22 @@ export default function NewThreadForm() {
                         </FormItem>
                     )}
                 />
-                 <FormField
-                    control={form.control}
-                    name="categoryId"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
+                <FormField
+                  control={form.control}
+                  name="categoryName"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Category</FormLabel>
+                      <Combobox
+                        options={categoryOptions}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select or create..."
+                        createLabel="Create new category:"
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
             </div>
 

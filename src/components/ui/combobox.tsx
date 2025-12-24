@@ -46,7 +46,7 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
           className="w-full justify-between"
         >
           {value
-            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label
+            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label ?? value
             : placeholder || "Select an option..."}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -57,17 +57,19 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
             placeholder="Search or create..."
           />
           <CommandList>
-            <CommandEmpty>
+             <CommandEmpty>
               {createLabel && (
-                 <CommandItem
-                    onSelect={(inputValue) => {
+                <CommandItem
+                  onSelect={(inputValue) => {
+                    if (inputValue) {
                       onChange(inputValue)
                       setOpen(false)
-                    }}
-                    className="cursor-pointer"
-                 >
-                    {createLabel}
-                 </CommandItem>
+                    }
+                  }}
+                  className="cursor-pointer"
+                >
+                  {createLabel}
+                </CommandItem>
               )}
               {!createLabel && "No option found."}
             </CommandEmpty>
@@ -80,6 +82,10 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
                     const selectedOption = options.find(o => o.label.toLowerCase() === currentLabel.toLowerCase());
                     if (selectedOption) {
                       handleSelect(selectedOption.value)
+                    } else {
+                        // This handles the case where the user types something and hits enter
+                        // The `onSelect` of CommandItem gives the label.
+                        handleSelect(currentLabel)
                     }
                   }}
                 >

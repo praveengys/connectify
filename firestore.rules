@@ -33,7 +33,7 @@ service cloud.firestore {
     // Rules for user profile documents
     match /users/{userId} {
       // READ: Allow a user to read their own profile. This is crucial for login.
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
       
       // LIST: Allow any user (signed in or not) to list public profiles.
       allow list: if request.query.get('profileVisibility') == 'public';
@@ -74,7 +74,7 @@ service cloud.firestore {
     match /threads/{threadId} {
 
       /* READ */
-      allow get, list: if isSignedIn();
+      allow get, list: if true;
 
       /* CREATE */
       allow create: if
@@ -106,8 +106,8 @@ service cloud.firestore {
 
         match /replies/{replyId} {
           /* READ */
-          // Any signed-in user can read replies in a thread.
-          allow get, list: if isSignedIn();
+          // Any user can read replies in a public thread.
+          allow get, list: if true;
 
           /* CREATE */
           allow create: if

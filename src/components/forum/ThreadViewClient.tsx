@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -16,6 +17,7 @@ import type { Reply, Thread, UserProfile } from '@/lib/types';
 import { getUserProfile, getThread } from '@/lib/firebase/firestore';
 import { MessageSquare, CornerDownRight } from 'lucide-react';
 import { doc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 type ThreadViewClientProps = {
   initialThread: Thread;
@@ -25,6 +27,7 @@ type ThreadViewClientProps = {
 
 export default function ThreadViewClient({ initialThread, initialReplies, initialAuthors }: ThreadViewClientProps) {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
   const [thread, setThread] = useState<Thread>(initialThread);
   const [authors, setAuthors] = useState<Record<string, UserProfile>>(initialAuthors);
@@ -53,7 +56,12 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
         // Fetch any missing authors from the main thread and replies
         const authorIdsToFetch = new Set<string>([threadData.authorId]);
-        repliesWithDates.forEach(r => authorIdsToFetch.add(r.authorId));
+        repliesWithDates.forEach(r => {
+            authorIdsToFetch.add(r.authorId);
+            if(r.replyToAuthorId) {
+                authorIdsToFetch.add(r.replyToAuthorId);
+            }
+        });
         
         const newAuthorsToFetch = Array.from(authorIdsToFetch).filter(id => !authors[id]);
 
@@ -156,6 +164,18 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                     </p>
                   </div>
                   <p className="mt-2 text-muted-foreground whitespace-pre-wrap">{reply.body}</p>
+                   {user && !thread.isLocked && (
+                    <div className="mt-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push(`/forum/threads/${thread.id}/reply?replyTo=${reply.authorId}`)}
+                        >
+                            <CornerDownRight size={14} className="mr-2" />
+                            Reply
+                        </Button>
+                    </div>
+                   )}
                 </div>
               </div>
             </Card>

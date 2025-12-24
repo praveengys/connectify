@@ -2,7 +2,7 @@
 
 'use server';
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, arrayUnion, Transaction } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
@@ -218,23 +218,34 @@ export async function createReply(threadId: string, replyData: Omit<Reply, 'id' 
     if (!threadId) {
         throw new Error('threadId must be provided to create a reply.');
     }
-
-    const newReply = {
-        ...replyData,
-        id: doc(collection(firestore, '_')).id, // Generate a unique ID for the reply
-        status: 'published' as const,
-        createdAt: serverTimestamp(),
-    };
-
+    
     try {
-        // Atomically add the new reply to the "replies" array and update count.
-        await updateDoc(threadRef, {
-            replies: arrayUnion(newReply),
-            replyCount: (await getDoc(threadRef)).data()?.replies.length + 1,
-            latestReplyAt: serverTimestamp()
+        await runTransaction(firestore, async (transaction: Transaction) => {
+            const threadDoc = await transaction.get(threadRef);
+            if (!threadDoc.exists()) {
+                throw new Error("Thread does not exist!");
+            }
+
+            const threadData = threadDoc.data();
+            const currentReplies = threadData.replies || [];
+
+            const newReply = {
+                ...replyData,
+                id: doc(collection(firestore, '_')).id, // Generate a unique client-side ID
+                status: 'published' as const,
+                createdAt: new Date(), // Use client-side date for optimistic update, server will overwrite
+            };
+
+            const newReplies = [...currentReplies, newReply];
+
+            transaction.update(threadRef, {
+                replies: newReplies,
+                replyCount: newReplies.length,
+                latestReplyAt: serverTimestamp()
+            });
         });
     } catch (error) {
-        console.error("Error creating reply: ", error);
+        console.error("Error creating reply in transaction: ", error);
         throw error;
     }
 }

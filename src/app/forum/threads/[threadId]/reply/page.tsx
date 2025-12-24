@@ -2,26 +2,30 @@
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
-import { useRouter, useParams, notFound } from 'next/navigation';
+import { useRouter, useParams, notFound, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { getThread, createReply } from '@/lib/firebase/firestore';
-import type { Thread } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { getThread, createReply, getUserProfile } from '@/lib/firebase/firestore';
+import type { Thread, UserProfile } from '@/lib/types';
+import { Loader2, CornerDownRight } from 'lucide-react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function ReplyPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const threadId = params.threadId as string;
-  
+  const replyToAuthorId = searchParams.get('replyTo');
+
   const [content, setContent] = useState('');
   const [thread, setThread] = useState<Thread | null>(null);
+  const [replyToAuthor, setReplyToAuthor] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setSubmitting] = useState(false);
   const { toast } = useToast();
@@ -29,22 +33,30 @@ export default function ReplyPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.replace(`/login?redirect=/forum/threads/${threadId}/reply`);
+      const redirectUrl = replyToAuthorId
+        ? `/forum/threads/${threadId}/reply?replyTo=${replyToAuthorId}`
+        : `/forum/threads/${threadId}/reply`;
+      router.replace(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
       return;
     }
 
-    const fetchThread = async () => {
+    const fetchData = async () => {
       setLoading(true);
-      const threadData = await getThread(threadId);
+      const [threadData, authorData] = await Promise.all([
+        getThread(threadId),
+        replyToAuthorId ? getUserProfile(replyToAuthorId) : Promise.resolve(null),
+      ]);
+      
       if (!threadData || threadData.isLocked) {
         notFound();
       }
       setThread(threadData);
+      setReplyToAuthor(authorData);
       setLoading(false);
     };
 
-    fetchThread();
-  }, [user, authLoading, threadId, router]);
+    fetchData();
+  }, [user, authLoading, threadId, replyToAuthorId, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +67,7 @@ export default function ReplyPage() {
       await createReply(thread.id, {
         authorId: user.uid,
         body: content,
+        replyToAuthorId: replyToAuthorId || undefined,
       });
 
       toast({
@@ -94,6 +107,17 @@ export default function ReplyPage() {
             <CardDescription>
               Replying to: <span className="font-semibold text-foreground">{thread.title}</span>
             </CardDescription>
+            {replyToAuthor && (
+              <div className="pt-4 flex items-center gap-2 text-sm text-muted-foreground border-t mt-4">
+                <CornerDownRight size={16} />
+                <span>Replying to</span>
+                <Avatar className="h-6 w-6">
+                    <AvatarImage src={replyToAuthor.avatarUrl ?? undefined} alt={replyToAuthor.displayName} />
+                    <AvatarFallback>{replyToAuthor.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <span className="font-semibold text-foreground">{replyToAuthor.displayName}</span>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">

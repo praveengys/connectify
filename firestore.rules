@@ -93,45 +93,16 @@ service cloud.firestore {
         )
         ||
         (
-          // Allow any signed-in user to update reply count when creating a reply
+          // Allow any signed-in user to update reply count and add to replies array
           isSignedIn() &&
           request.resource.data.diff(resource.data).changedKeys()
-            .hasOnly(['replyCount', 'latestReplyAt'])
+            .hasOnly(['replies', 'replyCount', 'latestReplyAt'])
         );
 
       /* DELETE (SOFT ONLY) */
       allow delete: if false;
 
-        match /replies/{replyId} {
-          /* READ */
-          allow get, list: if isSignedIn();
-
-          /* CREATE */
-          allow create: if
-            isSignedIn() &&
-            request.resource.data.authorId == request.auth.uid &&
-            request.resource.data.body is string &&
-            get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
-
-          /* UPDATE */
-          allow update: if
-            (
-              // Author can only update the body of their own reply
-              isOwner(resource.data.authorId) &&
-              request.resource.data.diff(resource.data).changedKeys()
-                .hasOnly(['body', 'updatedAt'])
-            )
-            ||
-            (
-              // Moderators/admins can change the status (e.g., to hide a reply)
-              isModeratorOrAdmin() &&
-              request.resource.data.diff(resource.data).changedKeys()
-                .hasOnly(['status', 'updatedAt', 'moderatorNotes'])
-            );
-
-          /* DELETE */
-          allow delete: if false; // Soft-delete by changing status instead
-        }
+      // Subcollection rules are no longer needed with embedded replies.
     }
     
     match /categories/{categoryId} {

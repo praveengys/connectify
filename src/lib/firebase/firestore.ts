@@ -2,7 +2,7 @@
 
 'use server';
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
@@ -112,6 +112,7 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
         const docRef = await addDoc(threadsCollection, {
             ...threadData,
             replyCount: 0,
+            replies: [],
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
@@ -183,9 +184,16 @@ export async function getThread(threadId: string): Promise<Thread | null> {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
+            // Handle replies array: convert Timestamps to Dates
+            const replies = (data.replies || []).map((reply: any) => ({
+                ...reply,
+                createdAt: reply.createdAt?.toDate()
+            }));
+
             return {
                 id: docSnap.id,
                 ...data,
+                replies,
                 createdAt: data.createdAt?.toDate(),
                 updatedAt: data.updatedAt?.toDate(),
             } as Thread;
@@ -197,61 +205,33 @@ export async function getThread(threadId: string): Promise<Thread | null> {
     }
 }
 
-// Get all replies for a given thread
+// Get all replies for a given thread (no longer needed with embedded replies)
 export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
-    try {
-        const firestore = getFirestoreInstance();
-        const repliesRef = collection(firestore, 'threads', threadId, 'replies');
-        const q = query(repliesRef, orderBy('createdAt', 'asc'));
-        const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                createdAt: data.createdAt?.toDate(),
-            } as Reply;
-        });
-    } catch (error) {
-        console.error('Error fetching replies:', error);
-        return [];
-    }
+    return []; // This function is now obsolete
 }
 
-// Create a new reply
-export async function createReply(replyData: Omit<Reply, 'id' | 'createdAt' | 'status'>) {
+// Create a new reply by embedding it in the thread document
+export async function createReply(threadId: string, replyData: Omit<Reply, 'id' | 'threadId' | 'createdAt' | 'status'>) {
     const firestore = getFirestoreInstance();
-    const { threadId } = replyData;
+    const threadRef = doc(firestore, 'threads', threadId);
 
     if (!threadId) {
         throw new Error('threadId must be provided to create a reply.');
     }
 
-    const threadRef = doc(firestore, 'threads', threadId);
-    const repliesCollection = collection(threadRef, 'replies');
-    const newReplyRef = doc(repliesCollection);
-
-    const newReplyData = {
+    const newReply = {
         ...replyData,
-        id: newReplyRef.id,
+        id: doc(collection(firestore, '_')).id, // Generate a unique ID for the reply
         status: 'published' as const,
         createdAt: serverTimestamp(),
     };
 
     try {
-        await runTransaction(firestore, async (transaction) => {
-            const threadDoc = await transaction.get(threadRef);
-            if (!threadDoc.exists()) {
-                throw new Error("Thread does not exist!");
-            }
-
-            const currentCount = threadDoc.data().replyCount || 0;
-            transaction.update(threadRef, {
-                replyCount: currentCount + 1,
-                latestReplyAt: serverTimestamp()
-            });
-            
-            transaction.set(newReplyRef, newReplyData);
+        // Atomically add the new reply to the "replies" array and update count.
+        await updateDoc(threadRef, {
+            replies: arrayUnion(newReply),
+            replyCount: (await getDoc(threadRef)).data()?.replies.length + 1,
+            latestReplyAt: serverTimestamp()
         });
     } catch (error) {
         console.error("Error creating reply: ", error);

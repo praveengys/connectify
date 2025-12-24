@@ -24,6 +24,7 @@ export type Thread = {
   isLocked: boolean;
   isPinned: boolean;
   replyCount: number;
+  replies: Reply[]; // Embedded replies
   latestReplyAt: Timestamp | Date | null;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;

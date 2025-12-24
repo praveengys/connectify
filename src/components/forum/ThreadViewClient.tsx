@@ -1,159 +1,92 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { formatDistanceToNow } from 'date-fns';
-import { onSnapshot, collection, query, orderBy, Unsubscribe } from 'firebase/firestore';
+import { onSnapshot, Unsubscribe } from 'firebase/firestore';
+import Link from 'next/link';
 
 import { initializeFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import type { Reply, Thread, UserProfile } from '@/lib/types';
-import { createReply, getUserProfile } from '@/lib/firebase/firestore';
-import { Loader2, MessageSquare, CornerDownRight, X } from 'lucide-react';
+import { getUserProfile, getThread } from '@/lib/firebase/firestore';
+import { MessageSquare, CornerDownRight } from 'lucide-react';
+import { doc } from 'firebase/firestore';
 
 type ThreadViewClientProps = {
   initialThread: Thread;
-  initialReplies: Reply[];
+  initialReplies: Reply[]; // Note: this will be empty with the new model, but kept for type consistency
   initialAuthors: Record<string, UserProfile>;
 };
-
-const replySchema = z.object({
-  body: z.string().min(1, 'Reply cannot be empty.'),
-});
 
 export default function ThreadViewClient({ initialThread, initialReplies, initialAuthors }: ThreadViewClientProps) {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [thread, setThread] = useState<Thread>(initialThread);
-  const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [authors, setAuthors] = useState<Record<string, UserProfile>>(initialAuthors);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [replyTo, setReplyTo] = useState<{ authorId: string; displayName: string } | null>(null);
-  const replyFormBodyRef = useRef<HTMLTextAreaElement>(null);
-
 
   useEffect(() => {
-    // Guard to ensure listener only attaches when user state is fully resolved.
-    if (loading) {
-      return;
-    }
-    
     const { firestore } = initializeFirebase();
-    let unsubscribe: Unsubscribe | undefined;
-    
-    try {
-        const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
-        const q = query(repliesRef, orderBy('createdAt', 'asc'));
+    const threadRef = doc(firestore, 'threads', thread.id);
 
-        unsubscribe = onSnapshot(q, async (querySnapshot) => {
-        const newReplies: Reply[] = [];
-        const authorIdsToFetch = new Set<string>();
+    const unsubscribe = onSnapshot(threadRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        const threadData = docSnap.data({ serverTimestamps: 'estimate' }) as Thread;
+        
+        // Convert timestamps in replies array
+        const repliesWithDates = (threadData.replies || []).map(r => ({
+          ...r,
+          createdAt: (r.createdAt as any)?.toDate ? (r.createdAt as any).toDate() : r.createdAt
+        }));
 
-        querySnapshot.forEach(doc => {
-            const data = doc.data({ serverTimestamps: 'estimate' });
-            
-            const reply = {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate() ?? new Date(),
-            } as Reply;
-            newReplies.push(reply);
-
-            if (reply.authorId && !authors[reply.authorId]) {
-                authorIdsToFetch.add(reply.authorId);
-            }
-            if (reply.replyToAuthorId && !authors[reply.replyToAuthorId]) {
-                authorIdsToFetch.add(reply.replyToAuthorId);
-            }
+        setThread({
+          ...threadData,
+          id: docSnap.id,
+          createdAt: (threadData.createdAt as any).toDate(),
+          updatedAt: (threadData.updatedAt as any).toDate(),
+          replies: repliesWithDates,
         });
 
-        if (authorIdsToFetch.size > 0) {
-            const fetchedAuthors = await Promise.all(
-            Array.from(authorIdsToFetch).map(id => getUserProfile(id))
-            );
-            setAuthors(prev => {
+        // Fetch any missing authors from the main thread and replies
+        const authorIdsToFetch = new Set<string>([threadData.authorId]);
+        repliesWithDates.forEach(r => authorIdsToFetch.add(r.authorId));
+        
+        const newAuthorsToFetch = Array.from(authorIdsToFetch).filter(id => !authors[id]);
+
+        if (newAuthorsToFetch.length > 0) {
+          const fetchedAuthors = await Promise.all(
+            newAuthorsToFetch.map(id => getUserProfile(id))
+          );
+          setAuthors(prev => {
             const newAuthors = { ...prev };
             fetchedAuthors.forEach(author => {
-                if (author) newAuthors[author.uid] = author;
+              if (author) newAuthors[author.uid] = author;
             });
             return newAuthors;
-            });
+          });
         }
-        
-        setReplies(newReplies);
-        }, (error) => {
-            console.error("Firestore snapshot listener error:", error);
-            toast({
-                title: 'Real-time connection failed',
-                description: 'Could not listen for new replies. Please refresh the page.',
-                variant: 'destructive',
-            })
-        });
-
-    } catch (error) {
-        console.error("Error setting up snapshot listener:", error);
-        toast({
-            title: 'Connection Error',
-            description: 'Failed to set up real-time connection.',
-            variant: 'destructive',
-        })
-    }
-
-
-    return () => {
-        if (unsubscribe) {
-            unsubscribe();
-        }
-    }
-  }, [thread.id, toast, loading, user]);
-
-  const form = useForm<z.infer<typeof replySchema>>({
-    resolver: zodResolver(replySchema),
-    defaultValues: { body: '' },
-  });
-
-  const onSubmit = async (values: z.infer<typeof replySchema>) => {
-    if (!user) {
-      toast({ title: 'Not logged in', description: 'Please sign in to reply.', variant: 'destructive' });
-      return;
-    }
-    setIsSubmitting(true);
-
-    try {
-      await createReply({
-        threadId: thread.id,
-        body: values.body,
-        authorId: user.uid,
-        replyToAuthorId: replyTo?.authorId,
+      }
+    }, (error) => {
+      console.error("Firestore snapshot listener error:", error);
+      toast({
+        title: 'Real-time connection failed',
+        description: 'Could not listen for thread updates. Please refresh the page.',
+        variant: 'destructive',
       });
+    });
 
-      form.reset();
-      setReplyTo(null);
-    } catch (error: any) {
-      toast({ title: 'Error', description: `Could not post reply: ${error.message}`, variant: 'destructive' });
-    }
-    setIsSubmitting(false);
-  };
-  
-  const handleReplyTo = (author: UserProfile) => {
-    setReplyTo({ authorId: author.uid, displayName: author.displayName });
-    replyFormBodyRef.current?.focus();
-  }
+    return () => unsubscribe();
+  }, [thread.id, toast, authors]);
 
   const threadAuthor = useMemo(() => authors[thread.authorId], [authors, thread.authorId]);
   
   const sortedReplies = useMemo(() => {
-    return replies.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  }, [replies]);
+    return thread.replies?.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) || [];
+  }, [thread.replies]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -183,7 +116,17 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
         </CardContent>
       </Card>
 
-      <h2 className="text-2xl font-bold mb-4">{sortedReplies.length} {sortedReplies.length === 1 ? 'Reply' : 'Replies'}</h2>
+       <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">{sortedReplies.length} {sortedReplies.length === 1 ? 'Reply' : 'Replies'}</h2>
+        {user && !thread.isLocked && (
+            <Button asChild>
+                <Link href={`/forum/threads/${thread.id}/reply`}>
+                    <MessageSquare size={16} className="mr-2"/>
+                    Post a Reply
+                </Link>
+            </Button>
+        )}
+      </div>
       
       <div className="space-y-6">
         {sortedReplies.map(reply => {
@@ -213,60 +156,12 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                     </p>
                   </div>
                   <p className="mt-2 text-muted-foreground whitespace-pre-wrap">{reply.body}</p>
-
-                  {user && user.uid !== reply.authorId && !thread.isLocked && (
-                    <Button variant="ghost" size="sm" className="mt-2 -ml-2 h-auto p-1" onClick={() => replyAuthor && handleReplyTo(replyAuthor)}>
-                        <MessageSquare size={14} className="mr-1" />
-                        Reply
-                    </Button>
-                  )}
                 </div>
               </div>
             </Card>
           )
         })}
       </div>
-
-      {user && !thread.isLocked && (
-        <Card className="mt-8 p-6 sticky bottom-4">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {replyTo && (
-                <div className="flex items-center justify-between text-sm p-2 bg-secondary rounded-md">
-                    <p className="text-secondary-foreground">Replying to <span className="font-semibold">@{replyTo.displayName}</span></p>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setReplyTo(null)}>
-                        <X size={14} />
-                    </Button>
-                </div>
-              )}
-               <FormField
-                control={form.control}
-                name="body"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="sr-only">Reply</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        {...field} 
-                        ref={replyFormBodyRef}
-                        placeholder={replyTo ? `Write your reply to ${replyTo.displayName}...` : "Write your reply here..."} 
-                        rows={3} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Post Reply
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </Card>
-      )}
 
       {user && thread.isLocked && (
         <div className="mt-8 p-4 text-center bg-secondary rounded-lg">
@@ -276,5 +171,3 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     </div>
   );
 }
-
-    

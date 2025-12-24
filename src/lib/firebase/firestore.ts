@@ -1,9 +1,14 @@
 
+'use server';
+
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
-const { firestore } = initializeFirebase();
+// This function gets the firestore instance. It's defined once to avoid repetition.
+function getFirestoreInstance() {
+    return initializeFirebase().firestore;
+}
 
 // Create a new user profile document in Firestore
 export async function createUserProfile(uid: string, data: Partial<UserProfile>) {
@@ -12,6 +17,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     return;
   }
   try {
+    const firestore = getFirestoreInstance();
     // Add the user's UID to the data object to satisfy security rules.
     await setDoc(doc(firestore, 'users', uid), {
       ...data,
@@ -27,6 +33,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
 // Get a user profile from Firestore
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     try {
+        const firestore = getFirestoreInstance();
         const docRef = doc(firestore, 'users', uid);
         const docSnap = await getDoc(docRef);
 
@@ -55,6 +62,7 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
         throw new Error('updateUserProfile called without a valid uid');
     }
     try {
+        const firestore = getFirestoreInstance();
         const userRef = doc(firestore, 'users', uid);
         await setDoc(userRef, {
             ...data,
@@ -69,6 +77,7 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
 // Get all public user profiles
 export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]> {
   try {
+    const firestore = getFirestoreInstance();
     const usersRef = collection(firestore, 'users');
     const q = query(
       usersRef,
@@ -94,6 +103,7 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
 // Create a new discussion thread
 export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'author' | 'replyCount' | 'categoryId'> & { categoryId: string }) {
     try {
+        const firestore = getFirestoreInstance();
         const threadsCollection = collection(firestore, 'threads');
         const docRef = await addDoc(threadsCollection, {
             ...threadData,
@@ -111,6 +121,7 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
 // Create a new forum
 export async function createForum(forumData: Omit<Forum, 'id' | 'createdAt' | 'status' | 'visibility'>) {
     try {
+        const firestore = getFirestoreInstance();
         const forumsCollection = collection(firestore, 'forums');
         const docRef = await addDoc(forumsCollection, {
             ...forumData,
@@ -133,6 +144,7 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
   
   if (!normalizedName) return null;
 
+  const firestore = getFirestoreInstance();
   const categoriesRef = collection(firestore, 'categories');
   const q = query(categoriesRef, where('slug', '==', slug));
 
@@ -162,6 +174,7 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
 // Get a single thread from Firestore
 export async function getThread(threadId: string): Promise<Thread | null> {
     try {
+        const firestore = getFirestoreInstance();
         const docRef = doc(firestore, 'threads', threadId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
@@ -183,6 +196,7 @@ export async function getThread(threadId: string): Promise<Thread | null> {
 // Get all replies for a given thread
 export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
     try {
+        const firestore = getFirestoreInstance();
         const repliesRef = collection(firestore, 'threads', threadId, 'replies');
         const q = query(repliesRef, orderBy('createdAt', 'asc'));
         const querySnapshot = await getDocs(q);
@@ -203,6 +217,7 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
 // Create a new reply
 export async function createReply(replyData: Omit<Reply, 'id' | 'createdAt' | 'status'>) {
     try {
+        const firestore = getFirestoreInstance();
         const { threadId } = replyData;
         const repliesCollection = collection(firestore, 'threads', threadId, 'replies');
         const docRef = await addDoc(repliesCollection, {

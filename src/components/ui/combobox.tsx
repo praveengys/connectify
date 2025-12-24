@@ -29,23 +29,12 @@ type ComboboxProps = {
 
 export function Combobox({ options, value, onChange, placeholder, createLabel }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const [inputValue, setInputValue] = React.useState(value || "");
-
+  
   const handleSelect = (currentValue: string) => {
     const newValue = currentValue === value ? "" : currentValue;
     onChange(newValue);
-    setInputValue(newValue);
     setOpen(false);
   };
-  
-  const handleCreate = () => {
-    onChange(inputValue);
-    setOpen(false);
-  };
-
-  const filteredOptions = options.filter((option) =>
-    option.label.toLowerCase().includes(inputValue.toLowerCase())
-  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -66,27 +55,33 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
         <Command>
           <CommandInput 
             placeholder="Search or create..."
-            value={inputValue}
-            onValueChange={setInputValue}
           />
           <CommandList>
             <CommandEmpty>
-              {createLabel && inputValue && (
+              {createLabel && (
                  <CommandItem
-                    onSelect={handleCreate}
+                    onSelect={(inputValue) => {
+                      onChange(inputValue)
+                      setOpen(false)
+                    }}
                     className="cursor-pointer"
                  >
-                    {createLabel} "{inputValue}"
+                    {createLabel}
                  </CommandItem>
               )}
               {!createLabel && "No option found."}
             </CommandEmpty>
             <CommandGroup>
-              {filteredOptions.map((option) => (
+              {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
-                  onSelect={handleSelect}
+                  value={option.label}
+                  onSelect={(currentLabel) => {
+                    const selectedOption = options.find(o => o.label.toLowerCase() === currentLabel.toLowerCase());
+                    if (selectedOption) {
+                      handleSelect(selectedOption.value)
+                    }
+                  }}
                 >
                   <Check
                     className={cn(
@@ -97,14 +92,6 @@ export function Combobox({ options, value, onChange, placeholder, createLabel }:
                   {option.label}
                 </CommandItem>
               ))}
-              {createLabel && inputValue && !filteredOptions.some(o => o.label.toLowerCase() === inputValue.toLowerCase()) && (
-                <CommandItem
-                    onSelect={handleCreate}
-                    className="cursor-pointer"
-                >
-                   {createLabel} "{inputValue}"
-                </CommandItem>
-              )}
             </CommandGroup>
           </CommandList>
         </Command>

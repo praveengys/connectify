@@ -31,7 +31,7 @@ const replySchema = z.object({
 });
 
 export default function ThreadViewClient({ initialThread, initialReplies, initialAuthors }: ThreadViewClientProps) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { toast } = useToast();
   const [thread, setThread] = useState<Thread>(initialThread);
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
@@ -42,8 +42,8 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
 
   useEffect(() => {
-    // **CRITICAL FIX**: Do not attach listener until auth state is resolved.
-    if (!user) return;
+    // **CRITICAL FIX**: Do not attach listener until auth state is fully resolved and user is present.
+    if (loading || !user) return;
 
     const { firestore } = initializeFirebase();
     const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
@@ -54,7 +54,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       const authorIdsToFetch = new Set<string>();
 
       querySnapshot.forEach(doc => {
-        const data = doc.data({ serverTimestamps: 'estimate' }); // Use estimate for real-time feel
+        const data = doc.data({ serverTimestamps: 'estimate' });
         if (data.status !== 'published') return;
 
         const reply = {
@@ -96,7 +96,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     });
 
     return () => unsubscribe();
-  }, [thread.id, authors, user, toast]);
+  }, [thread.id, authors, user, loading, toast]);
 
   const form = useForm<z.infer<typeof replySchema>>({
     resolver: zodResolver(replySchema),

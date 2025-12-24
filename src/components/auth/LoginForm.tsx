@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -32,7 +31,6 @@ const GoogleIcon = () => (
 );
 
 export default function LoginForm() {
-  const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -54,10 +52,9 @@ export default function LoginForm() {
         description: error.message,
         variant: 'destructive',
       });
-    } else {
-      router.push('/dashboard');
+      setLoading(false);
     }
-    setLoading(false);
+    // No need to redirect here. The AuthRedirect component will handle it.
   }
   
   async function handleGoogleSignIn() {
@@ -69,10 +66,9 @@ export default function LoginForm() {
         description: error.message,
         variant: 'destructive',
       });
-    } else {
-      router.push('/dashboard');
+      setGoogleLoading(false);
     }
-    setGoogleLoading(false);
+    // No need to redirect here. The AuthRedirect component will handle it.
   }
 
   return (

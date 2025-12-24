@@ -120,8 +120,7 @@ service cloud.firestore {
           allow create: if
             isSignedIn() &&
             request.resource.data.authorId == request.auth.uid &&
-            request.resource.data.status == 'published' &&
-            // Check that the parent thread is not locked before allowing a reply
+            request.resource.data.body is string &&
             get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
 
           /* UPDATE */

@@ -8,15 +8,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function MembersClient() {
   const [members, setMembers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth(); // We can use this to know if the user is logged in
 
   useEffect(() => {
     const fetchMembers = async () => {
       setLoading(true);
+      setError(null);
       try {
         const { firestore } = initializeFirebase();
         const usersRef = collection(firestore, 'users');
@@ -34,8 +37,10 @@ export default function MembersClient() {
         setMembers(membersData);
       } catch (e: any) {
         console.error("Error fetching members: ", e);
-        if (e instanceof FirestoreError) {
-             setError(`Error fetching members: ${e.message}. Check Firestore security rules.`);
+        if (e.code === 'permission-denied') {
+          setError('You do not have permission to view the member list. This may be a configuration issue.');
+        } else if (e instanceof FirestoreError) {
+             setError(`Error fetching members: ${e.message}.`);
         } else {
             setError('An unexpected error occurred while fetching members.');
         }
@@ -65,7 +70,7 @@ export default function MembersClient() {
         )}
 
         {error && (
-            <div className="flex flex-col items-center justify-center h-64 text-destructive">
+            <div className="flex flex-col items-center justify-center h-64 text-destructive bg-destructive/10 p-8 rounded-lg">
                 <ServerCrash className="h-12 w-12 mb-4" />
                 <p className="text-lg font-semibold">Could not load members</p>
                 <p className="text-sm text-center max-w-md">{error}</p>
@@ -95,6 +100,13 @@ export default function MembersClient() {
               </Card>
             ))}
           </div>
+        )}
+
+        {!loading && !error && members.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                <h3 className="mt-4 text-lg font-semibold">No Public Members</h3>
+                <p className="mt-1 text-sm">It looks like there are no public member profiles to display right now.</p>
+            </div>
         )}
       </div>
     </section>

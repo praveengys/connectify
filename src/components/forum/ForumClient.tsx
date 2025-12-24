@@ -153,9 +153,13 @@ export default function ForumClient() {
                         ))}
                     </div>
                   </div>
-                  <div className="flex flex-col items-center justify-center text-center w-20 shrink-0">
+                  <div className="flex flex-col items-center justify-center text-center w-24 shrink-0">
                     <p className="font-bold text-xl">{thread.replyCount ?? 0}</p>
                     <p className="text-xs text-muted-foreground">Replies</p>
+                    <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push(`/forum/threads/${thread.id}`)}>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Reply
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

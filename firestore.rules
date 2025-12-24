@@ -35,7 +35,7 @@ service cloud.firestore {
       // READ: Allow a user to read their own profile. This is crucial for login.
       allow get: if isOwner(userId) || isAdmin();
       
-      // LIST: Allow any user (signed in or not) to list public profiles.
+      // LIST: Allow any signed-in user to list public profiles.
       allow list: if request.query.get('profileVisibility') == 'public';
 
       // CREATE: Allow a user to create their own profile document.
@@ -186,7 +186,7 @@ service cloud.firestore {
     
     match /roles_moderator/{userId} {
       allow read: if isAdmin();
-      write: if false;
+      allow write: if false;
     }
   }
 }

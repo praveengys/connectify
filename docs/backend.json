@@ -69,6 +69,7 @@
         "threadId": { "type": "string" },
         "body": { "type": "string" },
         "authorId": { "type": "string" },
+        "replyToAuthorId": { "type": "string", "description": "The UID of the user this reply is directed at, for conversational context." },
         "status": { "type": "string", "enum": ["published", "hidden", "deleted"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "moderatorNotes": { "type": "string", "description": "Internal notes for moderators." }

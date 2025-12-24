@@ -6,7 +6,7 @@ export type Forum = {
   description: string;
   createdBy: string;
   visibility: 'public' | 'private';
-  status: 'active' | 'under_review' | 'suspended';
+  status: 'active' | 'suspended';
   createdAt: Timestamp | Date;
 };
 
@@ -41,6 +41,7 @@ export type Reply = {
   body: string;
   authorId: string;
   author?: UserProfile; // Optional: denormalized author data
+  replyToAuthorId?: string; // UID of the user this reply is directed at
   status: 'published' | 'hidden' | 'deleted';
   createdAt: Timestamp | Date;
   moderatorNotes?: string;
@@ -49,6 +50,7 @@ export type Reply = {
     moderatorId: string;
     actionReason: string;
   };
+  pending?: boolean; // For optimistic UI
 };
 
 export type Category = {
@@ -87,7 +89,7 @@ export type UserProfile = {
   languages: string[];
   location: string;
   currentlyExploring: string;
-  role: 'member' | 'moderator' | 'admin';
+  role: 'member' | 'admin';
   profileVisibility: 'public' | 'private';
   emailVerified: boolean;
   profileScore: number;

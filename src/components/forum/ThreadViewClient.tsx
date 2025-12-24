@@ -1,21 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { formatDistanceToNow } from 'date-fns';
+import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
+
+import { initializeFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import type { Reply, Thread, UserProfile } from '@/lib/types';
 import { createReply, getUserProfile } from '@/lib/firebase/firestore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MessageSquare, CornerDownRight, X } from 'lucide-react';
 
 type ThreadViewClientProps = {
   initialThread: Thread;
@@ -30,10 +33,60 @@ const replySchema = z.object({
 export default function ThreadViewClient({ initialThread, initialReplies, initialAuthors }: ThreadViewClientProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [thread] = useState<Thread>(initialThread);
+  const [thread, setThread] = useState<Thread>(initialThread);
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [authors, setAuthors] = useState<Record<string, UserProfile>>(initialAuthors);
   const [loading, setLoading] = useState(false);
+  const [replyTo, setReplyTo] = useState<{ authorId: string; displayName: string } | null>(null);
+  const replyFormBodyRef = useRef<HTMLTextAreaElement>(null);
+
+
+  useEffect(() => {
+    const { firestore } = initializeFirebase();
+    const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
+    const q = query(repliesRef, orderBy('createdAt', 'asc'));
+
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      const newReplies: Reply[] = [];
+      const authorIdsToFetch = new Set<string>();
+
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.status !== 'published') return; // Skip non-published replies
+
+        const reply = {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() ?? new Date(),
+        } as Reply;
+        newReplies.push(reply);
+
+        if (!authors[reply.authorId]) {
+          authorIdsToFetch.add(reply.authorId);
+        }
+        if (reply.replyToAuthorId && !authors[reply.replyToAuthorId]) {
+          authorIdsToFetch.add(reply.replyToAuthorId);
+        }
+      });
+
+      if (authorIdsToFetch.size > 0) {
+        const fetchedAuthors = await Promise.all(
+          Array.from(authorIdsToFetch).map(id => getUserProfile(id))
+        );
+        setAuthors(prev => {
+          const newAuthors = { ...prev };
+          fetchedAuthors.forEach(author => {
+            if (author) newAuthors[author.uid] = author;
+          });
+          return newAuthors;
+        });
+      }
+      
+      setReplies(newReplies);
+    });
+
+    return () => unsubscribe();
+  }, [thread.id, authors]);
 
   const form = useForm<z.infer<typeof replySchema>>({
     resolver: zodResolver(replySchema),
@@ -46,29 +99,44 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       return;
     }
     setLoading(true);
+
+    const optimisticReply: Reply = {
+      id: `pending-${Date.now()}`,
+      threadId: thread.id,
+      body: values.body,
+      authorId: user.uid,
+      replyToAuthorId: replyTo?.authorId,
+      status: 'published',
+      createdAt: new Date(),
+      pending: true,
+    };
+    
+    setReplies(prev => [...prev, optimisticReply]);
+
     try {
-      const newReply = await createReply({
+      await createReply({
         threadId: thread.id,
         body: values.body,
         authorId: user.uid,
+        replyToAuthorId: replyTo?.authorId,
       });
 
-      // Optimistic UI update
-      const newAuthorProfile = authors[user.uid] || await getUserProfile(user.uid);
-      if (newAuthorProfile && !authors[user.uid]) {
-        setAuthors(prev => ({...prev, [user.uid]: newAuthorProfile}));
-      }
-
-      setReplies(prevReplies => [...prevReplies, { ...newReply, author: user, createdAt: new Date() } as Reply]);
       form.reset();
-      toast({ title: 'Success', description: 'Your reply has been posted.' });
+      setReplyTo(null);
     } catch (error: any) {
       toast({ title: 'Error', description: `Could not post reply: ${error.message}`, variant: 'destructive' });
+      // Remove optimistic reply on failure
+      setReplies(prev => prev.filter(r => r.id !== optimisticReply.id));
     }
     setLoading(false);
   };
+  
+  const handleReplyTo = (author: UserProfile) => {
+    setReplyTo({ authorId: author.uid, displayName: author.displayName });
+    replyFormBodyRef.current?.focus();
+  }
 
-  const threadAuthor = authors[thread.authorId];
+  const threadAuthor = useMemo(() => authors[thread.authorId], [authors, thread.authorId]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -103,8 +171,10 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       <div className="space-y-6">
         {replies.map(reply => {
           const replyAuthor = authors[reply.authorId];
+          const repliedToAuthor = reply.replyToAuthorId ? authors[reply.replyToAuthorId] : null;
+
           return (
-            <Card key={reply.id} className="p-5">
+            <Card key={reply.id} className={`p-5 ${reply.pending ? 'opacity-60' : ''}`}>
               <div className="flex items-start gap-4">
                 <Avatar className="h-9 w-9">
                   <AvatarImage src={replyAuthor?.avatarUrl ?? undefined} />
@@ -112,12 +182,27 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold">{replyAuthor?.displayName ?? '...'}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-semibold">{replyAuthor?.displayName ?? '...'}</p>
+                        {repliedToAuthor && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <CornerDownRight size={14}/>
+                                @{repliedToAuthor.displayName}
+                            </p>
+                        )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
+                      {reply.pending ? 'Sending...' : formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
                     </p>
                   </div>
                   <p className="mt-2 text-muted-foreground whitespace-pre-wrap">{reply.body}</p>
+
+                  {user && user.uid !== reply.authorId && !thread.isLocked && (
+                    <Button variant="ghost" size="sm" className="mt-2 -ml-2 h-auto p-1" onClick={() => replyAuthor && handleReplyTo(replyAuthor)}>
+                        <MessageSquare size={14} className="mr-1" />
+                        Reply
+                    </Button>
+                  )}
                 </div>
               </div>
             </Card>
@@ -125,18 +210,31 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
         })}
       </div>
 
-      {user && (
-        <Card className="mt-8 p-6">
-          <h3 className="text-lg font-semibold mb-4">Post a Reply</h3>
+      {user && !thread.isLocked && (
+        <Card className="mt-8 p-6 sticky bottom-4">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
+              {replyTo && (
+                <div className="flex items-center justify-between text-sm p-2 bg-secondary rounded-md">
+                    <p className="text-secondary-foreground">Replying to <span className="font-semibold">@{replyTo.displayName}</span></p>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setReplyTo(null)}>
+                        <X size={14} />
+                    </Button>
+                </div>
+              )}
+               <FormField
                 control={form.control}
                 name="body"
                 render={({ field }) => (
                   <FormItem>
+                    <FormLabel className="sr-only">Reply</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Write your reply here..." rows={5} />
+                      <Textarea 
+                        {...field} 
+                        ref={replyFormBodyRef}
+                        placeholder={replyTo ? `Write your reply to ${replyTo.displayName}...` : "Write your reply here..."} 
+                        rows={3} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -151,6 +249,12 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
             </form>
           </Form>
         </Card>
+      )}
+
+      {user && thread.isLocked && (
+        <div className="mt-8 p-4 text-center bg-secondary rounded-lg">
+            <p className="text-secondary-foreground font-medium">This thread has been locked. No new replies can be posted.</p>
+        </div>
       )}
     </div>
   );

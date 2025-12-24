@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc } from 'firebase/firestore';
@@ -220,24 +221,40 @@ export async function createReply(replyData: Omit<Reply, 'id' | 'createdAt' | 's
         const firestore = getFirestoreInstance();
         const { threadId } = replyData;
         const repliesCollection = collection(firestore, 'threads', threadId, 'replies');
-        const docRef = await addDoc(repliesCollection, {
+        
+        // Use a temporary ID for the optimistic update
+        const tempId = doc(collection(firestore, '_')).id;
+
+        const newReplyData = {
             ...replyData,
             status: 'published',
             createdAt: serverTimestamp(),
+        };
+
+        const docRef = doc(repliesCollection, tempId);
+        // Don't await setDoc for optimistic updates
+        setDoc(docRef, newReplyData);
+
+        // Increment replyCount on the parent thread in the background
+        const threadRef = doc(firestore, 'threads', threadId);
+        getDoc(threadRef).then(threadSnap => {
+            if (threadSnap.exists()) {
+                const currentCount = threadSnap.data().replyCount || 0;
+                updateDoc(threadRef, { 
+                    replyCount: currentCount + 1,
+                    latestReplyAt: serverTimestamp()
+                });
+            }
         });
 
-        // Increment replyCount on the parent thread
-        const threadRef = doc(firestore, 'threads', threadId);
-        const threadSnap = await getDoc(threadRef);
-        if (threadSnap.exists()) {
-            const currentCount = threadSnap.data().replyCount || 0;
-            await updateDoc(threadRef, { 
-                replyCount: currentCount + 1,
-                latestReplyAt: serverTimestamp()
-            });
-        }
-
-        return { id: docRef.id, ...replyData, status: 'published' };
+        // Return the data with the temporary ID for the UI
+        return {
+            id: tempId,
+            ...replyData,
+            status: 'published',
+            createdAt: new Date(), // Use local time for optimistic UI
+            pending: true,
+        };
     } catch (error) {
         console.error("Error creating reply: ", error);
         throw error;

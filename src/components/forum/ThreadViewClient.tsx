@@ -1,10 +1,11 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { onSnapshot } from 'firebase/firestore';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { initializeFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,14 +15,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import type { Reply, Thread, UserProfile } from '@/lib/types';
-import { getUserProfile, getThread } from '@/lib/firebase/firestore';
-import { MessageSquare, CornerDownRight } from 'lucide-react';
+import { getUserProfile } from '@/lib/firebase/firestore';
+import { MessageSquare, CornerDownRight, Lock } from 'lucide-react';
 import { doc } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import ChatRoom from './ChatRoom';
+import { Separator } from '../ui/separator';
 
 type ThreadViewClientProps = {
   initialThread: Thread;
-  initialReplies: Reply[]; // Note: this will be empty with the new model, but kept for type consistency
+  initialReplies: Reply[]; 
   initialAuthors: Record<string, UserProfile>;
 };
 
@@ -33,6 +35,12 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
   const [authors, setAuthors] = useState<Record<string, UserProfile>>(initialAuthors);
 
   useEffect(() => {
+    if (loading || !user) {
+        // Don't attach listener if auth state is not confirmed or user is not logged in.
+        // Public users will see initial server-rendered data.
+        return;
+    }
+
     const { firestore } = initializeFirebase();
     const threadRef = doc(firestore, 'threads', thread.id);
 
@@ -40,10 +48,9 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       if (docSnap.exists()) {
         const threadData = docSnap.data({ serverTimestamps: 'estimate' }) as Thread;
         
-        // Convert timestamps in replies array
         const repliesWithDates = (threadData.replies || []).map(r => ({
           ...r,
-          createdAt: (r.createdAt as any)?.toDate ? (r.createdAt as any).toDate() : r.createdAt
+          createdAt: (r.createdAt as any)?.toDate ? (r.createdAt as any).toDate() : new Date(r.createdAt)
         }));
 
         setThread({
@@ -54,7 +61,6 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
           replies: repliesWithDates,
         });
 
-        // Fetch any missing authors from the main thread and replies
         const authorIdsToFetch = new Set<string>([threadData.authorId]);
         repliesWithDates.forEach(r => {
             authorIdsToFetch.add(r.authorId);
@@ -88,7 +94,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     });
 
     return () => unsubscribe();
-  }, [thread.id, toast, authors]);
+  }, [thread.id, toast, authors, loading, user]);
 
   const threadAuthor = useMemo(() => authors[thread.authorId], [authors, thread.authorId]);
   
@@ -118,11 +124,20 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
         </div>
       </div>
       
-      <Card className="mb-8">
+      <Card className="mb-6">
         <CardContent className="p-6 text-base leading-relaxed whitespace-pre-wrap">
           {thread.body}
         </CardContent>
       </Card>
+
+      <Separator className="my-8" />
+      
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-4">Live Chat</h2>
+        <ChatRoom thread={thread} />
+      </div>
+
+      <Separator className="my-8" />
 
        <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">{sortedReplies.length} {sortedReplies.length === 1 ? 'Reply' : 'Replies'}</h2>
@@ -130,7 +145,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
             <Button asChild>
                 <Link href={`/forum/threads/${thread.id}/reply`}>
                     <MessageSquare size={16} className="mr-2"/>
-                    Post a Reply
+                    Post a Formal Reply
                 </Link>
             </Button>
         )}
@@ -184,8 +199,9 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       </div>
 
       {user && thread.isLocked && (
-        <div className="mt-8 p-4 text-center bg-secondary rounded-lg">
-            <p className="text-secondary-foreground font-medium">This thread has been locked. No new replies can be posted.</p>
+        <div className="mt-8 p-4 text-center bg-secondary rounded-lg flex items-center justify-center gap-2">
+            <Lock size={16} />
+            <p className="text-secondary-foreground font-medium">This thread has been locked. No new replies or chat messages can be posted.</p>
         </div>
       )}
     </div>

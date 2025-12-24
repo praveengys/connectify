@@ -102,7 +102,16 @@ service cloud.firestore {
       /* DELETE (SOFT ONLY) */
       allow delete: if false;
 
-      // Subcollection rules are no longer needed with embedded replies.
+      // Rules for the real-time chat subcollection
+      match /chatMessages/{messageId} {
+        allow read: if isSignedIn() && resource.data.status == 'active';
+        
+        allow create: if isSignedIn()
+                      && request.resource.data.senderId == request.auth.uid
+                      && get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
+        
+        allow update, delete: if isOwner(resource.data.senderId) || isModeratorOrAdmin();
+      }
     }
     
     match /categories/{categoryId} {

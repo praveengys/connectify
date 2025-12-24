@@ -54,6 +54,18 @@ export type Reply = {
   pending?: boolean; // For optimistic UI
 };
 
+export type ChatMessage = {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+  text: string;
+  createdAt: Timestamp | Date;
+  status: 'active' | 'deleted';
+};
+
+
 export type Category = {
   id: string;
   name: string;

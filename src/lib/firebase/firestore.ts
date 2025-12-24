@@ -3,7 +3,7 @@
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, arrayUnion, Transaction } from 'firebase/firestore';
-import type { UserProfile, Thread, Forum, Category, Reply } from '@/lib/types';
+import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
 // This function gets the firestore instance. It's defined once to avoid repetition.
@@ -226,9 +226,6 @@ export async function createReply(threadId: string, replyData: Omit<Reply, 'id' 
                 throw new Error("Thread does not exist!");
             }
 
-            const threadData = threadDoc.data();
-            const currentReplies = threadData.replies || [];
-
             const newReply = {
                 ...replyData,
                 id: doc(collection(firestore, '_')).id, // Generate a unique client-side ID
@@ -236,16 +233,35 @@ export async function createReply(threadId: string, replyData: Omit<Reply, 'id' 
                 createdAt: new Date(), // Use client-side date for optimistic update, server will overwrite
             };
 
-            const newReplies = [...currentReplies, newReply];
-
+            // Atomically update the replies array and metadata
             transaction.update(threadRef, {
-                replies: newReplies,
-                replyCount: newReplies.length,
+                replies: arrayUnion(newReply),
+                replyCount: (threadDoc.data().replyCount || 0) + 1,
                 latestReplyAt: serverTimestamp()
             });
         });
     } catch (error) {
         console.error("Error creating reply in transaction: ", error);
+        throw error;
+    }
+}
+
+
+// Create a new chat message in a thread's subcollection
+export async function createChatMessage(threadId: string, messageData: Omit<ChatMessage, 'id' | 'createdAt' | 'status'>) {
+    if (!threadId || !messageData.senderId) {
+        throw new Error('Thread ID and Sender ID are required.');
+    }
+    try {
+        const firestore = getFirestoreInstance();
+        const chatMessagesCollection = collection(firestore, 'threads', threadId, 'chatMessages');
+        await addDoc(chatMessagesCollection, {
+            ...messageData,
+            status: 'active',
+            createdAt: serverTimestamp(),
+        });
+    } catch (error) {
+        console.error('Error creating chat message:', error);
         throw error;
     }
 }

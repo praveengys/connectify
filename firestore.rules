@@ -25,54 +25,40 @@ service cloud.firestore {
     function isModeratorOrAdmin() {
       return isModerator() || isAdmin();
     }
-
-    function isNotDeleted(resource) {
-      return resource.data.status != 'deleted';
-    }
     
     // Rules for user profile documents
     match /users/{userId} {
-      // READ: Allow a user to read their own profile. This is crucial for login.
       allow get: if isOwner(userId) || isAdmin();
       
-      // LIST: Allow any signed-in user to list public profiles.
       allow list: if isSignedIn();
 
-      // READ (document): Allow reading public profiles
       allow read: if resource.data.profileVisibility == 'public'
                || isOwner(userId)
                || isAdmin();
 
-      // CREATE: Allow a user to create their own profile document.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      // UPDATE: Allow an owner to update their own profile, protecting critical fields.
       allow update: if isOwner(userId)
                   && request.resource.data.uid == resource.data.uid
                   && request.resource.data.role == resource.data.role
                   && request.resource.data.createdAt == resource.data.createdAt;
       
-      // DELETE: Deny all client-side deletes.
       allow delete: if false;
     }
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      // READ: Public can see active forums. Owners/admins can see their own suspended forums.
       allow get: if (resource.data.status == 'active' && resource.data.visibility == 'public') 
                   || isOwner(resource.data.createdBy) 
                   || isAdmin();
       allow list: if true;
 
-      // CREATE: Any signed-in user can create an active forum.
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.status == 'active';
 
-      // UPDATE: Only admins can suspend or update forums.
       allow update: if isAdmin();
 
-      // DELETE: Only admins can delete.
       allow delete: if isAdmin();
     }
 

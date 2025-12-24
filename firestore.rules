@@ -65,7 +65,7 @@ service cloud.firestore {
     match /threads/{threadId} {
 
       /* READ */
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
 
       /* CREATE */
       allow create: if
@@ -104,10 +104,7 @@ service cloud.firestore {
 
         match /replies/{replyId} {
           /* READ */
-          allow read: if
-            resource.data.status == 'published'
-            || isModeratorOrAdmin()
-            || isOwner(resource.data.authorId);
+          allow get, list: if isSignedIn();
 
           /* CREATE */
           allow create: if
@@ -189,3 +186,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

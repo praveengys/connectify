@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { formatDistanceToNow } from 'date-fns';
-import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
+import { onSnapshot, collection, query, orderBy, Unsubscribe } from 'firebase/firestore';
 
 import { initializeFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -42,60 +42,79 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
 
   useEffect(() => {
+    // Guard to ensure listener only attaches when user state is fully resolved.
+    if (loading) {
+      return;
+    }
+    
     const { firestore } = initializeFirebase();
-    const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
-    const q = query(repliesRef, orderBy('createdAt', 'asc'));
+    let unsubscribe: Unsubscribe | undefined;
+    
+    try {
+        const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
+        const q = query(repliesRef, orderBy('createdAt', 'asc'));
 
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      const newReplies: Reply[] = [];
-      const authorIdsToFetch = new Set<string>();
+        unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        const newReplies: Reply[] = [];
+        const authorIdsToFetch = new Set<string>();
 
-      querySnapshot.forEach(doc => {
-        const data = doc.data({ serverTimestamps: 'estimate' });
-        if (data.status !== 'published') return;
+        querySnapshot.forEach(doc => {
+            const data = doc.data({ serverTimestamps: 'estimate' });
+            
+            const reply = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() ?? new Date(),
+            } as Reply;
+            newReplies.push(reply);
 
-        const reply = {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() ?? new Date(),
-        } as Reply;
-        newReplies.push(reply);
-
-        if (!authors[reply.authorId]) {
-          authorIdsToFetch.add(reply.authorId);
-        }
-        if (reply.replyToAuthorId && !authors[reply.replyToAuthorId]) {
-          authorIdsToFetch.add(reply.replyToAuthorId);
-        }
-      });
-
-      if (authorIdsToFetch.size > 0) {
-        const fetchedAuthors = await Promise.all(
-          Array.from(authorIdsToFetch).map(id => getUserProfile(id))
-        );
-        setAuthors(prev => {
-          const newAuthors = { ...prev };
-          fetchedAuthors.forEach(author => {
-            if (author) newAuthors[author.uid] = author;
-          });
-          return newAuthors;
+            if (reply.authorId && !authors[reply.authorId]) {
+                authorIdsToFetch.add(reply.authorId);
+            }
+            if (reply.replyToAuthorId && !authors[reply.replyToAuthorId]) {
+                authorIdsToFetch.add(reply.replyToAuthorId);
+            }
         });
-      }
-      
-      setReplies(newReplies);
-    }, (error) => {
-        console.error("Snapshot listener error:", error);
+
+        if (authorIdsToFetch.size > 0) {
+            const fetchedAuthors = await Promise.all(
+            Array.from(authorIdsToFetch).map(id => getUserProfile(id))
+            );
+            setAuthors(prev => {
+            const newAuthors = { ...prev };
+            fetchedAuthors.forEach(author => {
+                if (author) newAuthors[author.uid] = author;
+            });
+            return newAuthors;
+            });
+        }
+        
+        setReplies(newReplies);
+        }, (error) => {
+            console.error("Firestore snapshot listener error:", error);
+            toast({
+                title: 'Real-time connection failed',
+                description: 'Could not listen for new replies. Please refresh the page.',
+                variant: 'destructive',
+            })
+        });
+
+    } catch (error) {
+        console.error("Error setting up snapshot listener:", error);
         toast({
-            title: 'Real-time connection failed',
-            description: 'Could not listen for new replies. Please refresh the page.',
+            title: 'Connection Error',
+            description: 'Failed to set up real-time connection.',
             variant: 'destructive',
         })
-    });
+    }
 
-    return () => unsubscribe();
-    // The dependency array is intentionally sparse to avoid re-subscribing on every author/reply change.
-    // The listener handles those updates internally.
-  }, [thread.id, toast]);
+
+    return () => {
+        if (unsubscribe) {
+            unsubscribe();
+        }
+    }
+  }, [thread.id, toast, loading, user]);
 
   const form = useForm<z.infer<typeof replySchema>>({
     resolver: zodResolver(replySchema),
@@ -257,3 +276,5 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     </div>
   );
 }
+
+    

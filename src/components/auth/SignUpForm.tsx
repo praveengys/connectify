@@ -53,9 +53,9 @@ export default function SignUpForm() {
         description: error.message,
         variant: 'destructive',
       });
-      setLoading(false);
     }
-    // No need to redirect here. The AuthRedirect component will handle it.
+    setLoading(false);
+    // The AuthRedirect component will handle redirecting the user.
   }
 
   async function handleGoogleSignIn() {
@@ -67,9 +67,9 @@ export default function SignUpForm() {
         description: error.message,
         variant: 'destructive',
       });
-       setGoogleLoading(false);
     }
-    // No need to redirect here. The AuthRedirect component will handle it.
+    setGoogleLoading(false);
+    // The AuthRedirect component will handle redirecting the user.
   }
 
   return (

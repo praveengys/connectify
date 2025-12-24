@@ -36,7 +36,12 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       
       // LIST: Allow any signed-in user to list public profiles.
-      allow list: if request.query.get('profileVisibility') == 'public';
+      allow list: if isSignedIn();
+
+      // READ (document): Allow reading public profiles
+      allow read: if resource.data.profileVisibility == 'public'
+               || isOwner(userId)
+               || isAdmin();
 
       // CREATE: Allow a user to create their own profile document.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
@@ -106,8 +111,10 @@ service cloud.firestore {
 
         match /replies/{replyId} {
           /* READ */
-          // Any user can read replies in a public thread.
-          allow get, list: if true;
+          allow read: if
+            resource.data.status == 'published'
+            || isModeratorOrAdmin()
+            || isOwner(resource.data.authorId);
 
           /* CREATE */
           allow create: if

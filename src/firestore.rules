@@ -94,10 +94,10 @@ service cloud.firestore {
         )
         ||
         (
-          // Allow any signed-in user to update reply count and add to replies array
+          // Allow any signed-in user to update reply count
           isSignedIn() &&
           request.resource.data.diff(resource.data).changedKeys()
-            .hasOnly(['replies', 'replyCount', 'latestReplyAt'])
+            .hasOnly(['replyCount', 'latestReplyAt'])
         );
 
       /* DELETE (SOFT ONLY) */

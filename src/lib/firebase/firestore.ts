@@ -111,7 +111,6 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
         const docRef = await addDoc(threadsCollection, {
             ...threadData,
             replyCount: 0,
-            replies: [], // Initialize replies as an empty array
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });

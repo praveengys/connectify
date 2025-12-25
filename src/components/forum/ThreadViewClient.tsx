@@ -63,14 +63,11 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
 
   useEffect(() => {
-    // We wait for auth to finish loading before setting up listeners
     if (loading) return;
 
     const { firestore } = initializeFirebase();
     const threadRef = doc(firestore, 'threads', thread.id);
-    const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
-    const q = query(repliesRef, orderBy('createdAt', 'asc'));
-
+    
     const unsubscribeThread = onSnapshot(threadRef, (docSnap) => {
       if (docSnap.exists()) {
         const threadData = {
@@ -93,12 +90,16 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
         });
     });
 
+    const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
+    const q = query(repliesRef, orderBy('createdAt', 'asc'));
+
     const unsubscribeReplies = onSnapshot(q, (snapshot) => {
       const newReplies = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt.toDate(),
-      } as Reply));
+      } as Reply)).filter(reply => reply.status === 'published');
+      
       setReplies(newReplies);
 
       const authorIds = newReplies.map(r => r.authorId).filter(Boolean);
@@ -169,7 +170,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       </div>
       <Separator className="my-8" />
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">{replies.length} {replies.length === 1 ? 'Reply' : 'Replies'}</h2>
+        <h2 className="text-2xl font-bold">{thread.replyCount || 0} {(thread.replyCount || 0) === 1 ? 'Reply' : 'Replies'}</h2>
         {user && !thread.isLocked && (
           <Button asChild>
             <Link href={`/forum/threads/${thread.id}/reply`}>

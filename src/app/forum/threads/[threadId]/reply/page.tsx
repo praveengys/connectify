@@ -33,6 +33,12 @@ export default function ReplyPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!threadId) {
+      console.error('No threadId found in params');
+      notFound();
+      return;
+    }
+    
     if (authLoading) return;
     if (!user) {
       const redirectUrl = parentReplyId
@@ -94,11 +100,6 @@ export default function ReplyPage() {
         authorId: user.uid,
         body: content,
         parentReplyId: parentReplyId || null,
-        // Add author details to the reply object itself for denormalization
-        author: {
-          displayName: user.displayName,
-          avatarUrl: user.avatarUrl,
-        }
       });
 
       toast({

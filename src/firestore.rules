@@ -123,15 +123,7 @@ service cloud.firestore {
           request.resource.data.authorId == request.auth.uid && 
           request.resource.data.body is string && 
           request.resource.data.status == 'published' && 
-          get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false &&
-          (
-            (request.resource.data.parentReplyId == null && request.resource.data.depth == 0) ||
-            (
-              request.resource.data.parentReplyId != null &&
-              request.resource.data.depth == 1 &&
-              get(/databases/$(database)/documents/threads/$(threadId)/replies/$(request.resource.data.parentReplyId)).data.depth == 0
-            )
-          );
+          get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
 
         allow update: if 
           (isOwner(resource.data.authorId) && request.resource.data.diff(resource.data).changedKeys().hasOnly(['body', 'updatedAt'])) || 

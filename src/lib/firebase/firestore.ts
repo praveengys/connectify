@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -262,7 +263,7 @@ export async function createReply(replyData: { threadId: string; authorId: strin
                 authorId,
                 body,
                 parentReplyId,
-                replyToAuthorId, // Can be undefined
+                replyToAuthorId,
                 threadId,
                 depth,
                 status: 'published',

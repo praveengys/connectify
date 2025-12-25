@@ -4,6 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /* ---------- Helper Functions ---------- */
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,11 +14,13 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     function isModerator() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_moderator/$(request.auth.uid));
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/roles_moderator/$(request.auth.uid));
     }
 
     function isModeratorOrAdmin() {
@@ -27,30 +30,93 @@ service cloud.firestore {
     // Rules for user profile documents
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
+      
       allow list: if isSignedIn();
-      allow read: if resource.data.profileVisibility == 'public' || isOwner(userId) || isAdmin();
+
+      allow read: if resource.data.profileVisibility == 'public'
+               || isOwner(userId)
+               || isAdmin();
+
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if (isOwner(userId) && request.resource.data.uid == resource.data.uid && request.resource.data.role == resource.data.role && request.resource.data.createdAt == resource.data.createdAt) || isAdmin();
+
+      allow update: if isOwner(userId)
+                  && request.resource.data.uid == resource.data.uid
+                  && request.resource.data.role == resource.data.role
+                  && request.resource.data.createdAt == resource.data.createdAt;
+      
       allow delete: if false;
     }
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      allow get: if (resource.data.status == 'active' && resource.data.visibility == 'public') || isOwner(resource.data.createdBy) || isAdmin();
+      allow get: if (resource.data.status == 'active' && resource.data.visibility == 'public') 
+                  || isOwner(resource.data.createdBy) 
+                  || isAdmin();
       allow list: if true;
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid && request.resource.data.status == 'active';
+
+      allow create: if isSignedIn()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.status == 'active';
+
       allow update: if isAdmin();
+
       allow delete: if isAdmin();
     }
 
     match /threads/{threadId} {
+
+      /* READ */
       allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid && request.resource.data.status == 'published' && request.resource.data.isLocked == false && request.resource.data.isPinned == false;
-      allow update: if (isOwner(resource.data.authorId) && !resource.data.isLocked && request.resource.data.diff(resource.data).changedKeys().hasOnly(['title', 'body', 'tags', 'updatedAt'])) || (isModeratorOrAdmin() && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'isPinned', 'isLocked', 'updatedAt', 'moderatorNotes'])) || (isSignedIn() && request.resource.data.diff(resource.data).changedKeys().hasOnly(['replyCount', 'latestReplyAt']));
+
+      /* CREATE */
+      allow create: if
+        isSignedIn() &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.status == 'published' &&
+        request.resource.data.isLocked == false &&
+        request.resource.data.isPinned == false;
+
+      /* UPDATE */
+      allow update: if
+        (
+          // Owner updates (content edits only)
+          isOwner(resource.data.authorId) &&
+          !resource.data.isLocked &&
+          request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['title', 'body', 'tags', 'updatedAt'])
+        )
+        ||
+        (
+          // Moderator / Admin updates
+          isModeratorOrAdmin() &&
+          request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['status', 'isPinned', 'isLocked', 'updatedAt', 'moderatorNotes'])
+        )
+        ||
+        (
+          // Allow any signed-in user to update reply count and add to replies array
+          isSignedIn() &&
+          request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['replies', 'replyCount', 'latestReplyAt'])
+        );
+
+      /* DELETE (SOFT ONLY) */
       allow delete: if false;
 
+      // Rules for the real-time chat subcollection
+      match /chatMessages/{messageId} {
+        allow read: if isSignedIn() && resource.data.status == 'active';
+        
+        allow create: if isSignedIn()
+                      && request.resource.data.senderId == request.auth.uid
+                      && get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
+        
+        allow update, delete: if isOwner(resource.data.senderId) || isModeratorOrAdmin();
+      }
+      
+      // Rules for replies subcollection
       match /replies/{replyId} {
-        allow read: if resource.data.status == 'published' || isModeratorOrAdmin() || (isSignedIn() && isOwner(resource.data.authorId));
+        allow read: if resource.data.status == 'published' || isOwner(resource.data.authorId) || isModeratorOrAdmin();
         
         allow create: if 
           isSignedIn() && 
@@ -67,16 +133,11 @@ service cloud.firestore {
             )
           );
 
-        allow update: if (isOwner(resource.data.authorId) && request.resource.data.diff(resource.data).changedKeys().hasOnly(['body', 'updatedAt'])) || (isModeratorOrAdmin() && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'moderatorNotes']));
+        allow update: if 
+          (isOwner(resource.data.authorId) && request.resource.data.diff(resource.data).changedKeys().hasOnly(['body', 'updatedAt'])) || 
+          (isModeratorOrAdmin() && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'moderatorNotes']));
         
-        allow delete: if false; // Soft deletes handled by updating status
-      }
-
-      // Rules for the real-time chat subcollection
-      match /chatMessages/{messageId} {
-        allow read: if isSignedIn() && resource.data.status == 'active';
-        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid && get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
-        allow update, delete: if isOwner(resource.data.senderId) || isModeratorOrAdmin();
+        allow delete: if false; // Soft deletes are handled by updating the status.
       }
     }
     
@@ -91,20 +152,36 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow create: if isSignedIn() && request.resource.data.reporterId == request.auth.uid && request.resource.data.status == 'open';
+
+      /* CREATE */
+      allow create: if
+        isSignedIn() &&
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.status == 'open';
+
+      /* READ */
       allow get, list: if isModeratorOrAdmin();
+
+      /* UPDATE */
       allow update: if isModeratorOrAdmin();
+
+      /* DELETE */
       allow delete: if false;
     }
     
      match /moderationQueue/{queueItemId} {
+
       allow read: if isModeratorOrAdmin();
+
       allow update: if isModeratorOrAdmin();
+
       allow create: if false; // created only via backend logic
+
       allow delete: if false;
     }
 
     /* ---------- Roles Rules ---------- */
+
     match /roles_admin/{userId} {
       allow read: if isAdmin();
       allow write: if false;

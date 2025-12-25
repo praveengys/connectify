@@ -200,6 +200,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                 <div className="ml-8 mt-4 space-y-4 border-l-2 pl-6">
                   {children.map(child => {
                     const childAuthor = authors[child.authorId];
+                    const repliedToAuthor = authors[child.replyToAuthorId || ''];
                     return (
                       <div key={child.id} className="flex items-start gap-4">
                         <Avatar className="h-8 w-8">
@@ -208,7 +209,14 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
-                            <p className="font-semibold">{childAuthor?.displayName ?? '...'}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold">{childAuthor?.displayName ?? '...'}</p>
+                              {repliedToAuthor && (
+                                <p className="text-sm text-muted-foreground">
+                                  to @{repliedToAuthor.username}
+                                </p>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(child.createdAt), { addSuffix: true })}</p>
                           </div>
                           <p className="mt-1 text-muted-foreground whitespace-pre-wrap">{child.body}</p>

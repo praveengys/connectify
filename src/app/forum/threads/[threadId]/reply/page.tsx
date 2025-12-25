@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useParams, notFound, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { getThread, createReply, getReply } from '@/lib/firebase/firestore';
+import { getThread, createReply, getReply, getUserProfile } from '@/lib/firebase/firestore';
 import type { Thread, Reply, UserProfile } from '@/lib/types';
 import { Loader2, CornerDownRight } from 'lucide-react';
 import Header from '@/components/Header';
@@ -13,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getUserProfile } from '@/lib/firebase/firestore';
 
 
 export default function ReplyPage() {

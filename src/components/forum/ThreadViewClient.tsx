@@ -102,7 +102,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       
       setReplies(newReplies);
 
-      const authorIds = newReplies.map(r => r.authorId).filter(Boolean);
+      const authorIds = newReplies.flatMap(r => [r.authorId, r.replyToAuthorId]).filter(Boolean) as string[];
       fetchAndCacheAuthors(authorIds);
     }, (error) => {
       console.error("Firestore replies listener error:", error);

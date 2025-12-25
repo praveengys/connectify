@@ -1,10 +1,8 @@
 import MembersClient from '@/components/members/MembersClient';
-import Header from '@/components/Header';
 
 export default function MembersPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow">
         <MembersClient />
       </main>

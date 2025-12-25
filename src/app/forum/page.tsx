@@ -1,10 +1,8 @@
 import ForumClient from '@/components/forum/ForumClient';
-import Header from '@/components/Header';
 
 export default function ForumPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow">
         <ForumClient />
       </main>

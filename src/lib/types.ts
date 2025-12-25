@@ -41,6 +41,7 @@ export type Reply = {
   threadId: string;
   body: string;
   authorId: string;
+  replyToAuthorId?: string; // For nested replies
   parentReplyId: string | null;
   depth: 0 | 1;
   status: 'published' | 'hidden' | 'deleted';

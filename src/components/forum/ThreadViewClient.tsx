@@ -63,6 +63,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
 
   useEffect(() => {
+    // We wait for auth to finish loading before setting up listeners
     if (loading) return;
 
     const { firestore } = initializeFirebase();
@@ -79,8 +80,17 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
           updatedAt: docSnap.data().updatedAt.toDate(),
         } as Thread;
         setThread(threadData);
-        fetchAndCacheAuthors([threadData.authorId]);
+        if (threadData.authorId && !authors[threadData.authorId]) {
+            fetchAndCacheAuthors([threadData.authorId]);
+        }
       }
+    }, (error) => {
+        console.error("Firestore thread listener error:", error);
+        toast({
+            title: 'Real-time connection failed',
+            description: 'Could not listen for thread updates.',
+            variant: 'destructive',
+        });
     });
 
     const unsubscribeReplies = onSnapshot(q, (snapshot) => {
@@ -91,7 +101,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       } as Reply));
       setReplies(newReplies);
 
-      const authorIds = newReplies.map(r => r.authorId);
+      const authorIds = newReplies.map(r => r.authorId).filter(Boolean);
       fetchAndCacheAuthors(authorIds);
     }, (error) => {
       console.error("Firestore replies listener error:", error);
@@ -126,7 +136,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       }
     });
 
-    return Object.values(groups);
+    return Object.values(groups).sort((a, b) => new Date(a.parent.createdAt).getTime() - new Date(b.parent.createdAt).getTime());
   }, [replies]);
 
   return (
@@ -187,9 +197,11 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                   <p className="mt-2 text-muted-foreground whitespace-pre-wrap">{parent.body}</p>
                   {user && !thread.isLocked && (
                     <div className="mt-2">
-                      <Button variant="ghost" size="sm" onClick={() => router.push(`/forum/threads/${thread.id}/reply?to=${parent.id}`)}>
-                        <CornerDownRight size={14} className="mr-2" />
-                        Reply
+                      <Button variant="ghost" size="sm" asChild>
+                         <Link href={`/forum/threads/${thread.id}/reply?to=${parent.id}`}>
+                            <CornerDownRight size={14} className="mr-2" />
+                            Reply
+                         </Link>
                       </Button>
                     </div>
                   )}
@@ -227,7 +239,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                 </div>
               )}
             </Card>
-          )
+          );
         })}
       </div>
       {user && thread.isLocked && (

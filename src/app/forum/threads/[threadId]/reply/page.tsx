@@ -53,19 +53,22 @@ export default function ReplyPage() {
 
         if (parentReplyId) {
           const parentReplyData = await getReply(threadId, parentReplyId);
-          if (!parentReplyData || parentReplyData.depth !== 0) {
-            toast({
+          // Allow replies only to top-level comments
+          if (parentReplyData && parentReplyData.depth === 0) {
+            setParentReply(parentReplyData);
+            if (parentReplyData.authorId) {
+              const author = await getUserProfile(parentReplyData.authorId);
+              setParentAuthor(author);
+            }
+          } else if (parentReplyData) {
+            // It's a nested reply, which we don't allow replying to.
+             toast({
               title: "Cannot reply to this",
               description: "You can only reply to top-level responses.",
               variant: "destructive",
             });
             router.push(`/forum/threads/${threadId}`);
             return;
-          }
-          setParentReply(parentReplyData);
-          if (parentReplyData.authorId) {
-            const author = await getUserProfile(parentReplyData.authorId);
-            setParentAuthor(author);
           }
         }
       } catch(error) {
@@ -86,10 +89,16 @@ export default function ReplyPage() {
 
     setSubmitting(true);
     try {
-      await createReply(thread.id, {
+      await createReply({
+        threadId: thread.id,
         authorId: user.uid,
         body: content,
         parentReplyId: parentReplyId || null,
+        // Add author details to the reply object itself for denormalization
+        author: {
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+        }
       });
 
       toast({
@@ -98,9 +107,10 @@ export default function ReplyPage() {
       });
       router.push(`/forum/threads/${threadId}`);
     } catch (error: any) {
+      console.error("Error posting reply:", error);
       toast({
         title: 'Error',
-        description: `Failed to post reply: ${error.message}`,
+        description: `Could not post reply: ${error.message}`,
         variant: 'destructive',
       });
       setSubmitting(false);
@@ -127,7 +137,7 @@ export default function ReplyPage() {
           <CardHeader>
             <CardTitle>Post a Reply</CardTitle>
             <CardDescription>
-              Replying to: <span className="font-semibold text-foreground">{thread.title}</span>
+              Replying in thread: <span className="font-semibold text-foreground">{thread.title}</span>
             </CardDescription>
             {parentReply && parentAuthor && (
               <div className="pt-4 flex items-start gap-3 text-sm text-muted-foreground border-t mt-4">

@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 
@@ -111,6 +111,7 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
         const docRef = await addDoc(threadsCollection, {
             ...threadData,
             replyCount: 0,
+            replies: [], // Initialize replies as an empty array
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
@@ -196,24 +197,20 @@ export async function getThread(threadId: string): Promise<Thread | null> {
     }
 }
 
+// Get a single reply from a thread's subcollection
 export async function getReply(threadId: string, replyId: string): Promise<Reply | null> {
-  try {
-    const firestore = getFirestoreInstance();
-    const docRef = doc(firestore, 'threads', threadId, 'replies', replyId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        ...data,
-        createdAt: data.createdAt.toDate(),
-      } as Reply;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error fetching reply:', error);
-    return null;
+  const firestore = getFirestoreInstance();
+  const replyRef = doc(firestore, "threads", threadId, "replies", replyId);
+  const docSnap = await getDoc(replyRef);
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      ...data,
+      createdAt: data.createdAt.toDate(),
+    } as Reply;
   }
+  return null;
 }
 
 // Get all replies for a given thread
@@ -230,14 +227,16 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
 }
 
 // Create a new reply in the subcollection
-export async function createReply(threadId: string, replyData: { authorId: string; body: string; parentReplyId: string | null; }) {
+export async function createReply(replyData: { threadId: string; authorId: string; body: string; parentReplyId: string | null; }) {
     const firestore = getFirestoreInstance();
-    const threadRef = doc(firestore, 'threads', threadId);
-    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
-
-    if (!threadId || !replyData.authorId) {
+    const { threadId, authorId, body, parentReplyId } = replyData;
+    
+    if (!threadId || !authorId) {
         throw new Error('Thread ID and Author ID are required.');
     }
+
+    const threadRef = doc(firestore, 'threads', threadId);
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
 
     try {
         await runTransaction(firestore, async (transaction) => {
@@ -247,18 +246,25 @@ export async function createReply(threadId: string, replyData: { authorId: strin
             }
 
             let depth: 0 | 1 = 0;
-            if (replyData.parentReplyId) {
-                const parentReplyRef = doc(repliesRef, replyData.parentReplyId);
+            let replyToAuthorId: string | undefined = undefined;
+
+            if (parentReplyId) {
+                const parentReplyRef = doc(repliesRef, parentReplyId);
                 const parentReplyDoc = await transaction.get(parentReplyRef);
                 if (!parentReplyDoc.exists() || parentReplyDoc.data().depth !== 0) {
                     throw new Error("Parent reply does not exist or is not a top-level reply.");
                 }
                 depth = 1;
+                replyToAuthorId = parentReplyDoc.data().authorId;
             }
 
-            const newReplyRef = doc(repliesRef);
+            const newReplyRef = doc(repliesRef); // Auto-generate ID
             transaction.set(newReplyRef, {
-                ...replyData,
+                authorId,
+                body,
+                parentReplyId,
+                replyToAuthorId, // Can be undefined
+                threadId,
                 depth,
                 status: 'published',
                 createdAt: serverTimestamp(),
@@ -272,7 +278,7 @@ export async function createReply(threadId: string, replyData: { authorId: strin
             });
         });
     } catch (error) {
-        console.error("Error creating reply:", error);
+        console.error("Error creating reply in transaction:", error);
         throw error;
     }
 }

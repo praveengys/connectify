@@ -33,31 +33,20 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /* Groups + messages (realtime chat) */
+    /* Groups + messages */
     match /groups/{groupId} {
       allow get, list: if isSignedIn();
 
       allow create: if isSignedIn()
-                    && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.members[request.auth.uid] == 'owner'
-                    && request.resource.data.members.size() == 1
-                    && request.resource.data.memberCount == 1;
-      
-      allow update: if isSignedIn()
-                    && (resource.data.members[request.auth.uid] in ['owner', 'admin']
-                        || isModeratorOrAdmin());
+                    && request.resource.data.createdBy == request.auth.uid;
+
+      allow update, delete: if isOwner(resource.data.createdBy) || isModeratorOrAdmin();
 
       match /messages/{messageId} {
-        allow read, list: if isSignedIn()
-                          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+        allow read, list: if isSignedIn();
 
         allow create: if isSignedIn()
-                      && request.resource.data.senderId == request.auth.uid
-                      && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-      }
-       match /typing/{userId} {
-        allow read: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-        allow write: if isOwner(userId) && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+                      && request.resource.data.senderId == request.auth.uid;
       }
     }
 
@@ -68,7 +57,7 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid;
 
-      allow update, delete: if isModeratorOrAdmin();
+      allow update, delete: if isOwner(resource.data.createdBy) || isModeratorOrAdmin();
     }
 
     /* Threads + replies */
@@ -78,19 +67,17 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && request.resource.data.authorId == request.auth.uid;
 
-      allow update: if (isOwner(resource.data.authorId) && !resource.data.isLocked)
-                    || isModeratorOrAdmin();
+      allow update, delete: if isOwner(resource.data.authorId) || isModeratorOrAdmin();
 
       match /replies/{replyId} {
         allow read, list: if isSignedIn();
 
         allow create: if isSignedIn()
-                      && request.resource.data.authorId == request.auth.uid
-                      && !get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked;
+                      && request.resource.data.authorId == request.auth.uid;
       }
     }
 
-    /* Categories / tags / reports – optional extra control */
+    /* Categories / tags / reports – optional */
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if isModeratorOrAdmin();

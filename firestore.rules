@@ -3,10 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /* ===============================
-       Helper Functions
-       =============================== */
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -29,91 +25,59 @@ service cloud.firestore {
       return isModerator() || isAdmin();
     }
 
-    /* ===============================
-       Users
-       =============================== */
-
+    /* Users */
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if isOwner(userId) && request.resource.data.uid == resource.data.uid && request.resource.data.role == resource.data.role && request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if isOwner(userId) && request.resource.data.uid == resource.data.uid;
       allow delete: if false;
     }
 
-    /* ===============================
-       Real-Time Chat Groups
-       =============================== */
-    
+    /* Groups + messages */
     match /groups/{groupId} {
-      // READ: Allow if group is public OR user is a member
-      allow get, list: if resource.data.type == 'public'
-                      || (isSignedIn() && request.auth.uid in resource.data.members);
+      allow get, list: if isSignedIn();
 
-      // CREATE: Allow if signed in and creator is the user
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid;
 
-      // UPDATE: Allow if user is an owner or admin of the group
-      allow update: if isSignedIn()
-                    && resource.data.members[request.auth.uid] in ['owner', 'admin'];
+      allow update, delete: if isOwner(resource.data.createdBy) || isModeratorOrAdmin();
 
       match /messages/{messageId} {
-        // READ messages if a member of the group
-        allow read, list: if isSignedIn()
-                    && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+        allow read, list: if isSignedIn();
 
-        // CREATE messages if a member and not muted
         allow create: if isSignedIn()
-                      && request.resource.data.senderId == request.auth.uid
-                      && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-      }
-       match /typing/{userId} {
-        allow read: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-        allow write: if isOwner(userId) && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+                      && request.resource.data.senderId == request.auth.uid;
       }
     }
 
-
-    /* ===============================
-       Forums, Threads, Replies
-       =============================== */
-    
+    /* Forums */
     match /forums/{forumId} {
-      allow get, list: if resource.data.visibility == 'public'
-                        || isOwner(resource.data.createdBy)
-                        || isModeratorOrAdmin();
+      allow get, list: if isSignedIn();
 
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid;
 
-      allow update, delete: if isModeratorOrAdmin();
+      allow update, delete: if isOwner(resource.data.createdBy) || isModeratorOrAdmin();
     }
 
-
+    /* Threads + replies */
     match /threads/{threadId} {
-      allow get, list: if resource.data.visibility == 'public'
-                        || isOwner(resource.data.authorId)
-                        || isModeratorOrAdmin();
+      allow get, list: if isSignedIn();
 
       allow create: if isSignedIn()
                     && request.resource.data.authorId == request.auth.uid;
-      
-      allow update: if isOwner(resource.data.authorId) && !resource.data.isLocked;
+
+      allow update, delete: if isOwner(resource.data.authorId) || isModeratorOrAdmin();
 
       match /replies/{replyId} {
-        allow read: if resource.data.status == 'published'
-                    || isOwner(resource.data.authorId);
-        
+        allow read, list: if isSignedIn();
+
         allow create: if isSignedIn()
-                      && request.resource.data.authorId == request.auth.uid
-                      && !get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked;
+                      && request.resource.data.authorId == request.auth.uid;
       }
     }
 
-    /* ===============================
-       Misc Collections
-       =============================== */
-
+    /* Categories / tags / reports – optional */
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if isModeratorOrAdmin();
@@ -125,7 +89,8 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow create: if isSignedIn() && request.resource.data.reporterId == request.auth.uid;
+      allow create: if isSignedIn()
+                    && request.resource.data.reporterId == request.auth.uid;
       allow get, list, update: if isModeratorOrAdmin();
       allow delete: if false;
     }

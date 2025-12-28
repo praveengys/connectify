@@ -1,5 +1,6 @@
 
 
+
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -83,6 +84,7 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
     // Do not await, chain .catch for error handling
     updateDoc(userRef, {
         ...data,
+        uid: uid, // Ensure UID is present for security rules
         updatedAt: serverTimestamp(),
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -121,14 +123,15 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
 }
 
 // Create a new discussion thread
-export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'categoryId' | 'authorVisibility'> & { categoryId: string }) {
+export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'authorId' | 'isLocked'> & { authorId: string, forumId: string }) {
     const firestore = getFirestoreInstance();
     const threadsCollection = collection(firestore, 'threads');
 
     const payload = {
         ...threadData,
-        replyCount: 0,
+        authorId: threadData.authorId, // Ensure authorId is set
         isLocked: false,
+        replyCount: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
@@ -154,12 +157,11 @@ export async function createForum(name: string, description: string, createdBy: 
     const newForumPayload = {
         name,
         description,
-        createdBy,
+        createdBy: createdBy, // MUST equal auth.uid
         createdAt: serverTimestamp(),
     };
 
     return addDoc(forumsCollection, newForumPayload).then(docRef => {
-        // Return a complete Forum object, but with client-side date for immediate use
         return { 
             id: docRef.id,
             ...newForumPayload,
@@ -273,19 +275,19 @@ export async function createReply(replyData: { threadId: string; authorId: strin
     const threadRef = doc(firestore, 'threads', threadId);
     const repliesRef = collection(firestore, 'threads', threadId, 'replies');
 
+    const newReplyPayload = {
+        threadId,
+        body,
+        authorId: authorId, // MUST equal auth.uid
+        createdAt: serverTimestamp(),
+    };
+
     return runTransaction(firestore, async (transaction) => {
         const threadDoc = await transaction.get(threadRef);
-        if (!threadDoc.exists() || threadDoc.data().isLocked) {
-            throw new Error("Thread does not exist or is locked!");
+        if (!threadDoc.exists()) {
+            throw new Error("Thread does not exist!");
         }
 
-        const newReplyPayload: Partial<Reply> = {
-            authorId,
-            body,
-            threadId,
-            createdAt: serverTimestamp(), // Will be converted on server
-        };
-        
         const newReplyRef = doc(repliesRef); // Auto-generate ID
         transaction.set(newReplyRef, newReplyPayload);
 
@@ -298,7 +300,7 @@ export async function createReply(replyData: { threadId: string; authorId: strin
         const permissionError = new FirestorePermissionError({
             path: repliesRef.path,
             operation: 'create',
-            requestResourceData: replyData,
+            requestResourceData: newReplyPayload,
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
         throw serverError; // Re-throw for component-level error handling
@@ -314,11 +316,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     const newGroupPayload = {
         name,
         type,
-        createdBy,
-        memberCount: 1,
-        members: {
-            [createdBy]: 'owner'
-        },
+        createdBy: createdBy, // MUST equal auth.uid
         createdAt: serverTimestamp(),
     };
 
@@ -349,7 +347,7 @@ export async function sendChatMessage(groupId: string, senderId: string, message
     
     const payload = {
         ...message,
-        senderId,
+        senderId: senderId, // MUST equal auth.uid
         createdAt: serverTimestamp(),
     };
     

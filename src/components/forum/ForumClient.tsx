@@ -130,7 +130,7 @@ export default function ForumClient() {
 
   if (error) {
     return (
-       <>
+      <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-grow flex items-center justify-center">
             <div className="container mx-auto px-4 py-8">
@@ -141,7 +141,7 @@ export default function ForumClient() {
                 </div>
             </div>
         </main>
-      </>
+      </div>
     );
   }
 

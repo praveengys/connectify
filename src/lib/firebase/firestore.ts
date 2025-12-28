@@ -1,6 +1,7 @@
 
 
 
+
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -149,19 +150,25 @@ export async function createForum(forumData: Omit<Forum, 'id' | 'createdAt' | 's
     const firestore = getFirestoreInstance();
     const forumsCollection = collection(firestore, 'forums');
     
-    return addDoc(forumsCollection, {
+    const newForumPayload = {
         ...forumData,
-        status: 'active',
-        visibility: 'public',
+        status: 'active' as const,
+        visibility: 'public' as const,
         createdAt: serverTimestamp(),
-    }).then(docRef => {
-        const newForumData = { id: docRef.id, status: 'active', visibility: 'public', ...forumData };
-        return newForumData as Forum;
+    };
+
+    return addDoc(forumsCollection, newForumPayload).then(docRef => {
+        return { 
+            id: docRef.id, 
+            ...forumData,
+            status: 'active' as const, 
+            visibility: 'public' as const,
+        } as Forum;
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: forumsCollection.path,
             operation: 'create',
-            requestResourceData: forumData,
+            requestResourceData: newForumPayload,
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
         throw serverError;
@@ -334,3 +341,4 @@ export async function createChatMessage(threadId: string, messageData: Omit<Chat
         throw serverError;
     });
 }
+

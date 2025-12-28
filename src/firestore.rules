@@ -26,6 +26,10 @@ service cloud.firestore {
     function isModeratorOrAdmin() {
       return isModerator() || isAdmin();
     }
+
+    function isAuthorProfilePublic(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.profileVisibility == 'public';
+    }
     
     // Rules for user profile documents
     match /users/{userId} {
@@ -39,20 +43,18 @@ service cloud.firestore {
 
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      allow update: if isOwner(userId)
-                  && request.resource.data.uid == resource.data.uid
-                  && request.resource.data.role == resource.data.role
-                  && request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if isOwner(userId); // Allow user to update their own profile
       
       allow delete: if false;
     }
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      allow get: if (resource.data.status == 'active' && resource.data.visibility == 'public') 
-                  || isOwner(resource.data.createdBy) 
-                  || isAdmin();
-      allow list: if true;
+      allow get, list: if isSignedIn() && (
+                      (resource.data.visibility == 'public' && isAuthorProfilePublic(resource.data.createdBy))
+                      || isOwner(resource.data.createdBy)
+                      || isModeratorOrAdmin()
+                    );
 
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
@@ -66,7 +68,11 @@ service cloud.firestore {
     match /threads/{threadId} {
 
       /* READ */
-      allow get, list: if isSignedIn();
+      allow get, list: if isSignedIn() && (
+                      isAuthorProfilePublic(resource.data.authorId)
+                      || isOwner(resource.data.authorId)
+                      || isModeratorOrAdmin()
+                    );
 
       /* CREATE */
       allow create: if
@@ -123,7 +129,15 @@ service cloud.firestore {
           request.resource.data.authorId == request.auth.uid && 
           request.resource.data.body is string && 
           request.resource.data.status == 'published' && 
-          get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false;
+          get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false &&
+          (
+            (request.resource.data.parentReplyId == null && request.resource.data.depth == 0) ||
+            (
+              request.resource.data.parentReplyId != null &&
+              request.resource.data.depth == 1 &&
+              get(/databases/$(database)/documents/threads/$(threadId)/replies/$(request.resource.data.parentReplyId)).data.depth == 0
+            )
+          );
 
         allow update: if 
           (isOwner(resource.data.authorId) && request.resource.data.diff(resource.data).changedKeys().hasOnly(['body', 'updatedAt'])) || 

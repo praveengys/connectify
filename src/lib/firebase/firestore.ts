@@ -1,5 +1,5 @@
 
-'use server';
+'use client';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage, Group, Member } from '@/lib/types';

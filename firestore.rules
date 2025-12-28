@@ -44,14 +44,10 @@ service cloud.firestore {
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      allow read: if resource.data.visibility == 'public'
-                    || isOwner(resource.data.createdBy)
-                    || isModeratorOrAdmin();
+      allow read: if isSignedIn();
 
       allow create: if isSignedIn()
-                    && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.status == 'active'
-                    && request.resource.data.visibility in ['public', 'private'];
+                    && request.resource.data.createdBy == request.auth.uid;
 
       allow update: if isAdmin();
 
@@ -69,9 +65,7 @@ service cloud.firestore {
       allow create: if
         isSignedIn() &&
         request.resource.data.authorId == request.auth.uid &&
-        request.resource.data.status == 'published' &&
-        request.resource.data.isLocked == false &&
-        request.resource.data.isPinned == false;
+        request.resource.data.status == 'published';
 
       /* UPDATE */
       allow update: if

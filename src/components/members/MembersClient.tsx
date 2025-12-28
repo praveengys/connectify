@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, FirestoreError } from 'firebase/firestore';
+import { collection, query, where, getDocs, FirestoreError, onSnapshot } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { UserProfile } from '@/hooks/use-auth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,46 +10,52 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import Header from '../Header';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function MembersClient() {
   const [members, setMembers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    const fetchMembers = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { firestore } = initializeFirebase();
-        const usersRef = collection(firestore, 'users');
-        const q = query(usersRef, where('profileVisibility', '==', 'public'));
-        const querySnapshot = await getDocs(q);
+    if (authLoading) return;
+    if (!user) {
+        setLoading(false);
+        // User not logged in, can't view members.
+        return;
+    }
+
+    setLoading(true);
+    setError(null);
+    const { firestore } = initializeFirebase();
+    const usersRef = collection(firestore, 'users');
+    const q = query(usersRef, where('profileVisibility', '==', 'public'));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const membersData = querySnapshot.docs.map(doc => {
             const data = doc.data();
             return {
                 ...data,
-                uid: doc.id, // Ensure uid is the document ID
+                uid: doc.id,
                 createdAt: data.createdAt?.toDate(),
                 updatedAt: data.updatedAt?.toDate(),
             } as UserProfile
         });
         setMembers(membersData);
-      } catch (e: any) {
-        console.error("Error fetching members: ", e);
-        if (e.code === 'permission-denied') {
-          setError('You do not have permission to view the member list. This may be a configuration issue.');
-        } else if (e instanceof FirestoreError) {
-             setError(`Error fetching members: ${e.message}.`);
+        setLoading(false);
+    }, (err: any) => {
+        console.error("Error fetching members: ", err);
+        if (err.code === 'permission-denied') {
+          setError('You do not have permission to view the member list.');
         } else {
             setError('An unexpected error occurred while fetching members.');
         }
-      }
-      setLoading(false);
-    };
+        setLoading(false);
+    });
 
-    fetchMembers();
-  }, []);
+    return () => unsubscribe();
+  }, [user, authLoading]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -65,7 +72,7 @@ export default function MembersClient() {
             </p>
           </div>
 
-          {loading && (
+          {(loading || authLoading) && (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
@@ -78,8 +85,15 @@ export default function MembersClient() {
                   <p className="text-sm text-center max-w-md">{error}</p>
               </div>
           )}
+          
+          {!user && !authLoading && (
+             <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <h3 className="mt-4 text-lg font-semibold">Please Log In</h3>
+                  <p className="mt-1 text-sm">You must be logged in to view community members.</p>
+              </div>
+          )}
 
-          {!loading && !error && (
+          {!loading && !error && user && (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {members.map(member => (
                 <Card key={member.uid} className="hover:shadow-lg transition-shadow">
@@ -104,7 +118,7 @@ export default function MembersClient() {
             </div>
           )}
 
-          {!loading && !error && members.length === 0 && (
+          {!loading && !error && user && members.length === 0 && (
               <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
                   <h3 className="mt-4 text-lg font-semibold">No Public Members</h3>
                   <p className="mt-1 text-sm">It looks like there are no public member profiles to display right now.</p>

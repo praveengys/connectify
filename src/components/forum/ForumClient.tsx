@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, orderBy, query, where, limit } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, where, limit, onSnapshot } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Category, Thread, UserProfile, Forum } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -26,54 +27,58 @@ export default function ForumClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateForumOpen, setCreateForumOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const { firestore } = initializeFirebase();
-        
-        // Step 1: Fetch all public forums, threads, and categories
-        const forumsQuery = query(
-          collection(firestore, 'forums'), 
-          where('status', '==', 'active'),
-          where('visibility', '==', 'public'),
-          orderBy('createdAt', 'desc')
-        );
-        const categoriesSnapshot = await getDocs(collection(firestore, 'categories'));
-        const threadsQuery = query(
-            collection(firestore, 'threads'), 
-            where('status', '==', 'published'),
-            orderBy('createdAt', 'desc'), 
-            limit(10)
-        );
+    if (authLoading) return; // Wait for auth to resolve
+    if (!user) {
+        setLoading(false);
+        // Optionally redirect or show a login prompt
+        return;
+    }
 
-        const [forumsSnapshot, threadsSnapshot] = await Promise.all([
-          getDocs(forumsQuery),
-          getDocs(threadsQuery),
-        ]);
+    setLoading(true);
+    const { firestore } = initializeFirebase();
 
-        const forumsData = forumsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum));
-        const categoriesData = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
-        const threadsData = threadsSnapshot.docs.map(doc => ({
+    // Set up listeners for real-time updates
+    const forumsQuery = query(
+      collection(firestore, 'forums'),
+      orderBy('createdAt', 'desc')
+    );
+    const threadsQuery = query(
+        collection(firestore, 'threads'),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+    );
+    const categoriesQuery = query(collection(firestore, 'categories'));
+
+    const unsubscribeForums = onSnapshot(forumsQuery, (snapshot) => {
+        const forumsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum));
+        setForums(forumsData);
+    }, (err) => {
+        console.error("Error fetching forums:", err);
+        setError("Could not load forums.");
+    });
+
+    const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+        const categoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+        setCategories(categoriesData);
+    });
+
+    const unsubscribeThreads = onSnapshot(threadsQuery, async (snapshot) => {
+        const threadsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt.toDate(),
           latestReplyAt: doc.data().latestReplyAt?.toDate(),
         } as Thread));
 
-        // Step 2: Aggregate all unique author IDs from forums and threads
-        const authorIds = [
-          ...new Set([
-            ...forumsData.map(f => f.createdBy),
-            ...threadsData.map(t => t.authorId)
-          ])
-        ];
+        setThreads(threadsData);
 
-        // Step 3: Fetch all author profiles in a single batch
+        // Fetch authors for the new threads
+        const authorIds = [...new Set(threadsData.map(t => t.authorId))];
         if (authorIds.length > 0) {
             const authorPromises = authorIds.map(id => getUserProfile(id));
             const authorResults = await Promise.all(authorPromises);
@@ -83,44 +88,31 @@ export default function ForumClient() {
                 authorMap[author.uid] = author;
               }
             });
-            setAuthors(authorMap);
-
-            // Step 4: Filter forums and threads based on author's profile visibility
-            const visibleForums = forumsData.filter(forum => {
-              const author = authorMap[forum.createdBy];
-              return author?.profileVisibility === 'public';
-            });
-
-            const visibleThreads = threadsData.filter(thread => {
-               const author = authorMap[thread.authorId];
-               return author?.profileVisibility === 'public';
-            });
-            
-            setForums(visibleForums);
-            setThreads(visibleThreads);
-        } else {
-            setForums(forumsData);
-            setThreads(threadsData);
+            setAuthors(prev => ({ ...prev, ...authorMap }));
         }
-        
-        setCategories(categoriesData);
+         setLoading(false);
+         setError(null);
+    }, (err) => {
+        console.error("Error fetching threads:", err);
+        setError("Could not load discussions.");
+        setLoading(false);
+    });
 
-      } catch (e: any) {
-        console.error("Error fetching forum data: ", e);
-        setError("Could not load the forum. Please try again later.");
-      }
-      setLoading(false);
+    // Cleanup listeners on component unmount
+    return () => {
+      unsubscribeForums();
+      unsubscribeThreads();
+      unsubscribeCategories();
     };
-
-    fetchData();
-  }, []);
+  }, [user, authLoading]);
 
   const handleForumCreated = (newForum: Forum) => {
+    // The listener will add the forum, but we can optimistically add it here too
     setForums(prev => [newForum, ...prev]);
     setCreateForumOpen(false);
   };
-
-  if (loading) {
+  
+  if (loading || authLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -203,7 +195,7 @@ export default function ForumClient() {
                   </CardContent>
                 </Card>
               ))}
-              {threads.length === 0 && (
+              {threads.length === 0 && !loading && (
                   <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
                       <MessageSquare className="mx-auto h-12 w-12" />
                       <h3 className="mt-4 text-lg font-semibold">No discussions yet</h3>
@@ -237,7 +229,7 @@ export default function ForumClient() {
               <CardContent>
                   {forums.length > 0 ? (
                       <ul className="space-y-2">
-                          {forums.map(forum => (
+                          {forums.filter(f => f.visibility === 'public').map(forum => (
                           <li key={forum.id}>
                               <div className="p-3 rounded-md">
                                   <p className="font-semibold">{forum.name}</p>

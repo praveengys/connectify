@@ -44,30 +44,20 @@ service cloud.firestore {
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
+      // Allow any signed-in user to read forums. The client will query for public forums.
+      allow read: if isSignedIn();
 
-      // SINGLE DOC READ
-      allow get: if
-        resource.data.visibility == 'public'
-        || isOwner(resource.data.createdBy)
-        || isModeratorOrAdmin();
+      // Allow authenticated users to create forums, enforcing ownership.
+      allow create: if isSignedIn()
+                    && request.resource.data.createdBy == request.auth.uid;
 
-      // QUERY / LIST
-      allow list: if isSignedIn();
-
-      // CREATE
-      allow create: if
-        isSignedIn()
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.status == 'active'
-        && request.resource.data.visibility in ['public', 'private'];
-
-      // UPDATE / DELETE
+      // Only admins can update or delete forums.
       allow update, delete: if isAdmin();
     }
 
     match /threads/{threadId} {
 
-      /* READ (GET & LIST) */
+      // Allow any signed-in user to read threads. The client will query for public threads.
       allow read: if isSignedIn();
 
       /* CREATE */

@@ -8,14 +8,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import { useAuth } from '@/hooks/use-auth';
 import Header from '../Header';
 
 export default function MembersClient() {
   const [members, setMembers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth(); // We can use this to know if the user is logged in
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -53,8 +51,9 @@ export default function MembersClient() {
   }, []);
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Header />
+      <main className="flex-grow">
       <section className="w-full py-12 md:py-16">
         <div className="container mx-auto px-4 md:px-6">
           <div className="text-center mb-8 md:mb-12">
@@ -113,6 +112,12 @@ export default function MembersClient() {
           )}
         </div>
       </section>
-    </>
+      </main>
+      <footer className="w-full py-6 bg-background">
+        <div className="container mx-auto px-4 md:px-6 text-center text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} Connectify Hub. All rights reserved.</p>
+        </div>
+      </footer>
+    </div>
   );
 }

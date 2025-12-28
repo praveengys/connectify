@@ -88,12 +88,12 @@ export default function ForumClient() {
             // Step 4: Filter forums and threads based on author's profile visibility
             const visibleForums = forumsData.filter(forum => {
               const author = authorMap[forum.createdBy];
-              return author && author.profileVisibility === 'public';
+              return author?.profileVisibility === 'public';
             });
 
             const visibleThreads = threadsData.filter(thread => {
                const author = authorMap[thread.authorId];
-               return author && author.profileVisibility === 'public';
+               return author?.profileVisibility === 'public';
             });
             
             setForums(visibleForums);
@@ -122,7 +122,7 @@ export default function ForumClient() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-96">
+      <div className="flex justify-center items-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
@@ -130,19 +130,25 @@ export default function ForumClient() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col items-center justify-center text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-8">
-          <ServerCrash className="h-12 w-12 mb-4" />
-          <p className="text-lg font-semibold">Error Loading Forum</p>
-          <p className="text-sm text-center">{error}</p>
-        </div>
-      </div>
+       <>
+        <Header />
+        <main className="flex-grow flex items-center justify-center">
+            <div className="container mx-auto px-4 py-8">
+                <div className="flex flex-col items-center justify-center text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-8">
+                <ServerCrash className="h-12 w-12 mb-4" />
+                <p className="text-lg font-semibold">Error Loading Forum</p>
+                <p className="text-sm text-center">{error}</p>
+                </div>
+            </div>
+        </main>
+      </>
     );
   }
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Header />
+      <main className="flex-grow">
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div className="text-center md:text-left">
@@ -269,6 +275,12 @@ export default function ForumClient() {
           </div>
         </div>
       </div>
-    </>
+    </main>
+    <footer className="w-full py-6 bg-background">
+        <div className="container mx-auto px-4 md:px-6 text-center text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} Connectify Hub. All rights reserved.</p>
+        </div>
+      </footer>
+    </div>
   );
 }

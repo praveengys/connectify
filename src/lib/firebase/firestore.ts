@@ -159,11 +159,7 @@ export async function createForum(name: string, description: string, createdBy: 
         // Return a complete Forum object, but with client-side date for immediate use
         return { 
             id: docRef.id,
-            name,
-            description,
-            createdBy,
-            status: 'active', 
-            visibility: 'public',
+            ...newForumPayload,
             createdAt: new Date(),
         } as Forum;
     }).catch(async (serverError) => {

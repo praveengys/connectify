@@ -45,15 +45,10 @@ service cloud.firestore {
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      allow get: if (resource.data.visibility == 'public' && get(/databases/$(database)/documents/users/$(resource.data.createdBy)).data.profileVisibility == 'public') 
-                  || isOwner(resource.data.createdBy) 
-                  || isModeratorOrAdmin();
-
-      allow list: if isSignedIn();
+      allow read: if isSignedIn();
 
       allow create: if isSignedIn()
-                    && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.status == 'active';
+                    && request.resource.data.createdBy == request.auth.uid;
 
       allow update: if isAdmin();
 

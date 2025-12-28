@@ -68,13 +68,16 @@ service cloud.firestore {
     match /threads/{threadId} {
 
       /* READ */
-      allow read: if
+      allow get: if
         (
           exists(/databases/$(database)/documents/users/$(resource.data.authorId)) &&
           get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.profileVisibility == 'public'
         )
         || isOwner(resource.data.authorId)
         || isModeratorOrAdmin();
+        
+      /* LIST */
+      allow list: if isSignedIn();
 
       /* CREATE */
       allow create: if
@@ -111,7 +114,7 @@ service cloud.firestore {
 
       // Rules for the real-time chat subcollection
       match /chatMessages/{messageId} {
-        allow read: if isSignedIn() && resource.data.status == 'active';
+        allow list, read: if isSignedIn() && resource.data.status == 'active';
         
         allow create: if isSignedIn()
                       && request.resource.data.senderId == request.auth.uid
@@ -122,7 +125,7 @@ service cloud.firestore {
       
       // Rules for replies subcollection
       match /replies/{replyId} {
-        allow read: if resource.data.status == 'published' || isOwner(resource.data.authorId) || isModeratorOrAdmin();
+        allow list, read: if resource.data.status == 'published' || isOwner(resource.data.authorId) || isModeratorOrAdmin();
         
         // This rule ensures single-level replies without trusting client-side depth.
         // It checks that a parent reply, if it exists, is itself a top-level reply.

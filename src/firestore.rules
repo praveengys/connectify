@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -29,48 +28,42 @@ service cloud.firestore {
     
     // Rules for user profile documents
     match /users/{userId} {
-      // Allow any signed-in user to read user profiles.
-      // This is necessary for rules that need to check profile data (e.g., profileVisibility).
       allow read: if isSignedIn();
 
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      // Allow owner to update their profile, but not change their role or uid.
-      allow update: if isOwner(userId) 
+      // Allow owner to update their profile, but not change critical immutable fields.
+      allow update: if isOwner(userId)
                   && request.resource.data.uid == resource.data.uid
-                  && request.resource.data.role == resource.data.role;
+                  && request.resource.data.role == resource.data.role
+                  && request.resource.data.createdAt == resource.data.createdAt;
       
       allow delete: if false;
     }
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
+      // Allow any signed-in user to read forums. The client will query for public forums.
       allow read: if isSignedIn();
 
+      // Allow authenticated users to create forums, enforcing ownership.
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid;
 
-      allow update: if isAdmin();
-
-      allow delete: if isAdmin();
+      // Only admins can update or delete forums.
+      allow update, delete: if isAdmin();
     }
 
     match /threads/{threadId} {
 
-      /* READ */
-      allow get: if (get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.profileVisibility == 'public')
-                      || isOwner(resource.data.authorId)
-                      || isModeratorOrAdmin();
-
-      allow list: if isSignedIn();
+      // Allow any signed-in user to read threads. The client will query for public threads.
+      allow read: if isSignedIn();
 
       /* CREATE */
       allow create: if
         isSignedIn() &&
         request.resource.data.authorId == request.auth.uid &&
-        request.resource.data.status == 'published' &&
-        request.resource.data.isLocked == false &&
-        request.resource.data.isPinned == false;
+        request.resource.data.status == 'published';
 
       /* UPDATE */
       allow update: if
@@ -101,7 +94,7 @@ service cloud.firestore {
 
       // Rules for the real-time chat subcollection
       match /chatMessages/{messageId} {
-        allow read: if isSignedIn() && resource.data.status == 'active';
+        allow list, read: if isSignedIn() && resource.data.status == 'active';
         
         allow create: if isSignedIn()
                       && request.resource.data.senderId == request.auth.uid
@@ -112,7 +105,7 @@ service cloud.firestore {
       
       // Rules for replies subcollection
       match /replies/{replyId} {
-        allow read: if resource.data.status == 'published' || isOwner(resource.data.authorId) || isModeratorOrAdmin();
+        allow list, read: if resource.data.status == 'published' || isOwner(resource.data.authorId) || isModeratorOrAdmin();
         
         // This rule ensures single-level replies without trusting client-side depth.
         // It checks that a parent reply, if it exists, is itself a top-level reply.

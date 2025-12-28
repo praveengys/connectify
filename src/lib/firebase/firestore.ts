@@ -142,13 +142,15 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
 }
 
 // Create a new forum
-export async function createForum(forumData: { name: string; description: string; createdBy: string; }) {
+export async function createForum(name: string, description: string, createdBy: string) {
     const firestore = getFirestoreInstance();
     const forumsCollection = collection(firestore, 'forums');
     
     const newForumPayload = {
-        ...forumData,
-        status: 'active' as const, // This is required by the security rule
+        name,
+        description,
+        createdBy,
+        status: 'active' as const,
         visibility: 'public' as const,
         createdAt: serverTimestamp(),
     };
@@ -156,8 +158,10 @@ export async function createForum(forumData: { name: string; description: string
     return addDoc(forumsCollection, newForumPayload).then(docRef => {
         // Return a complete Forum object, but with client-side date for immediate use
         return { 
-            id: docRef.id, 
-            ...forumData,
+            id: docRef.id,
+            name,
+            description,
+            createdBy,
             status: 'active', 
             visibility: 'public',
             createdAt: new Date(),

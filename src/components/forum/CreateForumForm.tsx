@@ -48,13 +48,7 @@ export default function CreateForumForm({ onForumCreated }: CreateForumFormProps
     
     setLoading(true);
     try {
-      const newForumData = {
-        name: values.name,
-        description: values.description,
-        createdBy: user.uid, // This was the missing required field
-      };
-      
-      const newForum = await createForum(newForumData);
+      const newForum = await createForum(values.name, values.description, user.uid);
       
       toast({
         title: 'Forum Created!',
@@ -62,6 +56,7 @@ export default function CreateForumForm({ onForumCreated }: CreateForumFormProps
       });
       onForumCreated(newForum);
     } catch (error: any) {
+      console.error("Error in form submission:", error);
       toast({
         title: 'Error creating forum',
         description: error.message || 'An unexpected error occurred.',

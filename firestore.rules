@@ -29,16 +29,15 @@ service cloud.firestore {
     
     // Rules for user profile documents
     match /users/{userId} {
-      // Allow any signed-in user to read user profiles.
-      // This is necessary for rules that need to check profile data (e.g., profileVisibility).
       allow read: if isSignedIn();
 
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      // Allow owner to update their profile, but not change their role or uid.
-      allow update: if isOwner(userId) 
+      // Allow owner to update their profile, but not change critical immutable fields.
+      allow update: if isOwner(userId)
                   && request.resource.data.uid == resource.data.uid
-                  && request.resource.data.role == resource.data.role;
+                  && request.resource.data.role == resource.data.role
+                  && request.resource.data.createdAt == resource.data.createdAt;
       
       allow delete: if false;
     }
@@ -52,8 +51,7 @@ service cloud.firestore {
       allow list: if isSignedIn();
 
       allow create: if isSignedIn()
-                    && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.status == 'active';
+                    && request.resource.data.createdBy == request.auth.uid;
 
       allow update: if isAdmin();
 
@@ -119,6 +117,8 @@ service cloud.firestore {
       match /replies/{replyId} {
         allow read: if resource.data.status == 'published' || isOwner(resource.data.authorId) || isModeratorOrAdmin();
         
+        // This rule ensures single-level replies without trusting client-side depth.
+        // It checks that a parent reply, if it exists, is itself a top-level reply.
         allow create: if 
           isSignedIn() && 
           request.resource.data.authorId == request.auth.uid && 

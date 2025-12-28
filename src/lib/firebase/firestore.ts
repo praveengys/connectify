@@ -1,3 +1,4 @@
+
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -327,36 +328,32 @@ export async function createReply(replyData: { threadId: string; authorId: strin
 // Create a new chat group
 export async function createChatGroup(name: string, type: 'public' | 'private', createdBy: string) {
     const firestore = getFirestoreInstance();
-    const groupsCollection = collection(firestore, 'groups');
     
-    const newGroupPayload = {
+    const newGroupPayload: Omit<Group, 'id' | 'createdAt'> = {
         name,
         type,
         createdBy,
         memberCount: 1,
-        createdAt: serverTimestamp(),
+        members: {
+            [createdBy]: 'owner'
+        }
     };
 
     try {
-        const docRef = await addDoc(groupsCollection, newGroupPayload);
-        
-        // Add the creator as the owner
-        const memberRef = doc(firestore, 'groups', docRef.id, 'members', createdBy);
-        await setDoc(memberRef, {
-            role: 'owner',
-            joinedAt: serverTimestamp(),
-        });
+        const groupsCollection = collection(firestore, 'groups');
+        const finalPayload = { ...newGroupPayload, createdAt: serverTimestamp() };
+        const docRef = await addDoc(groupsCollection, finalPayload);
         
         return { 
             id: docRef.id,
             ...newGroupPayload,
             createdAt: new Date(),
         } as Group;
+
     } catch (serverError) {
-        // This is a simplified error handling. In a real app, you might want more specific error types.
         console.error("Error creating chat group:", serverError);
         const permissionError = new FirestorePermissionError({
-            path: groupsCollection.path,
+            path: '/groups',
             operation: 'create',
             requestResourceData: newGroupPayload,
         } satisfies SecurityRuleContext);

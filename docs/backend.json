@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -117,26 +118,25 @@
     "Group": {
       "title": "Group",
       "type": "object",
-      "description": "A real-time chat group.",
+      "description": "A real-time chat group. Members are stored in a map on the document.",
       "properties": {
         "name": { "type": "string" },
         "type": { "type": "string", "enum": ["public", "private"] },
         "createdBy": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "memberCount": { "type": "number" }
+        "memberCount": { "type": "number" },
+        "members": {
+          "type": "object",
+          "description": "A map of user UIDs to their roles ('owner', 'admin', 'member').",
+          "additionalProperties": { "type": "string", "enum": ["owner", "admin", "member"] }
+        },
+         "muted": {
+          "type": "object",
+          "description": "A map of user UIDs to their mute expiration timestamps.",
+          "additionalProperties": { "type": "string", "format": "date-time" }
+        }
       },
-      "required": ["name", "type", "createdBy", "createdAt", "memberCount"]
-    },
-    "Member": {
-      "title": "Member",
-      "type": "object",
-      "description": "Represents a user's membership in a chat group.",
-      "properties": {
-        "role": { "type": "string", "enum": ["owner", "admin", "member"] },
-        "mutedUntil": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user's mute expires." },
-        "joinedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["role", "joinedAt"]
+      "required": ["name", "type", "createdBy", "createdAt", "memberCount", "members"]
     },
     "Message": {
       "title": "Message",
@@ -212,10 +212,6 @@
       {
         "path": "/groups/{groupId}",
         "definition": { "entityName": "Group", "schema": { "$ref": "#/entities/Group" } }
-      },
-      {
-        "path": "/groups/{groupId}/members/{userId}",
-        "definition": { "entityName": "Member", "schema": { "$ref": "#/entities/Member" } }
       },
       {
         "path": "/groups/{groupId}/messages/{messageId}",

@@ -1,7 +1,3 @@
-
-
-
-
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -278,7 +274,7 @@ export async function createReply(replyData: { threadId: string; authorId: strin
             throw new Error("Thread does not exist or is locked!");
         }
 
-        const newReplyData: Omit<Reply, 'id' | 'createdAt' | 'updatedAt'> = {
+        const newReplyData: Partial<Reply> = {
             authorId,
             body,
             parentReplyId,
@@ -341,4 +337,3 @@ export async function createChatMessage(threadId: string, messageData: Omit<Chat
         throw serverError;
     });
 }
-

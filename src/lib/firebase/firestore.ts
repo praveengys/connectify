@@ -148,7 +148,7 @@ export async function createForum(forumData: { name: string; description: string
     
     const newForumPayload = {
         ...forumData,
-        status: 'active' as const,
+        status: 'active' as const, // This is required by the security rule
         visibility: 'public' as const,
         createdAt: serverTimestamp(),
     };
@@ -276,12 +276,13 @@ export async function createReply(replyData: { threadId: string; authorId: strin
             throw new Error("Thread does not exist or is locked!");
         }
 
-        const newReplyData: Partial<Reply> = {
+        const newReplyPayload: Partial<Reply> = {
             authorId,
             body,
             parentReplyId,
             threadId,
             status: 'published',
+            createdAt: serverTimestamp(), // Will be converted on server
         };
 
         if (parentReplyId) {
@@ -290,15 +291,11 @@ export async function createReply(replyData: { threadId: string; authorId: strin
             if (!parentReplyDoc.exists() || parentReplyDoc.data().parentReplyId !== null) {
                 throw new Error("Parent reply does not exist or is not a top-level reply.");
             }
-            newReplyData.replyToAuthorId = parentReplyDoc.data().authorId;
+            newReplyPayload.replyToAuthorId = parentReplyDoc.data().authorId;
         }
         
         const newReplyRef = doc(repliesRef); // Auto-generate ID
-        transaction.set(newReplyRef, {
-            ...newReplyData,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
+        transaction.set(newReplyRef, newReplyPayload);
 
         // Atomically update the reply count on the parent thread
         transaction.update(threadRef, {

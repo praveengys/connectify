@@ -35,25 +35,22 @@ service cloud.firestore {
 
     /* Groups + messages (realtime chat) */
     match /groups/{groupId} {
-      // Any signed-in user can see public groups and groups they are a member of
       allow get, list: if isSignedIn();
 
-      // Any signed-in user can create a group; they become owner
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.members[request.auth.uid] == 'owner';
-
-      // Only owner or moderator/admin can update group
+                    && request.resource.data.members[request.auth.uid] == 'owner'
+                    && request.resource.data.members.size() == 1
+                    && request.resource.data.memberCount == 1;
+      
       allow update: if isSignedIn()
                     && (resource.data.members[request.auth.uid] in ['owner', 'admin']
                         || isModeratorOrAdmin());
 
       match /messages/{messageId} {
-        // Members only
         allow read, list: if isSignedIn()
                           && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
 
-        // Members can send messages
         allow create: if isSignedIn()
                       && request.resource.data.senderId == request.auth.uid
                       && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
@@ -66,35 +63,27 @@ service cloud.firestore {
 
     /* Forums */
     match /forums/{forumId} {
-      // Any signed-in user can read/list forums
       allow get, list: if isSignedIn();
 
-      // Any signed-in user can create a forum; they become owner
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid;
 
-      // Only moderators/admins can update/delete
       allow update, delete: if isModeratorOrAdmin();
     }
 
     /* Threads + replies */
     match /threads/{threadId} {
-      // Any signed-in user can read/list threads
       allow get, list: if isSignedIn();
 
-      // Any signed-in user can create threads; they become author
       allow create: if isSignedIn()
                     && request.resource.data.authorId == request.auth.uid;
 
-      // Author can edit while unlocked; mods/admin can always edit
       allow update: if (isOwner(resource.data.authorId) && !resource.data.isLocked)
                     || isModeratorOrAdmin();
 
       match /replies/{replyId} {
-        // Everyone signed in can read replies
         allow read, list: if isSignedIn();
 
-        // Any signed-in user can reply; they become author
         allow create: if isSignedIn()
                       && request.resource.data.authorId == request.auth.uid
                       && !get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked;

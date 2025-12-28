@@ -127,16 +127,16 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
   const threadAuthor = useMemo(() => authors[thread.authorId], [authors, thread.authorId]);
   
   const groupedReplies = useMemo(() => {
-    const depth0 = replies.filter(r => r.depth === 0);
-    const depth1 = replies.filter(r => r.depth === 1);
+    const topLevelReplies = replies.filter(r => r.parentReplyId === null);
+    const nestedReplies = replies.filter(r => r.parentReplyId !== null);
 
     const groups: GroupedReplies = {};
 
-    depth0.forEach(parent => {
+    topLevelReplies.forEach(parent => {
       groups[parent.id] = { parent, children: [] };
     });
 
-    depth1.forEach(child => {
+    nestedReplies.forEach(child => {
       if (child.parentReplyId && groups[child.parentReplyId]) {
         groups[child.parentReplyId].children.push(child);
       }
@@ -268,7 +268,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                     <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(parent.createdAt), { addSuffix: true })}</p>
                   </div>
                   <p className="mt-2 text-muted-foreground whitespace-pre-wrap">{parent.body}</p>
-                  {user && !thread.isLocked && (
+                  {user && !thread.isLocked && parent.parentReplyId === null && (
                     <div className="mt-2">
                       <Button type="button" variant="ghost" size="sm" onClick={() => setReplyingTo(parent)}>
                          <CornerDownRight size={14} className="mr-2" />
@@ -322,7 +322,3 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     </div>
   );
 }
-
-    
-
-    

@@ -1,5 +1,6 @@
 
 
+
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -275,17 +276,15 @@ export async function createReply(replyData: { threadId: string; authorId: strin
             body,
             parentReplyId,
             threadId,
-            depth: 0, // Default to 0
             status: 'published',
         };
 
         if (parentReplyId) {
             const parentReplyRef = doc(repliesRef, parentReplyId);
             const parentReplyDoc = await transaction.get(parentReplyRef);
-            if (!parentReplyDoc.exists() || parentReplyDoc.data().depth !== 0) {
+            if (!parentReplyDoc.exists() || parentReplyDoc.data().parentReplyId !== null) {
                 throw new Error("Parent reply does not exist or is not a top-level reply.");
             }
-            newReplyData.depth = 1;
             newReplyData.replyToAuthorId = parentReplyDoc.data().authorId;
         }
         

@@ -43,7 +43,6 @@ export type Reply = {
   authorId: string;
   replyToAuthorId?: string; // For nested replies
   parentReplyId: string | null;
-  depth: 0 | 1;
   status: 'published' | 'hidden' | 'deleted';
   createdAt: Timestamp | Date;
   updatedAt?: Timestamp | Date;

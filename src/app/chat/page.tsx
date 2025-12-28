@@ -56,8 +56,9 @@ export default function ChatPage() {
     return () => unsubscribe();
   }, [user]);
   
-  const handleGroupCreated = (newGroup: Group) => {
-      setGroups(prev => [newGroup, ...prev]);
+  const handleGroupCreated = () => {
+      // The onSnapshot listener will automatically add the new group.
+      // Manually adding it here caused a temporary duplication.
       setCreateGroupOpen(false);
   }
 

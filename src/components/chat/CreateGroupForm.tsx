@@ -20,7 +20,7 @@ const formSchema = z.object({
 });
 
 type CreateGroupFormProps = {
-  onGroupCreated: (group: Group) => void;
+  onGroupCreated: () => void;
 };
 
 export default function CreateGroupForm({ onGroupCreated }: CreateGroupFormProps) {
@@ -48,13 +48,13 @@ export default function CreateGroupForm({ onGroupCreated }: CreateGroupFormProps
     
     setLoading(true);
     try {
-      const newGroup = await createChatGroup(values.name, values.type, user.uid);
+      await createChatGroup(values.name, values.type, user.uid);
       
       toast({
         title: 'Group Created!',
         description: `The group "${values.name}" is now live.`,
       });
-      onGroupCreated(newGroup);
+      onGroupCreated();
     } catch (error: any) {
       console.error("Error in form submission:", error);
       toast({

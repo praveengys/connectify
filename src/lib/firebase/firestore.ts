@@ -1,7 +1,4 @@
 
-
-
-
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -160,6 +157,8 @@ export async function createForum(name: string, description: string, createdBy: 
         description,
         createdBy: createdBy, // REQUIRED by rules
         createdAt: serverTimestamp(),
+        visibility: 'public' as const,
+        status: 'active' as const,
     };
 
     return addDoc(forumsCollection, newForumPayload).then(docRef => {
@@ -280,6 +279,8 @@ export async function createReply(replyData: { threadId: string; authorId: strin
         threadId,
         body,
         authorId: authorId, // REQUIRED by rules
+        parentReplyId: replyData.parentReplyId,
+        status: 'published' as const,
         createdAt: serverTimestamp(),
     };
 
@@ -352,6 +353,7 @@ export async function sendChatMessage(groupId: string, senderId: string, message
         ...message,
         senderId: senderId, // REQUIRED by rules
         createdAt: serverTimestamp(),
+        status: 'visible' as const,
     };
     
     addDoc(messagesCollection, payload).catch(async (serverError) => {
@@ -365,4 +367,24 @@ export async function sendChatMessage(groupId: string, senderId: string, message
     });
 }
 
-    
+// Create a new chat message in a thread's subcollection
+export async function createChatMessage(threadId: string, messageData: { senderId: string, text: string, senderName: string, senderAvatar?: string }) {
+    const firestore = getFirestoreInstance();
+    const chatMessagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
+
+    const payload = {
+        ...messageData,
+        createdAt: serverTimestamp(),
+        status: 'active' as const
+    };
+
+    return addDoc(chatMessagesRef, payload).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: chatMessagesRef.path,
+            operation: 'create',
+            requestResourceData: payload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
+    });
+}

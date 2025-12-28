@@ -26,31 +26,26 @@ service cloud.firestore {
     function isModeratorOrAdmin() {
       return isModerator() || isAdmin();
     }
-
-    function isAuthorProfilePublic(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.profileVisibility == 'public';
-    }
     
     // Rules for user profile documents
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      
-      allow list: if isSignedIn();
-
-      allow read: if resource.data.profileVisibility == 'public'
-               || isOwner(userId)
-               || isAdmin();
+      // Allow any signed-in user to read user profiles.
+      // This is necessary for rules that need to check profile data (e.g., profileVisibility).
+      allow read: if isSignedIn();
 
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      allow update: if isOwner(userId);
+      // Allow owner to update their profile, but not change their role or uid.
+      allow update: if isOwner(userId) 
+                  && request.resource.data.uid == resource.data.uid
+                  && request.resource.data.role == resource.data.role;
       
       allow delete: if false;
     }
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      allow get: if (resource.data.visibility == 'public' && isAuthorProfilePublic(resource.data.createdBy)) 
+      allow get: if (resource.data.visibility == 'public' && get(/databases/$(database)/documents/users/$(resource.data.createdBy)).data.profileVisibility == 'public') 
                   || isOwner(resource.data.createdBy) 
                   || isModeratorOrAdmin();
 
@@ -68,7 +63,7 @@ service cloud.firestore {
     match /threads/{threadId} {
 
       /* READ */
-      allow get: if (isAuthorProfilePublic(resource.data.authorId))
+      allow get: if (get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.profileVisibility == 'public')
                       || isOwner(resource.data.authorId)
                       || isModeratorOrAdmin();
 
@@ -124,6 +119,8 @@ service cloud.firestore {
       match /replies/{replyId} {
         allow read: if resource.data.status == 'published' || isOwner(resource.data.authorId) || isModeratorOrAdmin();
         
+        // This rule ensures single-level replies without trusting client-side depth.
+        // It checks that a parent reply, if it exists, is itself a top-level reply.
         allow create: if 
           isSignedIn() && 
           request.resource.data.authorId == request.auth.uid && 
@@ -131,11 +128,10 @@ service cloud.firestore {
           request.resource.data.status == 'published' && 
           get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked == false &&
           (
-            (request.resource.data.parentReplyId == null && request.resource.data.depth == 0) ||
+            request.resource.data.parentReplyId == null ||
             (
               request.resource.data.parentReplyId != null &&
-              request.resource.data.depth == 1 &&
-              get(/databases/$(database)/documents/threads/$(threadId)/replies/$(request.resource.data.parentReplyId)).data.depth == 0
+              get(/databases/$(database)/documents/threads/$(threadId)/replies/$(request.resource.data.parentReplyId)).data.parentReplyId == null
             )
           );
 

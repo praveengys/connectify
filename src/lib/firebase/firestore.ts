@@ -270,8 +270,14 @@ export async function createReply(replyData: { threadId: string; authorId: strin
             throw new Error("Thread does not exist or is locked!");
         }
 
-        let depth: 0 | 1 = 0;
-        let replyToAuthorId: string | undefined = undefined;
+        const newReplyData: Omit<Reply, 'id' | 'createdAt' | 'updatedAt'> = {
+            authorId,
+            body,
+            parentReplyId,
+            threadId,
+            depth: 0, // Default to 0
+            status: 'published',
+        };
 
         if (parentReplyId) {
             const parentReplyRef = doc(repliesRef, parentReplyId);
@@ -279,24 +285,16 @@ export async function createReply(replyData: { threadId: string; authorId: strin
             if (!parentReplyDoc.exists() || parentReplyDoc.data().depth !== 0) {
                 throw new Error("Parent reply does not exist or is not a top-level reply.");
             }
-            depth = 1;
-            replyToAuthorId = parentReplyDoc.data().authorId;
+            newReplyData.depth = 1;
+            newReplyData.replyToAuthorId = parentReplyDoc.data().authorId;
         }
         
-        const newReplyData = {
-            authorId,
-            body,
-            parentReplyId,
-            replyToAuthorId,
-            threadId,
-            depth,
-            status: 'published',
+        const newReplyRef = doc(repliesRef); // Auto-generate ID
+        transaction.set(newReplyRef, {
+            ...newReplyData,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-        };
-
-        const newReplyRef = doc(repliesRef); // Auto-generate ID
-        transaction.set(newReplyRef, newReplyData);
+        });
 
         // Atomically update the reply count on the parent thread
         transaction.update(threadRef, {

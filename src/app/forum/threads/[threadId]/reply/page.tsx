@@ -91,7 +91,10 @@ export default function ReplyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || !user || !thread) return;
+    if (!content.trim() || !user || !thread || authLoading) {
+      if(authLoading) toast({ title: "Please wait", description: "Authentication is still loading.", variant: "destructive" });
+      return;
+    };
 
     setSubmitting(true);
     try {
@@ -175,7 +178,7 @@ export default function ReplyPage() {
                     Cancel
                   </Link>
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting || authLoading}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Post Reply
                 </Button>

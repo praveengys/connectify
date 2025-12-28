@@ -1,6 +1,7 @@
 
 
 
+
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -123,13 +124,13 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
 }
 
 // Create a new discussion thread
-export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'authorId' | 'isLocked'> & { authorId: string, forumId: string }) {
+export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'authorId' | 'isLocked'> & { authorId: string; forumId: string; title: string; body: string; }) {
     const firestore = getFirestoreInstance();
     const threadsCollection = collection(firestore, 'threads');
 
     const payload = {
         ...threadData,
-        authorId: threadData.authorId, // Ensure authorId is set
+        authorId: threadData.authorId, // REQUIRED by rules
         isLocked: false,
         replyCount: 0,
         createdAt: serverTimestamp(),
@@ -157,7 +158,7 @@ export async function createForum(name: string, description: string, createdBy: 
     const newForumPayload = {
         name,
         description,
-        createdBy: createdBy, // MUST equal auth.uid
+        createdBy: createdBy, // REQUIRED by rules
         createdAt: serverTimestamp(),
     };
 
@@ -278,7 +279,7 @@ export async function createReply(replyData: { threadId: string; authorId: strin
     const newReplyPayload = {
         threadId,
         body,
-        authorId: authorId, // MUST equal auth.uid
+        authorId: authorId, // REQUIRED by rules
         createdAt: serverTimestamp(),
     };
 
@@ -316,8 +317,10 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     const newGroupPayload = {
         name,
         type,
-        createdBy: createdBy, // MUST equal auth.uid
+        createdBy: createdBy, // REQUIRED by rules
         createdAt: serverTimestamp(),
+        members: { [createdBy]: 'owner' },
+        memberCount: 1,
     };
 
     try {
@@ -347,7 +350,7 @@ export async function sendChatMessage(groupId: string, senderId: string, message
     
     const payload = {
         ...message,
-        senderId: senderId, // MUST equal auth.uid
+        senderId: senderId, // REQUIRED by rules
         createdAt: serverTimestamp(),
     };
     
@@ -361,3 +364,5 @@ export async function sendChatMessage(groupId: string, senderId: string, message
         throw serverError;
     });
 }
+
+    

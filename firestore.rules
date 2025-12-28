@@ -67,17 +67,8 @@ service cloud.firestore {
 
     match /threads/{threadId} {
 
-      /* READ */
-      allow get: if
-        (
-          exists(/databases/$(database)/documents/users/$(resource.data.authorId)) &&
-          get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.profileVisibility == 'public'
-        )
-        || isOwner(resource.data.authorId)
-        || isModeratorOrAdmin();
-        
-      /* LIST */
-      allow list: if isSignedIn();
+      /* READ (GET & LIST) */
+      allow read: if isSignedIn();
 
       /* CREATE */
       allow create: if

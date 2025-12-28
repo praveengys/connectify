@@ -6,6 +6,7 @@ export type Forum = {
   name: string;
   description: string;
   createdBy: string;
+  creatorProfileVisibility?: 'public' | 'private';
   visibility: 'public' | 'private';
   status: 'active' | 'suspended';
   createdAt: Timestamp | Date;
@@ -17,6 +18,7 @@ export type Thread = {
   body: string;
   intent: 'question' | 'discussion' | 'announcement' | 'feedback' | 'help';
   authorId: string;
+  authorVisibility?: 'public' | 'private';
   author?: UserProfile; // Optional: denormalized author data
   categoryId: string;
   forumId: string;

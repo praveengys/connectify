@@ -119,22 +119,28 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
 }
 
 // Create a new discussion thread
-export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'categoryId'> & { categoryId: string }) {
+export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'categoryId' | 'authorVisibility'> & { categoryId: string }) {
     const firestore = getFirestoreInstance();
     const threadsCollection = collection(firestore, 'threads');
 
-    return addDoc(threadsCollection, {
+    const authorProfile = await getUserProfile(threadData.authorId);
+    const authorVisibility = authorProfile?.profileVisibility || 'private';
+
+    const payload = {
         ...threadData,
+        authorVisibility,
         replyCount: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-    }).then(docRef => {
-        return { id: docRef.id, ...threadData };
+    };
+
+    return addDoc(threadsCollection, payload).then(docRef => {
+        return { id: docRef.id, ...payload, createdAt: new Date() } as Thread;
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: threadsCollection.path,
             operation: 'create',
-            requestResourceData: threadData,
+            requestResourceData: payload,
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
         throw serverError; // Re-throw to allow component to handle its loading state
@@ -146,10 +152,14 @@ export async function createForum(name: string, description: string, createdBy: 
     const firestore = getFirestoreInstance();
     const forumsCollection = collection(firestore, 'forums');
     
+    const creatorProfile = await getUserProfile(createdBy);
+    const creatorProfileVisibility = creatorProfile?.profileVisibility || 'private';
+
     const newForumPayload = {
         name,
         description,
         createdBy,
+        creatorProfileVisibility,
         status: 'active' as const,
         visibility: 'public' as const,
         createdAt: serverTimestamp(),

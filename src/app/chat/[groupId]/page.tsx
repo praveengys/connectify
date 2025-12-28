@@ -9,7 +9,10 @@ import { initializeFirebase } from '@/firebase';
 import type { Group } from '@/lib/types';
 import { notFound, useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, ServerCrash } from 'lucide-react';
+import { Loader2, ServerCrash, UserPlus } from 'lucide-react';
+import { joinChatGroup } from '@/lib/firebase/firestore';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 
 export default function ChatRoomPage() {
@@ -19,6 +22,9 @@ export default function ChatRoomPage() {
   const [group, setGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMember, setIsMember] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
       if (authLoading || !user || !groupId) {
@@ -36,9 +42,10 @@ export default function ChatRoomPage() {
       const unsubscribe = onSnapshot(groupRef, (docSnap) => {
           if (docSnap.exists()) {
               const data = docSnap.data();
-              // Security check: Client must verify membership for private groups
-              const isMember = data.members && data.members[user.uid];
-              if(data.type === 'private' && !isMember) {
+              const memberStatus = data.members && data.members[user.uid];
+              setIsMember(!!memberStatus);
+              
+              if(data.type === 'private' && !memberStatus) {
                    setError("You are not a member of this private group.");
                    setGroup(null);
               } else {
@@ -62,6 +69,28 @@ export default function ChatRoomPage() {
 
       return () => unsubscribe();
   }, [groupId, user, authLoading]);
+
+  const handleJoinGroup = async () => {
+    if (!user || !group) return;
+    setJoinLoading(true);
+    try {
+      await joinChatGroup(group.id, user.uid);
+      toast({
+        title: 'Success!',
+        description: `You have joined the group "${group.name}".`,
+      });
+      // The onSnapshot listener will update the isMember state automatically.
+    } catch (error: any) {
+      toast({
+        title: 'Error Joining Group',
+        description: error.message || "Could not join the group.",
+        variant: 'destructive',
+      });
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
 
   if (loading || authLoading) {
     return (
@@ -92,7 +121,20 @@ export default function ChatRoomPage() {
   return (
     <div className="flex flex-col h-screen">
       <Header />
-      <ChatRoomClient group={group} />
+      {isMember ? (
+         <ChatRoomClient group={group} />
+      ): (
+        <div className="flex-grow flex flex-col items-center justify-center gap-4 p-4 text-center">
+          <h2 className="text-2xl font-bold">You are not a member of this group</h2>
+          <p className="text-muted-foreground max-w-md">
+            Join "{group.name}" to view the conversation and send messages.
+          </p>
+          <Button onClick={handleJoinGroup} disabled={joinLoading}>
+            {joinLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+            Join Group
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -38,15 +38,44 @@ service cloud.firestore {
       allow get, list: if isSignedIn();
 
       allow create: if isSignedIn()
-                    && request.resource.data.createdBy == request.auth.uid;
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.members[request.auth.uid] == 'owner'
+                    && request.resource.data.members.size() == 1
+                    && request.resource.data.memberCount == 1;
 
-      allow update, delete: if isOwner(resource.data.createdBy) || isModeratorOrAdmin();
+      // Only owner or moderator/admin can update group settings (name, type)
+      // A separate rule handles adding/removing members.
+      allow update: if (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isModeratorOrAdmin();
+
+      // Allow a user to add themselves to a public group.
+      match /groups/{groupId} {
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['members', 'memberCount'])
+                      && resource.data.type == 'public'
+                      && request.resource.data.members[request.auth.uid] == 'member'
+                      && !(request.auth.uid in resource.data.members);
+      }
+
+      allow delete: if isOwner(resource.data.createdBy) || isAdmin();
 
       match /messages/{messageId} {
-        allow read, list: if isSignedIn();
+        // Members only can read messages.
+        allow read, list: if isSignedIn()
+                          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
 
+        // Members can send messages if they are not muted.
         allow create: if isSignedIn()
-                      && request.resource.data.senderId == request.auth.uid;
+                      && request.resource.data.senderId == request.auth.uid
+                      && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
+                      && !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted);
+      }
+
+      match /typing/{userId} {
+        // Only the user themselves can update their typing status.
+        allow write: if isOwner(userId);
+        // Only members can see who is typing.
+        allow read: if isSignedIn()
+                    && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
       }
     }
 
@@ -74,6 +103,12 @@ service cloud.firestore {
 
         allow create: if isSignedIn()
                       && request.resource.data.authorId == request.auth.uid;
+      }
+       match /chatMessages/{messageId} {
+        allow read, list: if isSignedIn();
+
+        allow create: if isSignedIn()
+                      && request.resource.data.senderId == request.auth.uid;
       }
     }
 

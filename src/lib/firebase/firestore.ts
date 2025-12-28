@@ -1,4 +1,3 @@
-
 'use client';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -343,6 +342,45 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
         throw serverError;
     }
 }
+
+// Join a chat group
+export async function joinChatGroup(groupId: string, userId: string) {
+    const firestore = getFirestoreInstance();
+    const groupRef = doc(firestore, 'groups', groupId);
+
+    const payload = {
+        [`members.${userId}`]: 'member',
+    };
+
+    return runTransaction(firestore, async (transaction) => {
+        const groupDoc = await transaction.get(groupRef);
+        if (!groupDoc.exists()) {
+            throw new Error("Group does not exist!");
+        }
+        
+        const groupData = groupDoc.data();
+        if (groupData.members && groupData.members[userId]) {
+            return; // User is already a member
+        }
+
+        const newMemberCount = (groupData.memberCount || 0) + 1;
+        transaction.update(groupRef, {
+            ...payload,
+            memberCount: newMemberCount,
+        });
+
+    }).catch(async (serverError) => {
+        console.error("Error joining group:", serverError);
+        const permissionError = new FirestorePermissionError({
+            path: groupRef.path,
+            operation: 'update',
+            requestResourceData: payload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
+    });
+}
+
 
 // Send a chat message
 export async function sendChatMessage(groupId: string, senderId: string, message: Partial<ChatMessage>) {

@@ -51,7 +51,7 @@ export default function CreateForumForm({ onForumCreated }: CreateForumFormProps
       const newForumData = {
         name: values.name,
         description: values.description,
-        createdBy: user.uid, // This was the missing field
+        createdBy: user.uid,
       };
       
       const newForum = await createForum(newForumData);

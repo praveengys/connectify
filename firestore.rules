@@ -44,27 +44,37 @@ service cloud.firestore {
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      allow read: if resource.data.visibility == 'public'
-                  || isOwner(resource.data.createdBy)
-                  || isModeratorOrAdmin();
 
+      // SINGLE DOC READ
+      allow get: if
+        resource.data.visibility == 'public'
+        || isOwner(resource.data.createdBy)
+        || isModeratorOrAdmin();
+
+      // QUERY / LIST
+      allow list: if isSignedIn();
+
+      // CREATE
       allow create: if
         isSignedIn()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.status == 'active'
         && request.resource.data.visibility in ['public', 'private'];
 
-      allow update: if isAdmin();
-
-      allow delete: if isAdmin();
+      // UPDATE / DELETE
+      allow update, delete: if isAdmin();
     }
 
     match /threads/{threadId} {
 
       /* READ */
-      allow read: if resource.data.authorVisibility == 'public'
-                    || isOwner(resource.data.authorId)
-                    || isModeratorOrAdmin();
+      allow read: if
+        (
+          exists(/databases/$(database)/documents/users/$(resource.data.authorId)) &&
+          get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.profileVisibility == 'public'
+        )
+        || isOwner(resource.data.authorId)
+        || isModeratorOrAdmin();
 
       /* CREATE */
       allow create: if

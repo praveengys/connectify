@@ -1,10 +1,7 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /* ===============================
-       Helper Functions
-       =============================== */
 
     function isSignedIn() {
       return request.auth != null;
@@ -28,43 +25,35 @@ service cloud.firestore {
       return isModerator() || isAdmin();
     }
 
-    /* ===============================
-       Users
-       =============================== */
-
+    /* Users */
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if isOwner(userId) && request.resource.data.uid == resource.data.uid && request.resource.data.role == resource.data.role && request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if isOwner(userId) && request.resource.data.uid == resource.data.uid;
       allow delete: if false;
     }
 
-    /* ===============================
-       Real-Time Chat Groups
-       =============================== */
-    
+    /* Groups + messages (realtime chat) */
     match /groups/{groupId} {
-      // READ: Allow if group is public OR user is a member
-      allow get, list: if resource.data.type == 'public'
-                      || (isSignedIn() && request.auth.uid in resource.data.members);
+      // Any signed-in user can see public groups and groups they are a member of
+      allow get, list: if isSignedIn();
 
-      // CREATE: Allow if signed in, creator is the owner, and member count is 1.
+      // Any signed-in user can create a group; they become owner
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.members[request.auth.uid] == 'owner'
-                    && request.resource.data.members.size() == 1
-                    && request.resource.data.memberCount == 1;
+                    && request.resource.data.members[request.auth.uid] == 'owner';
 
-      // UPDATE: Allow if user is an owner or admin of the group
+      // Only owner or moderator/admin can update group
       allow update: if isSignedIn()
-                    && resource.data.members[request.auth.uid] in ['owner', 'admin'];
+                    && (resource.data.members[request.auth.uid] in ['owner', 'admin']
+                        || isModeratorOrAdmin());
 
       match /messages/{messageId} {
-        // READ messages if a member of the group
+        // Members only
         allow read, list: if isSignedIn()
-                    && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+                          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
 
-        // CREATE messages if a member and not muted
+        // Members can send messages
         allow create: if isSignedIn()
                       && request.resource.data.senderId == request.auth.uid
                       && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
@@ -75,47 +64,44 @@ service cloud.firestore {
       }
     }
 
-
-    /* ===============================
-       Forums, Threads, Replies
-       =============================== */
-    
+    /* Forums */
     match /forums/{forumId} {
-      allow get, list: if resource.data.visibility == 'public'
-                        || isOwner(resource.data.createdBy)
-                        || isModeratorOrAdmin();
+      // Any signed-in user can read/list forums
+      allow get, list: if isSignedIn();
 
+      // Any signed-in user can create a forum; they become owner
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid;
 
+      // Only moderators/admins can update/delete
       allow update, delete: if isModeratorOrAdmin();
     }
 
-
+    /* Threads + replies */
     match /threads/{threadId} {
-      allow get, list: if resource.data.visibility == 'public'
-                        || isOwner(resource.data.authorId)
-                        || isModeratorOrAdmin();
+      // Any signed-in user can read/list threads
+      allow get, list: if isSignedIn();
 
+      // Any signed-in user can create threads; they become author
       allow create: if isSignedIn()
                     && request.resource.data.authorId == request.auth.uid;
-      
-      allow update: if isOwner(resource.data.authorId) && !resource.data.isLocked;
+
+      // Author can edit while unlocked; mods/admin can always edit
+      allow update: if (isOwner(resource.data.authorId) && !resource.data.isLocked)
+                    || isModeratorOrAdmin();
 
       match /replies/{replyId} {
-        allow read: if resource.data.status == 'published'
-                    || isOwner(resource.data.authorId);
-        
+        // Everyone signed in can read replies
+        allow read, list: if isSignedIn();
+
+        // Any signed-in user can reply; they become author
         allow create: if isSignedIn()
                       && request.resource.data.authorId == request.auth.uid
                       && !get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked;
       }
     }
 
-    /* ===============================
-       Misc Collections
-       =============================== */
-
+    /* Categories / tags / reports – optional extra control */
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if isModeratorOrAdmin();
@@ -127,7 +113,8 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow create: if isSignedIn() && request.resource.data.reporterId == request.auth.uid;
+      allow create: if isSignedIn()
+                    && request.resource.data.reporterId == request.auth.uid;
       allow get, list, update: if isModeratorOrAdmin();
       allow delete: if false;
     }

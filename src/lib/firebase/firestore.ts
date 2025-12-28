@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -124,13 +125,10 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
     const firestore = getFirestoreInstance();
     const threadsCollection = collection(firestore, 'threads');
 
-    const authorProfile = await getUserProfile(threadData.authorId);
-    const authorVisibility = authorProfile?.profileVisibility || 'private';
-
     const payload = {
         ...threadData,
-        authorVisibility,
         replyCount: 0,
+        isLocked: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
@@ -152,17 +150,11 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
 export async function createForum(name: string, description: string, createdBy: string) {
     const firestore = getFirestoreInstance();
     const forumsCollection = collection(firestore, 'forums');
-    
-    const creatorProfile = await getUserProfile(createdBy);
-    const creatorProfileVisibility = creatorProfile?.profileVisibility || 'private';
 
     const newForumPayload = {
         name,
         description,
         createdBy,
-        creatorProfileVisibility,
-        status: 'active' as const,
-        visibility: 'public' as const,
         createdAt: serverTimestamp(),
     };
 
@@ -272,7 +264,7 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
 // Create a new reply in the subcollection
 export async function createReply(replyData: { threadId: string; authorId: string; body: string; parentReplyId: string | null; }) {
     const firestore = getFirestoreInstance();
-    const { threadId, authorId, body, parentReplyId } = replyData;
+    const { threadId, authorId, body } = replyData;
     
     if (!threadId || !authorId) {
         throw new Error('Thread ID and Author ID are required.');
@@ -290,20 +282,9 @@ export async function createReply(replyData: { threadId: string; authorId: strin
         const newReplyPayload: Partial<Reply> = {
             authorId,
             body,
-            parentReplyId,
             threadId,
-            status: 'published',
             createdAt: serverTimestamp(), // Will be converted on server
         };
-
-        if (parentReplyId) {
-            const parentReplyRef = doc(repliesRef, parentReplyId);
-            const parentReplyDoc = await transaction.get(parentReplyRef);
-            if (!parentReplyDoc.exists() || parentReplyDoc.data().parentReplyId !== null) {
-                throw new Error("Parent reply does not exist or is not a top-level reply.");
-            }
-            newReplyPayload.replyToAuthorId = parentReplyDoc.data().authorId;
-        }
         
         const newReplyRef = doc(repliesRef); // Auto-generate ID
         transaction.set(newReplyRef, newReplyPayload);
@@ -328,24 +309,23 @@ export async function createReply(replyData: { threadId: string; authorId: strin
 // Create a new chat group
 export async function createChatGroup(name: string, type: 'public' | 'private', createdBy: string) {
     const firestore = getFirestoreInstance();
+    const newGroupRef = doc(collection(firestore, 'groups'));
     
-    const newGroupPayload: Omit<Group, 'id' | 'createdAt'> = {
+    const newGroupPayload = {
         name,
         type,
         createdBy,
         memberCount: 1,
         members: {
             [createdBy]: 'owner'
-        }
+        },
+        createdAt: serverTimestamp(),
     };
 
     try {
-        const groupsCollection = collection(firestore, 'groups');
-        const finalPayload = { ...newGroupPayload, createdAt: serverTimestamp() };
-        const docRef = await addDoc(groupsCollection, finalPayload);
-        
+        await setDoc(newGroupRef, newGroupPayload);
         return { 
-            id: docRef.id,
+            id: newGroupRef.id,
             ...newGroupPayload,
             createdAt: new Date(),
         } as Group;
@@ -370,7 +350,6 @@ export async function sendChatMessage(groupId: string, senderId: string, message
     const payload = {
         ...message,
         senderId,
-        status: 'visible',
         createdAt: serverTimestamp(),
     };
     

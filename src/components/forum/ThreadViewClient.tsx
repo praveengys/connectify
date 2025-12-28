@@ -225,7 +225,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                         {replyingTo && (
                             <div className="text-sm text-muted-foreground mb-2 p-2 bg-secondary rounded-md">
                                 Replying to <span className="font-semibold text-foreground">@{authors[replyingTo.authorId]?.displayName || '...'}</span>
-                                <Button variant="ghost" size="sm" className="ml-2 h-auto p-1" onClick={() => setReplyingTo(null)}>Cancel</Button>
+                                <Button type="button" variant="ghost" size="sm" className="ml-2 h-auto p-1" onClick={() => setReplyingTo(null)}>Cancel</Button>
                             </div>
                         )}
                         <Textarea
@@ -270,7 +270,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                   <p className="mt-2 text-muted-foreground whitespace-pre-wrap">{parent.body}</p>
                   {user && !thread.isLocked && (
                     <div className="mt-2">
-                      <Button variant="ghost" size="sm" onClick={() => setReplyingTo(parent)}>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setReplyingTo(parent)}>
                          <CornerDownRight size={14} className="mr-2" />
                          Reply
                       </Button>
@@ -322,5 +322,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     </div>
   );
 }
+
+    
 
     

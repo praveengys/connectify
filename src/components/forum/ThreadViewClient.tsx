@@ -15,11 +15,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import type { Reply, Thread, UserProfile } from '@/lib/types';
-import { getUserProfile } from '@/lib/firebase/firestore';
-import { MessageSquare, CornerDownRight, Lock } from 'lucide-react';
+import { createReply, getUserProfile } from '@/lib/firebase/firestore';
+import { MessageSquare, CornerDownRight, Lock, Loader2 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import ChatRoom from './ChatRoom';
 import { Separator } from '../ui/separator';
+import { Textarea } from '../ui/textarea';
 
 type ThreadViewClientProps = {
   initialThread: Thread;
@@ -35,12 +36,16 @@ type GroupedReplies = {
 };
 
 export default function ThreadViewClient({ initialThread, initialReplies, initialAuthors }: ThreadViewClientProps) {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [thread, setThread] = useState<Thread>(initialThread);
   const [authors, setAuthors] = useState<Record<string, UserProfile>>(initialAuthors);
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
+
+  const [replyContent, setReplyContent] = useState('');
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Reply | null>(null);
+
 
   const fetchAndCacheAuthors = useCallback(async (authorIds: string[]) => {
     const newAuthorIds = authorIds.filter(id => id && !authors[id]);
@@ -63,7 +68,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
 
   useEffect(() => {
-    if (loading) return;
+    if (authLoading) return;
 
     const { firestore } = initializeFirebase();
     const threadRef = doc(firestore, 'threads', thread.id);
@@ -117,7 +122,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       unsubscribeThread();
       unsubscribeReplies();
     };
-  }, [thread.id, toast, loading, fetchAndCacheAuthors]);
+  }, [thread.id, toast, authLoading, fetchAndCacheAuthors]);
 
   const threadAuthor = useMemo(() => authors[thread.authorId], [authors, thread.authorId]);
   
@@ -139,6 +144,40 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
     return Object.values(groups).sort((a, b) => new Date(a.parent.createdAt).getTime() - new Date(b.parent.createdAt).getTime());
   }, [replies]);
+
+  const handleReplySubmit = async () => {
+    if (!replyContent.trim() || !user || authLoading) {
+      if(authLoading) toast({ title: "Please wait", description: "Authentication is still loading.", variant: "destructive" });
+      if(!user) toast({ title: "Not Authenticated", description: "You must be signed in to reply.", variant: "destructive" });
+      return;
+    };
+
+    setSubmitting(true);
+    try {
+      await createReply({
+        threadId: thread.id,
+        authorId: user.uid,
+        body: replyContent,
+        parentReplyId: replyingTo ? replyingTo.id : null,
+      });
+
+      toast({
+        title: 'Success!',
+        description: 'Your reply has been posted.',
+      });
+      setReplyContent('');
+      setReplyingTo(null);
+    } catch (error: any) {
+      console.error("Error posting reply:", error);
+      toast({
+        title: 'Error',
+        description: `Could not post reply: ${error.message}`,
+        variant: 'destructive',
+      });
+    } finally {
+        setSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -170,16 +209,49 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
       </div>
       <Separator className="my-8" />
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">{thread.replyCount || 0} {(thread.replyCount || 0) === 1 ? 'Reply' : 'Replies'}</h2>
-        {user && !thread.isLocked && (
-          <Button asChild>
-            <Link href={`/forum/threads/${thread.id}/reply`}>
-              <MessageSquare size={16} className="mr-2" />
-              Post a Reply
-            </Link>
-          </Button>
-        )}
+        <h2 className="text-2xl font-bold">{thread.replyCount || 0} {(thread.replyCount || 0) === 1 ? 'Response' : 'Responses'}</h2>
       </div>
+
+      {/* Reply Submission Form */}
+      {user && !thread.isLocked && (
+        <Card className="mb-6">
+            <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                    <Avatar className="h-9 w-9 mt-1">
+                      <AvatarImage src={user.avatarUrl ?? undefined} />
+                      <AvatarFallback>{user.displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="w-full">
+                        {replyingTo && (
+                            <div className="text-sm text-muted-foreground mb-2 p-2 bg-secondary rounded-md">
+                                Replying to <span className="font-semibold text-foreground">@{authors[replyingTo.authorId]?.displayName || '...'}</span>
+                                <Button variant="ghost" size="sm" className="ml-2 h-auto p-1" onClick={() => setReplyingTo(null)}>Cancel</Button>
+                            </div>
+                        )}
+                        <Textarea
+                            value={replyContent}
+                            onChange={(e) => setReplyContent(e.target.value)}
+                            placeholder={replyingTo ? 'Write your reply...' : 'Add to the discussion...'}
+                            rows={4}
+                            className="w-full"
+                        />
+                        <div className="flex justify-end mt-4">
+                            <Button 
+                                type="button" 
+                                onClick={handleReplySubmit} 
+                                disabled={isSubmitting || authLoading || !replyContent.trim()}
+                            >
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Post Response
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+      )}
+
+      {/* Replies List */}
       <div className="space-y-6">
         {groupedReplies.map(({ parent, children }) => {
           const parentAuthor = authors[parent.authorId];
@@ -198,11 +270,9 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
                   <p className="mt-2 text-muted-foreground whitespace-pre-wrap">{parent.body}</p>
                   {user && !thread.isLocked && (
                     <div className="mt-2">
-                      <Button variant="ghost" size="sm" asChild>
-                         <Link href={`/forum/threads/${thread.id}/reply?to=${parent.id}`}>
-                            <CornerDownRight size={14} className="mr-2" />
-                            Reply
-                         </Link>
+                      <Button variant="ghost" size="sm" onClick={() => setReplyingTo(parent)}>
+                         <CornerDownRight size={14} className="mr-2" />
+                         Reply
                       </Button>
                     </div>
                   )}
@@ -252,3 +322,5 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     </div>
   );
 }
+
+    

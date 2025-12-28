@@ -5,6 +5,10 @@
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import type { SecurityRuleContext } from '@/firebase/errors';
+
 
 // This function gets the firestore instance. It's defined once to avoid repetition.
 function getFirestoreInstance() {
@@ -20,7 +24,8 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   try {
     const firestore = getFirestoreInstance();
     // Add the user's UID to the data object to satisfy security rules.
-    await setDoc(doc(firestore, 'users', uid), {
+    const userRef = doc(firestore, 'users', uid);
+    setDoc(userRef, {
       username: `user_${uid.substring(0, 8)}`,
       role: 'member',
       profileVisibility: 'public',
@@ -28,7 +33,14 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
       uid: uid, 
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    }, { merge: true });
+    }, { merge: true }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'create',
+            requestResourceData: data,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
   } catch (error) {
     console.error("Error creating user profile: ", error);
   }
@@ -65,17 +77,21 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
     if (!uid) {
         throw new Error('updateUserProfile called without a valid uid');
     }
-    try {
-        const firestore = getFirestoreInstance();
-        const userRef = doc(firestore, 'users', uid);
-        await setDoc(userRef, {
-            ...data,
-            updatedAt: serverTimestamp(),
-        }, { merge: true });
-    } catch (error) {
-        console.error("Error updating user profile: ", error);
-        throw error;
-    }
+    const firestore = getFirestoreInstance();
+    const userRef = doc(firestore, 'users', uid);
+    
+    // Do not await, chain .catch for error handling
+    updateDoc(userRef, {
+        ...data,
+        updatedAt: serverTimestamp(),
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'update',
+            requestResourceData: data,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
 }
 
 // Get all public user profiles
@@ -106,39 +122,49 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
 
 // Create a new discussion thread
 export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'categoryId'> & { categoryId: string }) {
-    try {
-        const firestore = getFirestoreInstance();
-        const threadsCollection = collection(firestore, 'threads');
-        const docRef = await addDoc(threadsCollection, {
-            ...threadData,
-            replyCount: 0,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
+    const firestore = getFirestoreInstance();
+    const threadsCollection = collection(firestore, 'threads');
+
+    return addDoc(threadsCollection, {
+        ...threadData,
+        replyCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    }).then(docRef => {
         return { id: docRef.id, ...threadData };
-    } catch (error) {
-        console.error("Error creating thread: ", error);
-        throw error;
-    }
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: threadsCollection.path,
+            operation: 'create',
+            requestResourceData: threadData,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError; // Re-throw to allow component to handle its loading state
+    });
 }
 
 // Create a new forum
 export async function createForum(forumData: Omit<Forum, 'id' | 'createdAt' | 'status' | 'visibility'>) {
-    try {
-        const firestore = getFirestoreInstance();
-        const forumsCollection = collection(firestore, 'forums');
-        const docRef = await addDoc(forumsCollection, {
-            ...forumData,
-            status: 'active',
-            visibility: 'public',
-            createdAt: serverTimestamp(),
-        });
+    const firestore = getFirestoreInstance();
+    const forumsCollection = collection(firestore, 'forums');
+    
+    return addDoc(forumsCollection, {
+        ...forumData,
+        status: 'active',
+        visibility: 'public',
+        createdAt: serverTimestamp(),
+    }).then(docRef => {
         const newForumData = { id: docRef.id, status: 'active', visibility: 'public', ...forumData };
         return newForumData as Forum;
-    } catch (error) {
-        console.error("Error creating forum: ", error);
-        throw error;
-    }
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: forumsCollection.path,
+            operation: 'create',
+            requestResourceData: forumData,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
+    });
 }
 
 // Get or create a category
@@ -238,49 +264,54 @@ export async function createReply(replyData: { threadId: string; authorId: strin
     const threadRef = doc(firestore, 'threads', threadId);
     const repliesRef = collection(firestore, 'threads', threadId, 'replies');
 
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const threadDoc = await transaction.get(threadRef);
-            if (!threadDoc.exists() || threadDoc.data().isLocked) {
-                throw new Error("Thread does not exist or is locked!");
+    return runTransaction(firestore, async (transaction) => {
+        const threadDoc = await transaction.get(threadRef);
+        if (!threadDoc.exists() || threadDoc.data().isLocked) {
+            throw new Error("Thread does not exist or is locked!");
+        }
+
+        let depth: 0 | 1 = 0;
+        let replyToAuthorId: string | undefined = undefined;
+
+        if (parentReplyId) {
+            const parentReplyRef = doc(repliesRef, parentReplyId);
+            const parentReplyDoc = await transaction.get(parentReplyRef);
+            if (!parentReplyDoc.exists() || parentReplyDoc.data().depth !== 0) {
+                throw new Error("Parent reply does not exist or is not a top-level reply.");
             }
+            depth = 1;
+            replyToAuthorId = parentReplyDoc.data().authorId;
+        }
+        
+        const newReplyData = {
+            authorId,
+            body,
+            parentReplyId,
+            replyToAuthorId,
+            threadId,
+            depth,
+            status: 'published',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
 
-            let depth: 0 | 1 = 0;
-            let replyToAuthorId: string | undefined = undefined;
+        const newReplyRef = doc(repliesRef); // Auto-generate ID
+        transaction.set(newReplyRef, newReplyData);
 
-            if (parentReplyId) {
-                const parentReplyRef = doc(repliesRef, parentReplyId);
-                const parentReplyDoc = await transaction.get(parentReplyRef);
-                if (!parentReplyDoc.exists() || parentReplyDoc.data().depth !== 0) {
-                    throw new Error("Parent reply does not exist or is not a top-level reply.");
-                }
-                depth = 1;
-                replyToAuthorId = parentReplyDoc.data().authorId;
-            }
-
-            const newReplyRef = doc(repliesRef); // Auto-generate ID
-            transaction.set(newReplyRef, {
-                authorId,
-                body,
-                parentReplyId,
-                replyToAuthorId,
-                threadId,
-                depth,
-                status: 'published',
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            });
-
-            // Atomically update the reply count on the parent thread
-            transaction.update(threadRef, {
-                replyCount: (threadDoc.data().replyCount || 0) + 1,
-                latestReplyAt: serverTimestamp()
-            });
+        // Atomically update the reply count on the parent thread
+        transaction.update(threadRef, {
+            replyCount: (threadDoc.data().replyCount || 0) + 1,
+            latestReplyAt: serverTimestamp()
         });
-    } catch (error) {
-        console.error("Error creating reply in transaction:", error);
-        throw error;
-    }
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: repliesRef.path,
+            operation: 'create',
+            requestResourceData: replyData,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError; // Re-throw for component-level error handling
+    });
 }
 
 
@@ -289,16 +320,20 @@ export async function createChatMessage(threadId: string, messageData: Omit<Chat
     if (!threadId || !messageData.senderId) {
         throw new Error('Thread ID and Sender ID are required.');
     }
-    try {
-        const firestore = getFirestoreInstance();
-        const chatMessagesCollection = collection(firestore, 'threads', threadId, 'chatMessages');
-        await addDoc(chatMessagesCollection, {
-            ...messageData,
-            status: 'active',
-            createdAt: serverTimestamp(),
-        });
-    } catch (error) {
-        console.error('Error creating chat message:', error);
-        throw error;
-    }
+    const firestore = getFirestoreInstance();
+    const chatMessagesCollection = collection(firestore, 'threads', threadId, 'chatMessages');
+    
+    return addDoc(chatMessagesCollection, {
+        ...messageData,
+        status: 'active',
+        createdAt: serverTimestamp(),
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: chatMessagesCollection.path,
+            operation: 'create',
+            requestResourceData: messageData,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
+    });
 }

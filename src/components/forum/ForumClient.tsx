@@ -36,44 +36,74 @@ export default function ForumClient() {
       try {
         const { firestore } = initializeFirebase();
         
-        const forumsQuery = query(collection(firestore, 'forums'), orderBy('createdAt', 'desc'));
-        const forumsSnapshot = await getDocs(forumsQuery);
-        const forumsData = forumsSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Forum))
-            .filter(forum => forum.status === 'active' && forum.visibility === 'public');
-        setForums(forumsData);
-
+        // Step 1: Fetch all public forums, threads, and categories
+        const forumsQuery = query(
+          collection(firestore, 'forums'), 
+          where('status', '==', 'active'),
+          where('visibility', '==', 'public'),
+          orderBy('createdAt', 'desc')
+        );
         const categoriesSnapshot = await getDocs(collection(firestore, 'categories'));
-        const categoriesData = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
-        setCategories(categoriesData);
-
         const threadsQuery = query(
             collection(firestore, 'threads'), 
             where('status', '==', 'published'),
             orderBy('createdAt', 'desc'), 
             limit(10)
         );
-        const threadsSnapshot = await getDocs(threadsQuery);
+
+        const [forumsSnapshot, threadsSnapshot] = await Promise.all([
+          getDocs(forumsQuery),
+          getDocs(threadsQuery),
+        ]);
+
+        const forumsData = forumsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum));
+        const categoriesData = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
         const threadsData = threadsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt.toDate(),
           latestReplyAt: doc.data().latestReplyAt?.toDate(),
         } as Thread));
-        setThreads(threadsData);
 
-        if (threadsData.length > 0) {
-            const authorIds = [...new Set(threadsData.map(t => t.authorId))];
+        // Step 2: Aggregate all unique author IDs from forums and threads
+        const authorIds = [
+          ...new Set([
+            ...forumsData.map(f => f.createdBy),
+            ...threadsData.map(t => t.authorId)
+          ])
+        ];
+
+        // Step 3: Fetch all author profiles in a single batch
+        if (authorIds.length > 0) {
             const authorPromises = authorIds.map(id => getUserProfile(id));
             const authorResults = await Promise.all(authorPromises);
             const authorMap: Record<string, UserProfile> = {};
-            authorResults.forEach((author, index) => {
+            authorResults.forEach((author) => {
               if (author) {
-                authorMap[authorIds[index]] = author;
+                authorMap[author.uid] = author;
               }
             });
             setAuthors(authorMap);
+
+            // Step 4: Filter forums and threads based on author's profile visibility
+            const visibleForums = forumsData.filter(forum => {
+              const author = authorMap[forum.createdBy];
+              return author && author.profileVisibility === 'public';
+            });
+
+            const visibleThreads = threadsData.filter(thread => {
+               const author = authorMap[thread.authorId];
+               return author && author.profileVisibility === 'public';
+            });
+            
+            setForums(visibleForums);
+            setThreads(visibleThreads);
+        } else {
+            setForums(forumsData);
+            setThreads(threadsData);
         }
+        
+        setCategories(categoriesData);
 
       } catch (e: any) {
         console.error("Error fetching forum data: ", e);

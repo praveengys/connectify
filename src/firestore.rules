@@ -43,18 +43,18 @@ service cloud.firestore {
 
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
 
-      allow update: if isOwner(userId); // Allow user to update their own profile
+      allow update: if isOwner(userId);
       
       allow delete: if false;
     }
     
     /* ---------- Forum Rules ---------- */
     match /forums/{forumId} {
-      allow get, list: if isSignedIn() && (
-                      (resource.data.visibility == 'public' && isAuthorProfilePublic(resource.data.createdBy))
-                      || isOwner(resource.data.createdBy)
-                      || isModeratorOrAdmin()
-                    );
+      allow get: if (resource.data.visibility == 'public' && isAuthorProfilePublic(resource.data.createdBy)) 
+                  || isOwner(resource.data.createdBy) 
+                  || isModeratorOrAdmin();
+
+      allow list: if isSignedIn();
 
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
@@ -68,11 +68,11 @@ service cloud.firestore {
     match /threads/{threadId} {
 
       /* READ */
-      allow get, list: if isSignedIn() && (
-                      isAuthorProfilePublic(resource.data.authorId)
+      allow get: if (isAuthorProfilePublic(resource.data.authorId))
                       || isOwner(resource.data.authorId)
-                      || isModeratorOrAdmin()
-                    );
+                      || isModeratorOrAdmin();
+
+      allow list: if isSignedIn();
 
       /* CREATE */
       allow create: if

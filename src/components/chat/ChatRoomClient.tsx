@@ -11,9 +11,10 @@ import {
   setDoc,
   serverTimestamp,
   startAfter,
-  getDocs
+  getDocs,
+  where,
 } from 'firebase/firestore';
-import { Loader2, ServerCrash, Smile, Image as ImageIcon, ThumbsUp, Heart, Laugh, Wow, Angry, MessageSquare } from 'lucide-react';
+import { Loader2, ServerCrash, Smile, Image as ImageIcon, ThumbsUp, Heart, Angry, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { initializeFirebase } from '@/firebase';
 import type { ChatMessage, Group, TypingIndicator, UserProfile } from '@/lib/types';
@@ -74,14 +75,14 @@ export default function ChatRoomClient({ group }: { group: Group }) {
 
     // Typing indicators listener
     const typingRef = collection(firestore, 'groups', group.id, 'typing');
-    const typingQuery = query(typingRef, where('isTyping', '==', true));
+    const typingQuery = query(typingRef);
     const unsubscribeTyping = onSnapshot(typingQuery, (snapshot) => {
         const now = Date.now();
         const indicators = snapshot.docs.map(doc => ({
             ...doc.data(),
             user: { uid: doc.id, displayName: doc.data().displayName },
             updatedAt: doc.data().updatedAt?.toDate() ?? new Date(),
-        })).filter(indicator => (now - (indicator.updatedAt as Date).getTime()) < 5000 && indicator.user.uid !== user.uid);
+        })).filter(indicator => indicator.isTyping && (now - (indicator.updatedAt as Date).getTime()) < 5000 && indicator.user.uid !== user.uid);
         setTypingUsers(indicators as TypingIndicator[]);
     });
 
@@ -145,8 +146,8 @@ export default function ChatRoomClient({ group }: { group: Group }) {
     switch (emoji) {
         case '👍': return <ThumbsUp size={16} className="text-blue-500" />;
         case '❤️': return <Heart size={16} className="text-red-500" fill="currentColor" />;
-        case '😂': return <Laugh size={16} className="text-yellow-500" />;
-        case '😮': return <Wow size={16} className="text-yellow-400" />;
+        case '😂': return <Smile size={16} className="text-yellow-500" />;
+        case '😮': return <Smile size={16} className="text-yellow-400" />;
         case '😢': return <Angry size={16} className="text-orange-500" />;
         case '🔥': return <MessageSquare size={16} className="text-orange-600" />; // Placeholder, no fire icon in lucide
         default: return null;

@@ -1,7 +1,7 @@
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
-import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage } from '@/lib/types';
+import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage, Group, Member } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -324,23 +324,64 @@ export async function createReply(replyData: { threadId: string; authorId: strin
 }
 
 
-// Create a new chat message in a thread's subcollection
-export async function createChatMessage(threadId: string, messageData: Omit<ChatMessage, 'id' | 'createdAt' | 'status'>) {
-    if (!threadId || !messageData.senderId) {
-        throw new Error('Thread ID and Sender ID are required.');
-    }
+// Create a new chat group
+export async function createChatGroup(name: string, type: 'public' | 'private', createdBy: string) {
     const firestore = getFirestoreInstance();
-    const chatMessagesCollection = collection(firestore, 'threads', threadId, 'chatMessages');
+    const groupsCollection = collection(firestore, 'groups');
     
-    return addDoc(chatMessagesCollection, {
-        ...messageData,
-        status: 'active',
+    const newGroupPayload = {
+        name,
+        type,
+        createdBy,
+        memberCount: 1,
         createdAt: serverTimestamp(),
-    }).catch(async (serverError) => {
+    };
+
+    try {
+        const docRef = await addDoc(groupsCollection, newGroupPayload);
+        
+        // Add the creator as the owner
+        const memberRef = doc(firestore, 'groups', docRef.id, 'members', createdBy);
+        await setDoc(memberRef, {
+            role: 'owner',
+            joinedAt: serverTimestamp(),
+        });
+        
+        return { 
+            id: docRef.id,
+            ...newGroupPayload,
+            createdAt: new Date(),
+        } as Group;
+    } catch (serverError) {
+        // This is a simplified error handling. In a real app, you might want more specific error types.
+        console.error("Error creating chat group:", serverError);
         const permissionError = new FirestorePermissionError({
-            path: chatMessagesCollection.path,
+            path: groupsCollection.path,
             operation: 'create',
-            requestResourceData: messageData,
+            requestResourceData: newGroupPayload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
+    }
+}
+
+// Send a chat message
+export async function sendChatMessage(groupId: string, senderId: string, message: Partial<ChatMessage>) {
+    const firestore = getFirestoreInstance();
+    const messagesCollection = collection(firestore, 'groups', groupId, 'messages');
+    
+    const payload = {
+        ...message,
+        senderId,
+        status: 'visible',
+        createdAt: serverTimestamp(),
+    };
+    
+    addDoc(messagesCollection, payload).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: messagesCollection.path,
+            operation: 'create',
+            requestResourceData: payload,
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
         throw serverError;

@@ -113,6 +113,55 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["reporterId", "contentType", "contentId", "reason", "status", "createdAt"]
+    },
+    "Group": {
+      "title": "Group",
+      "type": "object",
+      "description": "A real-time chat group.",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["public", "private"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "memberCount": { "type": "number" }
+      },
+      "required": ["name", "type", "createdBy", "createdAt", "memberCount"]
+    },
+    "Member": {
+      "title": "Member",
+      "type": "object",
+      "description": "Represents a user's membership in a chat group.",
+      "properties": {
+        "role": { "type": "string", "enum": ["owner", "admin", "member"] },
+        "mutedUntil": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user's mute expires." },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role", "joinedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "type": "object",
+      "description": "A single message within a chat group.",
+      "properties": {
+        "senderId": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "image"] },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "reactions": { "type": "object" },
+        "status": { "type": "string", "enum": ["visible", "deleted"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "type", "status", "createdAt"]
+    },
+    "TypingIndicator": {
+      "title": "Typing Indicator",
+      "type": "object",
+      "description": "Indicates that a user is currently typing in a group.",
+      "properties": {
+        "isTyping": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["isTyping", "updatedAt"]
     }
   },
   "auth": {
@@ -159,6 +208,22 @@
       {
         "path": "/moderation_queue/{queueItemId}",
         "definition": { "description": "Denormalized collection for efficient moderation queue retrieval." }
+      },
+      {
+        "path": "/groups/{groupId}",
+        "definition": { "entityName": "Group", "schema": { "$ref": "#/entities/Group" } }
+      },
+      {
+        "path": "/groups/{groupId}/members/{userId}",
+        "definition": { "entityName": "Member", "schema": { "$ref": "#/entities/Member" } }
+      },
+      {
+        "path": "/groups/{groupId}/messages/{messageId}",
+        "definition": { "entityName": "Message", "schema": { "$ref": "#/entities/Message" } }
+      },
+      {
+        "path": "/groups/{groupId}/typing/{userId}",
+        "definition": { "entityName": "TypingIndicator", "schema": { "$ref": "#/entities/TypingIndicator" } }
       }
     ]
   }

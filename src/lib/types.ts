@@ -52,7 +52,7 @@ export type Reply = {
   pending?: boolean; // For optimistic UI
 };
 
-export type ChatMessage = {
+export type ChatMessageOld = {
   id: string;
   threadId: string;
   senderId: string;
@@ -110,4 +110,45 @@ export type UserProfile = {
   updatedAt: Date;
   lastActiveAt: Date;
   email?: string | null;
+};
+
+export type Group = {
+    id: string;
+    name: string;
+    type: 'public' | 'private';
+    createdBy: string;
+    createdAt: Timestamp | Date;
+    memberCount: number;
+    lastMessage?: {
+      text: string;
+      sender: string;
+      timestamp: Timestamp | Date;
+    }
+};
+
+export type Member = {
+    uid: string;
+    role: 'owner' | 'admin' | 'member';
+    mutedUntil?: Timestamp | Date | null;
+    joinedAt: Timestamp | Date;
+    userProfile?: UserProfile; // Denormalized for UI
+};
+
+export type ChatMessage = {
+    id: string;
+    senderId: string;
+    type: 'text' | 'image';
+    text?: string;
+    imageUrl?: string;
+    reactions?: { [emoji: string]: string[] }; // emoji -> array of UIDs
+    status: 'visible' | 'deleted';
+    createdAt: Timestamp | Date;
+    senderProfile?: Pick<UserProfile, 'displayName' | 'avatarUrl'>; // Denormalized for UI
+    pending?: boolean;
+};
+
+export type TypingIndicator = {
+    isTyping: boolean;
+    updatedAt: Timestamp | Date;
+    user: Pick<UserProfile, 'uid' | 'displayName'>;
 };

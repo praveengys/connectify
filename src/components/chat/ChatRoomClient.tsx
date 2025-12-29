@@ -10,25 +10,23 @@ import {
   limit,
   doc,
   setDoc,
-  serverTimestamp,
-  startAfter,
-  getDocs,
-  where,
+  serverTimestamp
 } from 'firebase/firestore';
-import { Loader2, ServerCrash, Smile, Image as ImageIcon, ThumbsUp, Heart, Angry, MessageSquare, Download } from 'lucide-react';
+import { Loader2, ServerCrash, Smile, Image as ImageIcon, Download, Send, Paperclip, Mic } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { initializeFirebase } from '@/firebase';
-import type { ChatMessage, Group, TypingIndicator, UserProfile } from '@/lib/types';
+import type { ChatMessage, Group, TypingIndicator } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { uploadPhoto } from '@/lib/actions';
-import { sendChatMessage, updateUserProfile } from '@/lib/firebase/firestore';
+import { sendChatMessage } from '@/lib/firebase/firestore';
 import Image from 'next/image';
+import { ScrollArea } from '../ui/scroll-area';
 
 const EMOJI_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
@@ -47,9 +45,11 @@ export default function ChatRoomClient({ group }: { group: Group }) {
     if (!user) return;
     const { firestore } = initializeFirebase();
     const typingRef = doc(firestore, 'groups', group.id, 'typing', user.uid);
+    const displayName = user.displayName || 'Anonymous';
     await setDoc(typingRef, {
       isTyping,
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      displayName: displayName
     });
   }, [user, group.id]);
 
@@ -59,13 +59,13 @@ export default function ChatRoomClient({ group }: { group: Group }) {
 
     // Messages listener
     const messagesRef = collection(firestore, 'groups', group.id, 'messages');
-    const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(30));
+    const q = query(messagesRef, orderBy('createdAt', 'asc'), limit(50));
     const unsubscribeMessages = onSnapshot(q, (snapshot) => {
       const newMessages = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() ?? new Date(),
-      } as ChatMessage)).reverse();
+      } as ChatMessage));
       setMessages(newMessages);
       setLoading(false);
     }, (err) => {
@@ -163,52 +163,59 @@ export default function ChatRoomClient({ group }: { group: Group }) {
   }
 
   return (
-    <div className="flex-grow flex flex-col">
-      <div ref={scrollRef} className="flex-grow p-4 space-y-6 overflow-y-auto">
+    <div className="flex-grow flex flex-col h-full bg-background">
+       <div className="p-4 border-b flex items-center gap-4">
+        <Avatar className="h-10 w-10">
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+            <Users className="w-5 h-5 text-muted-foreground" />
+          </div>
+        </Avatar>
+        <div>
+            <h2 className="font-semibold text-lg">{group.name}</h2>
+            <p className="text-sm text-muted-foreground">{group.memberCount} members</p>
+        </div>
+      </div>
+      <ScrollArea className="flex-grow p-4" ref={scrollRef}>
+        <div className="space-y-6">
         {messages.map((msg, index) => {
             const isCurrentUser = msg.senderId === user?.uid;
             const sender = msg.senderProfile || { displayName: 'User', avatarUrl: null };
             return (
-                <div key={msg.id} className={cn("flex items-end gap-3", isCurrentUser ? "justify-end" : "justify-start")}>
-                    {!isCurrentUser && <Avatar className="h-8 w-8"><AvatarImage src={sender.avatarUrl || undefined} /><AvatarFallback>{sender.displayName.charAt(0)}</AvatarFallback></Avatar>}
-                    <div className={cn("flex flex-col max-w-xs md:max-w-md", isCurrentUser ? "items-end" : "items-start")}>
-                        <div className={cn("px-4 py-2 rounded-lg relative group", isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-secondary text-secondary-foreground rounded-bl-none")}>
-                            {!isCurrentUser && <p className="text-xs font-bold mb-1">{sender.displayName}</p>}
-                            {msg.type === 'text' && <p className="text-sm whitespace-pre-wrap">{msg.text}</p>}
+                <div key={msg.id} className={cn("flex items-end gap-3 w-full", isCurrentUser ? "justify-end" : "justify-start")}>
+                    {!isCurrentUser && <Avatar className="h-8 w-8 self-start"><AvatarImage src={sender.avatarUrl || undefined} /><AvatarFallback>{sender.displayName.charAt(0)}</AvatarFallback></Avatar>}
+                    <div className={cn("flex flex-col max-w-sm", isCurrentUser ? "items-end" : "items-start")}>
+                        <div className={cn(
+                          "px-4 py-2 rounded-lg relative group text-sm",
+                           isCurrentUser 
+                             ? "bg-primary-chat text-primary-chat-foreground rounded-br-none" 
+                             : "bg-secondary text-secondary-foreground rounded-bl-none"
+                           )}>
+                            {msg.type === 'text' && <p className="whitespace-pre-wrap">{msg.text}</p>}
                             {msg.type === 'image' && msg.imageUrl && (
                                 <div className="relative">
                                     <Image src={msg.imageUrl} alt="Shared image" width={200} height={200} className="rounded-md object-cover" />
                                     <a
                                         href={createDownloadUrl(msg.imageUrl)}
                                         download
-                                        className="absolute bottom-2 right-2"
+                                        className="absolute bottom-1 right-1"
                                     >
-                                        <Button size="icon" variant="secondary" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Download size={16} />
+                                        <Button size="icon" variant="secondary" className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Download size={14} />
                                         </Button>
                                     </a>
                                 </div>
                             )}
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button size="icon" variant="ghost" className="absolute -top-4 -right-4 h-6 w-6 rounded-full bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"><Smile size={14} /></Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-1">
-                                    <div className="flex gap-1">
-                                        {EMOJI_REACTIONS.map(emoji => <Button key={emoji} variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleReaction(msg.id, emoji)}>{emoji}</Button>)}
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1 px-1">
-                            {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
+                          <span>{format(new Date(msg.createdAt), 'p')}</span>
+                          {!isCurrentUser && <span className="font-semibold ml-2">{sender.displayName}</span>}
                         </div>
                     </div>
-                    {isCurrentUser && <Avatar className="h-8 w-8"><AvatarImage src={user?.avatarUrl || undefined} /><AvatarFallback>{user?.displayName.charAt(0)}</AvatarFallback></Avatar>}
                 </div>
             )
         })}
-      </div>
+        </div>
+      </ScrollArea>
        <div className="h-6 px-4 text-xs text-muted-foreground italic">
             {typingUsers.length > 0 && `${typingUsers.map(u => u.user.displayName).join(', ')} ${typingUsers.length === 1 ? 'is' : 'are'} typing...`}
       </div>
@@ -217,17 +224,23 @@ export default function ChatRoomClient({ group }: { group: Group }) {
             <Input
                 value={text}
                 onChange={e => { setText(e.target.value); handleTyping(); }}
-                placeholder="Type a message..."
+                placeholder="Write Something"
                 autoComplete="off"
                 disabled={authLoading}
+                className="bg-secondary/50 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
+            <Button type="button" size="icon" variant="ghost">
+                <Mic size={20} />
+            </Button>
              <label htmlFor="image-upload" className="cursor-pointer">
-                <Button variant="ghost" size="icon" asChild>
-                    <div><ImageIcon /></div>
+                <Button type="button" size="icon" variant="ghost" asChild>
+                    <div><Paperclip size={20} /></div>
                 </Button>
             </label>
             <input id="image-upload" type="file" accept="image/png, image/jpeg, image/webp" className="hidden" onChange={e => e.target.files && handleImageUpload(e.target.files[0])} />
-            <Button type="submit" disabled={!text.trim()}>Send</Button>
+            <Button type="submit" size="icon" disabled={!text.trim()}>
+                <Send size={20}/>
+            </Button>
         </form>
       </div>
     </div>

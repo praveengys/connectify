@@ -322,6 +322,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
         createdAt: serverTimestamp(),
         members: { [createdBy]: 'owner' },
         memberCount: 1,
+        muted: {}, // Initialize muted map
     };
 
     try {
@@ -408,7 +409,7 @@ export async function sendChatMessage(groupId: string, senderId: string, message
 }
 
 // Create a new chat message in a thread's subcollection
-export async function createChatMessage(threadId: string, messageData: { senderId: string; text: string; senderName: string; senderAvatar?: string }) {
+export async function createChatMessage(threadId: string, messageData: { senderId: string; text: string; }) {
     const firestore = getFirestoreInstance();
     const chatMessagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
 

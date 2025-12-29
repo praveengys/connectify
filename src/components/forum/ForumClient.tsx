@@ -162,7 +162,7 @@ export default function ForumClient() {
             <h2 className="text-2xl font-bold mb-4">Recent Discussions</h2>
             <div className="space-y-4">
               {threads.map(thread => (
-                <Card key={thread.id} className="hover:bg-card/90">
+                <Card key={thread.id} className="card-hover">
                   <CardContent className="p-4 flex items-start gap-4">
                     <Avatar className="h-10 w-10 mt-1">
                       <AvatarImage src={authors[thread.authorId]?.avatarUrl ?? undefined} />
@@ -231,7 +231,7 @@ export default function ForumClient() {
                       <ul className="space-y-2">
                           {forums.filter(f => f.visibility === 'public').map(forum => (
                           <li key={forum.id}>
-                              <div className="p-3 rounded-md">
+                              <div className="p-3 rounded-md hover:bg-accent transition-colors">
                                   <p className="font-semibold">{forum.name}</p>
                                   <p className="text-sm text-muted-foreground line-clamp-2">{forum.description}</p>
                               </div>
@@ -252,7 +252,7 @@ export default function ForumClient() {
                       <ul className="space-y-2">
                           {categories.map(category => (
                           <li key={category.id}>
-                              <div className="p-3 rounded-md">
+                              <div className="p-3 rounded-md hover:bg-accent transition-colors">
                                   <p className="font-semibold">{category.name}</p>
                                   <p className="text-sm text-muted-foreground">{category.description}</p>
                               </div>

@@ -58,7 +58,6 @@ export default function ChatPage() {
   
   const handleGroupCreated = () => {
       // The onSnapshot listener will automatically add the new group.
-      // Manually adding it here caused a temporary duplication.
       setCreateGroupOpen(false);
   }
 
@@ -109,7 +108,7 @@ export default function ChatPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map(group => (
               <Link href={`/chat/${group.id}`} key={group.id} passHref>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
+                <Card className="card-hover cursor-pointer h-full flex flex-col">
                   <CardHeader>
                     <CardTitle>{group.name}</CardTitle>
                     <CardDescription>

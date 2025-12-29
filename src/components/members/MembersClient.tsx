@@ -96,7 +96,7 @@ export default function MembersClient() {
           {!loading && !error && user && (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {members.map(member => (
-                <Card key={member.uid} className="hover:shadow-lg transition-shadow">
+                <Card key={member.uid} className="card-hover">
                   <CardContent className="p-6 flex flex-col items-center text-center">
                     <Avatar className="h-24 w-24 mb-4">
                       <AvatarImage src={member.avatarUrl ?? undefined} alt={member.displayName ?? 'user'} />

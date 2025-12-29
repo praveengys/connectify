@@ -15,6 +15,7 @@ import type { UserProfile } from '@/hooks/use-auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadPhoto } from '@/lib/actions';
+import { Card, CardContent } from '../ui/card';
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
@@ -147,89 +148,81 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col items-center gap-4">
-        <Avatar className="h-24 w-24 border-4 border-accent">
-          <AvatarImage src={previewUrl ?? undefined} alt={user.displayName ?? 'User'} />
-          <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        
-        <input
-          type="file"
-          accept="image/*"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          disabled={photoLoading}
-        />
-        <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={photoLoading}
-            >
-              {photoLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-4 w-4" />
-              )}
-              Upload Photo
-            </Button>
-            {previewUrl && (
-                 <Button
-                    variant="destructive"
-                    size="icon"
-                    onClick={handleRemovePhoto}
+    <div className="space-y-6 max-h-[80vh] overflow-y-auto p-1">
+      <Card className="bg-secondary/30">
+        <CardContent className="p-6 flex items-center gap-4">
+            <div className="relative">
+                <Avatar className="h-20 w-20">
+                    <AvatarImage src={previewUrl ?? undefined} alt={user.displayName ?? 'User'} />
+                    <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
                     disabled={photoLoading}
-                    aria-label="Remove photo"
-                 >
-                    <Trash2 className="h-4 w-4" />
-                 </Button>
-            )}
-        </div>
-      </div>
+                />
+                <Button
+                    size="icon"
+                    className="absolute -bottom-2 -right-2 h-7 w-7 rounded-full"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={photoLoading}
+                    aria-label="Upload photo"
+                >
+                    {photoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                </Button>
+            </div>
+            <div className="flex-1">
+                <h3 className="text-xl font-bold">{user.displayName}</h3>
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+                 {previewUrl && (
+                    <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0 h-auto text-destructive"
+                        onClick={handleRemovePhoto}
+                        disabled={photoLoading}
+                    >
+                        <Trash2 className="mr-1 h-3 w-3" />
+                        Remove photo
+                    </Button>
+                )}
+            </div>
+        </CardContent>
+      </Card>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
-          <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Username</FormLabel>
-                <FormControl>
-                  <Input placeholder="your_unique_handle" {...field} disabled={!!user.username} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="displayName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Display Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Your Name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="company"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Your company" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="displayName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Your Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Nickname</FormLabel>
+                    <FormControl>
+                    <Input placeholder="your_unique_handle" {...field} disabled={!!user.username} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+          </div>
           <FormField
             control={form.control}
             name="bio"
@@ -243,73 +236,91 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="skills"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Skills</FormLabel>
-                <FormControl>
-                  <Input placeholder="JavaScript, Photography, Public Speaking" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <FormField
-            control={form.control}
-            name="interests"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Interests / Topics</FormLabel>
-                <FormControl>
-                  <Input placeholder="Technology, Startups, Design" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="languages"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Languages</FormLabel>
-                <FormControl>
-                  <Input placeholder="English, Spanish" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <FormControl>
-                  <Input placeholder="City or Country" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="currentlyExploring"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Currently Exploring</FormLabel>
-                <FormControl>
-                  <Input placeholder="What are you learning now?" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="flex justify-end gap-2 pt-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                    control={form.control}
+                    name="company"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Company</FormLabel>
+                        <FormControl>
+                        <Input placeholder="Your company" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Location</FormLabel>
+                        <FormControl>
+                        <Input placeholder="City or Country" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+           </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                    control={form.control}
+                    name="languages"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Languages</FormLabel>
+                        <FormControl>
+                        <Input placeholder="English, Spanish" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="currentlyExploring"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Currently Exploring</FormLabel>
+                        <FormControl>
+                        <Input placeholder="What are you learning now?" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+           </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                    control={form.control}
+                    name="skills"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Skills</FormLabel>
+                        <FormControl>
+                        <Input placeholder="JavaScript, Photography" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="interests"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Interests / Topics</FormLabel>
+                        <FormControl>
+                        <Input placeholder="Technology, Startups, Design" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+           </div>
+          <div className="flex justify-end gap-2 pt-4 sticky bottom-0 bg-background pb-2">
             <Button type="button" variant="ghost" onClick={closeDialog}>Cancel</Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -321,5 +332,3 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     </div>
   );
 }
-
-    

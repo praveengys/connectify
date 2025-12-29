@@ -11,6 +11,7 @@
         "username": { "type": "string", "description": "A unique, immutable community handle for the user." },
         "displayName": { "type": "string", "description": "The user's display name." },
         "bio": { "type": "string", "description": "A short, personal biography for the user." },
+        "company": { "type": "string", "description": "The company the user works for." },
         "avatarUrl": { "type": "string", "format": "uri", "description": "URL of the user's profile photo or avatar." },
         "interests": { "type": "array", "description": "A list of the user's interests or topics.", "items": { "type": "string" } },
         "skills": { "type": "array", "description": "A list of the user's skills.", "items": { "type": "string" } },
@@ -224,3 +225,5 @@
     ]
   }
 }
+
+    

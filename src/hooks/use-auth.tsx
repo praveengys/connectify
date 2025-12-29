@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
@@ -12,6 +13,7 @@ export interface UserProfile {
   username: string;
   displayName: string;
   bio: string;
+  company: string;
   avatarUrl: string | null;
   interests: string[];
   skills: string[];
@@ -99,3 +101,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Upload, Trash2 } from 'lucide-react';
 import type { UserProfile } from '@/hooks/use-auth';
 import { updateUserProfile } from '@/lib/firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,6 +20,7 @@ const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
   username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.'),
   bio: z.string().max(160, 'Bio cannot be more than 160 characters.').optional().default(''),
+  company: z.string().max(50, 'Company name cannot be more than 50 characters.').optional().default(''),
   interests: z.string().optional().default(''),
   skills: z.string().optional().default(''),
   location: z.string().optional().default(''),
@@ -49,6 +51,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       displayName: user.displayName ?? '',
       username: user.username ?? '',
       bio: user.bio ?? '',
+      company: user.company ?? '',
       interests: user.interests?.join(', ') ?? '',
       skills: user.skills?.join(', ') ?? '',
       location: user.location ?? '',
@@ -69,7 +72,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
       await updateUserProfile(user.uid, updatedData);
       
-      // We need to construct the full UserProfile object for the onUpdate callback
       const updatedUser: UserProfile = { ...user, ...updatedData };
 
       onUpdate(updatedUser);
@@ -122,6 +124,27 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     }
     setPhotoLoading(false);
   };
+  
+  const handleRemovePhoto = async () => {
+    setPhotoLoading(true);
+    try {
+        await updateUserProfile(user.uid, { avatarUrl: null });
+        const updatedUser = { ...user, avatarUrl: null };
+        onUpdate(updatedUser);
+        setPreviewUrl(null);
+        toast({
+            title: 'Success',
+            description: 'Your profile photo has been removed.',
+        });
+    } catch (error: any) {
+        toast({
+            title: 'Error',
+            description: error.message || 'Could not remove profile photo.',
+            variant: 'destructive',
+        });
+    }
+    setPhotoLoading(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -139,18 +162,31 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
           className="hidden"
           disabled={photoLoading}
         />
-        <Button
-          variant="outline"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={photoLoading}
-        >
-          {photoLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Upload className="mr-2 h-4 w-4" />
-          )}
-          Upload Photo
-        </Button>
+        <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={photoLoading}
+            >
+              {photoLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              Upload Photo
+            </Button>
+            {previewUrl && (
+                 <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={handleRemovePhoto}
+                    disabled={photoLoading}
+                    aria-label="Remove photo"
+                 >
+                    <Trash2 className="h-4 w-4" />
+                 </Button>
+            )}
+        </div>
       </div>
 
       <Form {...form}>
@@ -176,6 +212,19 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 <FormLabel>Display Name</FormLabel>
                 <FormControl>
                   <Input placeholder="Your Name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="company"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Company Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Your company" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -272,3 +321,5 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     </div>
   );
 }
+
+    

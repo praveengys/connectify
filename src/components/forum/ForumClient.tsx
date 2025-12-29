@@ -97,41 +97,45 @@ export default function ForumClient() {
     <div className="flex flex-col min-h-screen">
       <main className="flex-grow">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div className="text-center md:text-left">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div className="text-center sm:text-left">
               <h1 className="text-4xl font-bold">Community Forum</h1>
               <p className="text-muted-foreground mt-2">
               Ask questions, share knowledge, and connect with peers.
               </p>
           </div>
           {user && (
-              <Button onClick={() => router.push('/forum/threads/new')}>
+              <Button onClick={() => router.push('/forum/threads/new')} className="w-full sm:w-auto">
                   <PlusCircle className="mr-2 h-4 w-4" />
                   New Discussion
               </Button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="md:col-span-3">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-3">
             <h2 className="text-2xl font-bold mb-4">Recent Discussions</h2>
             <div className="space-y-4">
               {threads.map(thread => (
                 <Card key={thread.id} className="card-hover">
-                  <CardContent className="p-4 flex items-start gap-4">
-                    <Avatar className="h-10 w-10 mt-1">
-                      <AvatarImage src={authors[thread.authorId]?.avatarUrl ?? undefined} />
-                      <AvatarFallback>{authors[thread.authorId]?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
-                    </Avatar>
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="flex flex-col items-center text-center w-20 shrink-0">
+                      <p className="font-bold text-2xl">{thread.replyCount ?? 0}</p>
+                      <p className="text-xs text-muted-foreground">Replies</p>
+                    </div>
+
                     <div className="flex-grow">
                       <Link href={`/forum/threads/${thread.id}`}>
-                        <h3 className="font-semibold text-lg hover:text-primary">{thread.title}</h3>
+                        <h3 className="font-semibold text-lg hover:text-primary leading-tight">{thread.title}</h3>
                       </Link>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="capitalize">{thread.intent}</Badge>
-                        <p className="text-sm text-muted-foreground">
-                          Started by {authors[thread.authorId]?.displayName ?? '...'} · {formatDistanceToNow(thread.createdAt, { addSuffix: true })}
-                        </p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1.5">
+                        <Avatar className="h-6 w-6">
+                            <AvatarImage src={authors[thread.authorId]?.avatarUrl ?? undefined} />
+                            <AvatarFallback>{authors[thread.authorId]?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
+                        </Avatar>
+                        <span>{authors[thread.authorId]?.displayName ?? '...'}</span>
+                        <span className="hidden sm:inline">·</span>
+                        <span className="hidden sm:inline">{formatDistanceToNow(thread.createdAt, { addSuffix: true })}</span>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                           {thread.tags?.map(tag => (
@@ -139,14 +143,12 @@ export default function ForumClient() {
                           ))}
                       </div>
                     </div>
-                    <div className="flex flex-col items-center justify-center text-center w-24 shrink-0">
-                      <p className="font-bold text-xl">{thread.replyCount ?? 0}</p>
-                      <p className="text-xs text-muted-foreground">Replies</p>
-                      <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push(`/forum/threads/${thread.id}`)}>
-                          <MessageSquare className="mr-2 h-4 w-4" />
-                          Reply
-                      </Button>
-                    </div>
+                    
+                    <Button variant="ghost" size="icon" className="shrink-0" asChild>
+                        <Link href={`/forum/threads/${thread.id}`}>
+                            <MessageSquare className="h-5 w-5" />
+                        </Link>
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -160,10 +162,10 @@ export default function ForumClient() {
             </div>
           </div>
 
-          <div className="md:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Forums</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between pb-4">
+                <CardTitle className="text-lg">Forums</CardTitle>
                 {user && (
                   <Dialog open={isCreateForumOpen} onOpenChange={setCreateForumOpen}>
                       <DialogTrigger asChild>
@@ -183,7 +185,7 @@ export default function ForumClient() {
               </CardHeader>
               <CardContent>
                   {forums.length > 0 ? (
-                      <ul className="space-y-2">
+                      <ul className="space-y-1">
                           {forums.filter(f => f.visibility === 'public').map(forum => (
                           <li key={forum.id}>
                               <div className="p-3 rounded-md hover:bg-accent transition-colors">
@@ -199,17 +201,17 @@ export default function ForumClient() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Categories</CardTitle>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Categories</CardTitle>
               </CardHeader>
               <CardContent>
                   {categories.length > 0 ? (
-                      <ul className="space-y-2">
+                      <ul className="space-y-1">
                           {categories.map(category => (
                           <li key={category.id}>
                               <div className="p-3 rounded-md hover:bg-accent transition-colors">
                                   <p className="font-semibold">{category.name}</p>
-                                  <p className="text-sm text-muted-foreground">{category.description}</p>
+                                  <p className="text-sm text-muted-foreground line-clamp-2">{category.description}</p>
                               </div>
                           </li>
                           ))}

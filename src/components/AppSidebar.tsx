@@ -8,7 +8,6 @@ import {
   BookOpen,
   LogOut,
   User as UserIcon,
-  ChevronRight,
   Menu
 } from 'lucide-react';
 import Link from 'next/link';

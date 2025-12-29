@@ -8,7 +8,8 @@ import {
   BookOpen,
   LogOut,
   User as UserIcon,
-  Menu
+  Menu,
+  Search,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
@@ -26,6 +27,7 @@ import {
 import ProfileCard from './auth/ProfileCard';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { useState } from 'react';
+import { Input } from './ui/input';
 
 function HorizontalNav() {
   const pathname = usePathname();
@@ -102,7 +104,11 @@ function HorizontalNav() {
                 <div className="w-full flex-1 md:w-auto md:flex-none">
                    <NavLinks />
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center gap-2">
+                    <div className="relative w-full max-w-sm ml-auto">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Search..." className="pl-8" />
+                    </div>
                     {loading ? (
                         <div className="h-10 w-24 animate-pulse rounded-md bg-muted"></div>
                     ) : user ? (

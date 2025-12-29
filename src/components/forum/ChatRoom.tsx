@@ -84,10 +84,7 @@ export default function ChatRoom({ thread }: ChatRoomProps) {
     }
 
     const messageData = {
-      threadId: thread.id,
       senderId: user.uid,
-      senderName: user.displayName,
-      senderAvatar: user.avatarUrl ?? undefined,
       text,
     };
 

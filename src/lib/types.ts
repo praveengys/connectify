@@ -54,13 +54,14 @@ export type Reply = {
 
 export type ChatMessage = {
   id: string;
-  threadId: string;
   senderId: string;
-  senderName: string;
-  senderAvatar?: string;
-  text: string;
+  type: 'text' | 'image';
+  text?: string;
+  imageUrl?: string;
+  reactions?: { [emoji: string]: string[] }; // emoji: list of user UIDs
+  status: 'visible' | 'deleted';
   createdAt: Timestamp | Date;
-  status: 'active' | 'deleted';
+  senderProfile?: Pick<UserProfile, 'displayName' | 'avatarUrl'>; // Denormalized for chat UI
 };
 
 

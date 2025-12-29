@@ -408,14 +408,14 @@ export async function sendChatMessage(groupId: string, senderId: string, message
 }
 
 // Create a new chat message in a thread's subcollection
-export async function createChatMessage(threadId: string, messageData: { senderId: string, text: string, senderName: string, senderAvatar?: string }) {
+export async function createChatMessage(threadId: string, messageData: { senderId: string; text: string; senderName: string; senderAvatar?: string }) {
     const firestore = getFirestoreInstance();
     const chatMessagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
 
     const payload = {
         ...messageData,
+        senderId: messageData.senderId, // Explicitly ensure senderId is in the payload
         createdAt: serverTimestamp(),
-        status: 'active' as const
     };
 
     return addDoc(chatMessagesRef, payload).catch(async (serverError) => {

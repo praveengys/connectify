@@ -14,6 +14,10 @@ type ChatMessageProps = {
 export default function ChatMessageItem({ message, currentUser }: ChatMessageProps) {
   const isCurrentUser = message.senderId === currentUser.uid;
 
+  // Make sure senderName and senderAvatar are available, provide defaults if not.
+  const senderName = message.senderProfile?.displayName ?? 'User';
+  const senderAvatar = message.senderProfile?.avatarUrl ?? undefined;
+
   return (
     <div className={cn(
       "flex items-start gap-3",
@@ -21,8 +25,8 @@ export default function ChatMessageItem({ message, currentUser }: ChatMessagePro
     )}>
       {!isCurrentUser && (
         <Avatar className="h-8 w-8">
-          <AvatarImage src={message.senderAvatar} />
-          <AvatarFallback>{message.senderName?.charAt(0).toUpperCase() ?? '?'}</AvatarFallback>
+          <AvatarImage src={senderAvatar} />
+          <AvatarFallback>{senderName?.charAt(0).toUpperCase() ?? '?'}</AvatarFallback>
         </Avatar>
       )}
       <div className={cn(
@@ -35,17 +39,17 @@ export default function ChatMessageItem({ message, currentUser }: ChatMessagePro
             ? "bg-primary text-primary-foreground rounded-br-none" 
             : "bg-secondary text-secondary-foreground rounded-bl-none"
         )}>
-          <p className="text-sm">{message.text}</p>
+          {message.text && <p className="text-sm">{message.text}</p>}
         </div>
         <div className="text-xs text-muted-foreground mt-1 px-1">
-          {!isCurrentUser && <span className="font-semibold mr-2">{message.senderName}</span>}
+          {!isCurrentUser && <span className="font-semibold mr-2">{senderName}</span>}
           <span>{format(new Date(message.createdAt), 'h:mm a')}</span>
         </div>
       </div>
       {isCurrentUser && (
         <Avatar className="h-8 w-8">
-          <AvatarImage src={message.senderAvatar} />
-          <AvatarFallback>{message.senderName?.charAt(0).toUpperCase() ?? '?'}</AvatarFallback>
+          <AvatarImage src={currentUser.avatarUrl ?? undefined} />
+          <AvatarFallback>{currentUser.displayName?.charAt(0).toUpperCase() ?? '?'}</AvatarFallback>
         </Avatar>
       )}
     </div>

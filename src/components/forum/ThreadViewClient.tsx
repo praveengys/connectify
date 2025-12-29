@@ -110,10 +110,10 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
 
   // Real-time listeners
   useEffect(() => {
-    if (!thread || authLoading) return;
+    if (!threadId || authLoading) return;
 
     const { firestore } = initializeFirebase();
-    const threadRef = doc(firestore, 'threads', thread.id);
+    const threadRef = doc(firestore, 'threads', threadId);
     
     const unsubscribeThread = onSnapshot(threadRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -130,7 +130,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
       }
     });
 
-    const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
     const q = query(repliesRef, orderBy('createdAt', 'asc'));
 
     const unsubscribeReplies = onSnapshot(q, (snapshot) => {
@@ -150,7 +150,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
       unsubscribeThread();
       unsubscribeReplies();
     };
-  }, [thread, toast, authLoading, fetchAndCacheAuthors, authors]);
+  }, [threadId, toast, authLoading, fetchAndCacheAuthors, authors]);
 
   const threadAuthor = useMemo(() => thread ? authors[thread.authorId] : undefined, [authors, thread]);
   

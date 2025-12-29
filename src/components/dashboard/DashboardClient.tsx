@@ -15,6 +15,7 @@ import Image from 'next/image';
 import { collection, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { Skeleton } from '../ui/skeleton';
+import { Progress } from '../ui/progress';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -43,6 +44,28 @@ const getProfileCompleteness = (profile: UserProfile): number => {
     score += 5;
     return Math.min(score, 100);
 };
+
+const ProfileCompleteness = ({ user, completeness, onEdit }: { user: UserProfile, completeness: number, onEdit: () => void }) => (
+    <Card>
+        <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex justify-between items-center">
+                <span>Complete Your Profile</span>
+                 <Button variant="ghost" size="icon" onClick={onEdit}>
+                    <Edit className="h-4 w-4" />
+                </Button>
+            </CardTitle>
+            <CardDescription>A complete profile helps you connect with others.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="flex justify-between items-center mb-1">
+                <p className="text-sm font-medium">Profile Progress</p>
+                <p className="text-sm font-bold text-primary">{completeness}%</p>
+            </div>
+            <Progress value={completeness} className="h-2" />
+        </CardContent>
+    </Card>
+);
+
 
 const ForumsWidget = ({ forums, loading }: { forums: Forum[], loading: boolean }) => (
     <Card>
@@ -329,6 +352,7 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
 
         {/* Right Column */}
         <aside className="lg:col-span-3 space-y-6">
+             <ProfileCompleteness user={user} completeness={completeness} onEdit={() => setEditDialogOpen(true)} />
              <CommunityStats stats={communityStats} loading={loading} />
              <RecentlyActiveMembersWidget members={members} loading={loading} />
         </aside>
@@ -345,5 +369,3 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
     </div>
   );
 }
-
-    

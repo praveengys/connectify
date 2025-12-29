@@ -20,6 +20,7 @@ import { doc } from 'firebase/firestore';
 import ChatRoom from './ChatRoom';
 import { Separator } from '../ui/separator';
 import { Textarea } from '../ui/textarea';
+import Link from 'next/link';
 
 type ThreadViewClientProps = {
   threadId: string;
@@ -238,11 +239,16 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
       <Card className="mb-6">
         <CardContent className="p-6 text-base leading-relaxed whitespace-pre-wrap">{thread.body}</CardContent>
       </Card>
+      
+      {/* Live Chat component is disabled for now to focus on threaded replies */}
+      {/* 
       <Separator className="my-8" />
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-4">Live Chat</h2>
         <ChatRoom thread={thread} />
-      </div>
+      </div> 
+      */}
+      
       <Separator className="my-8" />
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">{thread.replyCount || 0} {(thread.replyCount || 0) === 1 ? 'Response' : 'Responses'}</h2>
@@ -319,7 +325,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
                 <div className="ml-8 mt-4 space-y-4 border-l-2 pl-6">
                   {children.map(child => {
                     const childAuthor = authors[child.authorId];
-                    const repliedToAuthor = authors[child.replyToAuthorId || ''];
+                    const repliedToAuthor = child.parentReplyId ? authors[parent.authorId] : null;
                     return (
                       <div key={child.id} className="flex items-start gap-4">
                         <Avatar className="h-8 w-8">
@@ -332,7 +338,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
                               <p className="font-semibold">{childAuthor?.displayName ?? '...'}</p>
                               {repliedToAuthor && (
                                 <p className="text-sm text-muted-foreground">
-                                  to @{repliedToAuthor.username}
+                                  to @{repliedToAuthor.displayName}
                                 </p>
                               )}
                             </div>
@@ -355,6 +361,17 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
           <p className="text-secondary-foreground font-medium">This thread has been locked. No new replies can be posted.</p>
         </div>
       )}
+       {!user && !authLoading && (
+        <Card className="mt-6">
+          <CardContent className="p-6 text-center">
+            <p className="text-muted-foreground">
+              <Link href="/login" className="text-primary font-semibold hover:underline">Log in</Link> or <Link href="/signup" className="text-primary font-semibold hover:underline">sign up</Link> to join the discussion.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
+
+    

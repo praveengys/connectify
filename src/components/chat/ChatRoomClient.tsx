@@ -12,7 +12,7 @@ import {
   setDoc,
   serverTimestamp
 } from 'firebase/firestore';
-import { Loader2, ServerCrash, Smile, Image as ImageIcon, Download, Send, Paperclip, Mic } from 'lucide-react';
+import { Loader2, ServerCrash, Smile, Image as ImageIcon, Download, Send, Paperclip, Mic, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { initializeFirebase } from '@/firebase';
 import type { ChatMessage, Group, TypingIndicator } from '@/lib/types';

@@ -15,7 +15,7 @@ import {
   getDocs,
   where,
 } from 'firebase/firestore';
-import { Loader2, ServerCrash, Smile, Image as ImageIcon, ThumbsUp, Heart, Angry, MessageSquare } from 'lucide-react';
+import { Loader2, ServerCrash, Smile, Image as ImageIcon, ThumbsUp, Heart, Angry, MessageSquare, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { initializeFirebase } from '@/firebase';
 import type { ChatMessage, Group, TypingIndicator, UserProfile } from '@/lib/types';
@@ -142,17 +142,15 @@ export default function ChatRoomClient({ group }: { group: Group }) {
     // Reaction logic would be implemented here
     toast({ title: 'Reaction added (UI only)', description: `You reacted with ${emoji}` });
   };
-
-  const getReactionIcon = (emoji: string) => {
-    switch (emoji) {
-        case '👍': return <ThumbsUp size={16} className="text-blue-500" />;
-        case '❤️': return <Heart size={16} className="text-red-500" fill="currentColor" />;
-        case '😂': return <Smile size={16} className="text-yellow-500" />;
-        case '😮': return <Smile size={16} className="text-yellow-400" />;
-        case '😢': return <Angry size={16} className="text-orange-500" />;
-        case '🔥': return <MessageSquare size={16} className="text-orange-600" />; // Placeholder, no fire icon in lucide
-        default: return null;
+  
+  const createDownloadUrl = (url: string): string => {
+    if (url.includes('res.cloudinary.com')) {
+      const parts = url.split('/upload/');
+      if (parts.length === 2) {
+        return `${parts[0]}/upload/fl_attachment/${parts[1]}`;
+      }
     }
+    return url;
   }
 
 
@@ -177,7 +175,20 @@ export default function ChatRoomClient({ group }: { group: Group }) {
                         <div className={cn("px-4 py-2 rounded-lg relative group", isCurrentUser ? "bg-primary text-primary-foreground rounded-br-none" : "bg-secondary text-secondary-foreground rounded-bl-none")}>
                             {!isCurrentUser && <p className="text-xs font-bold mb-1">{sender.displayName}</p>}
                             {msg.type === 'text' && <p className="text-sm whitespace-pre-wrap">{msg.text}</p>}
-                            {msg.type === 'image' && msg.imageUrl && <Image src={msg.imageUrl} alt="Shared image" width={200} height={200} className="rounded-md object-cover" />}
+                            {msg.type === 'image' && msg.imageUrl && (
+                                <div className="relative">
+                                    <Image src={msg.imageUrl} alt="Shared image" width={200} height={200} className="rounded-md object-cover" />
+                                    <a
+                                        href={createDownloadUrl(msg.imageUrl)}
+                                        download
+                                        className="absolute bottom-2 right-2"
+                                    >
+                                        <Button size="icon" variant="secondary" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Download size={16} />
+                                        </Button>
+                                    </a>
+                                </div>
+                            )}
                              <Popover>
                                 <PopoverTrigger asChild>
                                     <Button size="icon" variant="ghost" className="absolute -top-4 -right-4 h-6 w-6 rounded-full bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"><Smile size={14} /></Button>

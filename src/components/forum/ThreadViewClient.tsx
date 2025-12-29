@@ -4,8 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 
 import { initializeFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,7 +14,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import type { Reply, Thread, UserProfile } from '@/lib/types';
-import { createReply, getUserProfile } from '@/lib/firebase/firestore';
+import { createReply, getRepliesForThread, getThread, getUserProfile } from '@/lib/firebase/firestore';
 import { MessageSquare, CornerDownRight, Lock, Loader2 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import ChatRoom from './ChatRoom';
@@ -23,9 +22,7 @@ import { Separator } from '../ui/separator';
 import { Textarea } from '../ui/textarea';
 
 type ThreadViewClientProps = {
-  initialThread: Thread;
-  initialReplies: Reply[];
-  initialAuthors: Record<string, UserProfile>;
+  threadId: string;
 };
 
 type GroupedReplies = {
@@ -35,12 +32,13 @@ type GroupedReplies = {
   };
 };
 
-export default function ThreadViewClient({ initialThread, initialReplies, initialAuthors }: ThreadViewClientProps) {
+export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [thread, setThread] = useState<Thread>(initialThread);
-  const [authors, setAuthors] = useState<Record<string, UserProfile>>(initialAuthors);
-  const [replies, setReplies] = useState<Reply[]>(initialReplies);
+  const [thread, setThread] = useState<Thread | null>(null);
+  const [authors, setAuthors] = useState<Record<string, UserProfile>>({});
+  const [replies, setReplies] = useState<Reply[]>([]);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const [replyContent, setReplyContent] = useState('');
   const [isSubmitting, setSubmitting] = useState(false);
@@ -66,9 +64,53 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
     }
   }, [authors]);
 
-
+  // Initial data load
   useEffect(() => {
-    if (authLoading) return;
+    const loadInitialData = async () => {
+      setPageLoading(true);
+      const threadData = await getThread(threadId);
+
+      if (!threadData) {
+        notFound();
+        return;
+      }
+      setThread(threadData);
+
+      const [initialReplies, threadAuthor] = await Promise.all([
+        getRepliesForThread(threadId),
+        getUserProfile(threadData.authorId),
+      ]);
+      setReplies(initialReplies);
+      
+      const authorIds = new Set<string>([threadData.authorId]);
+      initialReplies.forEach(reply => authorIds.add(reply.authorId));
+
+      const initialAuthors: Record<string, UserProfile> = {};
+      if (threadAuthor) {
+        initialAuthors[threadData.authorId] = threadAuthor;
+      }
+
+      const authorPromises = Array.from(authorIds)
+        .filter(id => !initialAuthors[id])
+        .map(id => getUserProfile(id));
+      
+      const authorResults = await Promise.all(authorPromises);
+      authorResults.forEach((author) => {
+        if (author) {
+          initialAuthors[author.uid] = author;
+        }
+      });
+      setAuthors(initialAuthors);
+      setPageLoading(false);
+    };
+
+    loadInitialData();
+  }, [threadId]);
+
+
+  // Real-time listeners
+  useEffect(() => {
+    if (!thread || authLoading) return;
 
     const { firestore } = initializeFirebase();
     const threadRef = doc(firestore, 'threads', thread.id);
@@ -86,13 +128,6 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
             fetchAndCacheAuthors([threadData.authorId]);
         }
       }
-    }, (error) => {
-        console.error("Firestore thread listener error:", error);
-        toast({
-            title: 'Real-time connection failed',
-            description: 'Could not listen for thread updates.',
-            variant: 'destructive',
-        });
     });
 
     const repliesRef = collection(firestore, 'threads', thread.id, 'replies');
@@ -109,26 +144,19 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
 
       const authorIds = newReplies.flatMap(r => [r.authorId, r.replyToAuthorId]).filter(Boolean) as string[];
       fetchAndCacheAuthors(authorIds);
-    }, (error) => {
-      console.error("Firestore replies listener error:", error);
-      toast({
-        title: 'Real-time connection failed',
-        description: 'Could not listen for new replies. Please refresh the page.',
-        variant: 'destructive',
-      });
     });
 
     return () => {
       unsubscribeThread();
       unsubscribeReplies();
     };
-  }, [thread.id, toast, authLoading, fetchAndCacheAuthors]);
+  }, [thread, toast, authLoading, fetchAndCacheAuthors, authors]);
 
-  const threadAuthor = useMemo(() => authors[thread.authorId], [authors, thread.authorId]);
+  const threadAuthor = useMemo(() => thread ? authors[thread.authorId] : undefined, [authors, thread]);
   
   const groupedReplies = useMemo(() => {
-    const topLevelReplies = replies.filter(r => r.parentReplyId === null);
-    const nestedReplies = replies.filter(r => r.parentReplyId !== null);
+    const topLevelReplies = replies.filter(r => !r.parentReplyId);
+    const nestedReplies = replies.filter(r => r.parentReplyId);
 
     const groups: GroupedReplies = {};
 
@@ -146,7 +174,7 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
   }, [replies]);
 
   const handleReplySubmit = async () => {
-    if (!replyContent.trim() || !user || authLoading) {
+    if (!replyContent.trim() || !user || !thread || authLoading) {
       if(authLoading) toast({ title: "Please wait", description: "Authentication is still loading.", variant: "destructive" });
       if(!user) toast({ title: "Not Authenticated", description: "You must be signed in to reply.", variant: "destructive" });
       return;
@@ -178,6 +206,14 @@ export default function ThreadViewClient({ initialThread, initialReplies, initia
         setSubmitting(false);
     }
   };
+  
+  if (pageLoading || !thread) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">

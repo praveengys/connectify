@@ -69,7 +69,7 @@ service cloud.firestore {
         allow create: if isSignedIn()
                       && request.resource.data.senderId == request.auth.uid
                       && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
-                      && !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted);
+                      && (get(/databases/$(database)/documents/groups/$(groupId)).data.muted == null || !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted));
       }
 
       match /typing/{userId} {

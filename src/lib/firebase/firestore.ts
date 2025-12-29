@@ -320,8 +320,8 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
         type,
         createdBy: createdBy, // REQUIRED by rules
         createdAt: serverTimestamp(),
-        members: { [createdBy]: 'owner' },
-        memberCount: 1,
+        members: { [createdBy]: 'owner' }, // REQUIRED: Set creator as owner
+        memberCount: 1, // REQUIRED: Initial member count is 1
     };
 
     try {
@@ -335,7 +335,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     } catch (serverError) {
         console.error("Error creating chat group:", serverError);
         const permissionError = new FirestorePermissionError({
-            path: '/groups',
+            path: newGroupRef.path,
             operation: 'create',
             requestResourceData: newGroupPayload,
         } satisfies SecurityRuleContext);
@@ -348,9 +348,6 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
 export async function joinChatGroup(groupId: string, userId: string) {
     const firestore = getFirestoreInstance();
     const groupRef = doc(firestore, 'groups', groupId);
-    const payload = {
-        [`members.${userId}`]: 'member'
-    };
 
     return runTransaction(firestore, async (transaction) => {
         const groupDoc = await transaction.get(groupRef);
@@ -364,16 +361,22 @@ export async function joinChatGroup(groupId: string, userId: string) {
         }
 
         const newMemberCount = (groupData.memberCount || 0) + 1;
+        const newMembers = { ...groupData.members, [userId]: 'member' };
+
         transaction.update(groupRef, {
-            ...payload,
+            members: newMembers,
             memberCount: newMemberCount,
         });
     }).catch(async (serverError) => {
         console.error("Error joining group:", serverError);
+        const groupData = (await getDoc(groupRef)).data();
         const permissionError = new FirestorePermissionError({
             path: groupRef.path,
             operation: 'update',
-            requestResourceData: payload,
+            requestResourceData: { 
+                members: { ...groupData?.members, [userId]: 'member' },
+                memberCount: (groupData?.memberCount || 0) + 1
+             },
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
         throw serverError;

@@ -14,32 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import CreateForumForm from './CreateForumForm';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-
-
-const dummyAuthors: Record<string, UserProfile> = {
-    '1': { uid: '1', displayName: 'Alex Johnson', username: 'alexj', avatarUrl: 'https://picsum.photos/seed/101/200', bio: '', interests: [], skills: [], languages: [], location: '', currentlyExploring: '', role: 'member', profileVisibility: 'public', emailVerified: true, createdAt: new Date(), updatedAt: new Date(), lastActiveAt: new Date(), profileScore: 0, postCount: 0, commentCount: 0 },
-    '2': { uid: '2', displayName: 'Samantha Lee', username: 'samlee', avatarUrl: 'https://picsum.photos/seed/102/200', bio: '', interests: [], skills: [], languages: [], location: '', currentlyExploring: '', role: 'member', profileVisibility: 'public', emailVerified: true, createdAt: new Date(), updatedAt: new Date(), lastActiveAt: new Date(), profileScore: 0, postCount: 0, commentCount: 0 },
-    '3': { uid: '3', displayName: 'Michael Chen', username: 'mikec', avatarUrl: 'https://picsum.photos/seed/103/200', bio: '', interests: [], skills: [], languages: [], location: '', currentlyExploring: '', role: 'member', profileVisibility: 'public', emailVerified: true, createdAt: new Date(), updatedAt: new Date(), lastActiveAt: new Date(), profileScore: 0, postCount: 0, commentCount: 0 },
-};
-
-const dummyThreads: Thread[] = [
-    { id: 't1', title: 'Best practices for state management in Next.js 14?', body: '...', intent: 'question', authorId: '1', categoryId: 'c1', forumId: 'f1', tags: ['react', 'nextjs', 'state-management'], status: 'published', isLocked: false, isPinned: false, replyCount: 12, latestReplyAt: new Date(Date.now() - 3600000), createdAt: new Date(Date.now() - 86400000 * 2) },
-    { id: 't2', title: 'Showcase: My new portfolio built with ShadCN UI and Tailwind', body: '...', intent: 'discussion', authorId: '2', categoryId: 'c2', forumId: 'f1', tags: ['showcase', 'design', 'tailwindcss'], status: 'published', isLocked: false, isPinned: false, replyCount: 8, latestReplyAt: new Date(Date.now() - 7200000), createdAt: new Date(Date.now() - 86400000) },
-    { id: 't3', title: 'How to deploy a Genkit app to Firebase App Hosting?', body: '...', intent: 'help', authorId: '3', categoryId: 'c3', forumId: 'f2', tags: ['firebase', 'genkit', 'deployment'], status: 'published', isLocked: false, isPinned: false, replyCount: 5, latestReplyAt: new Date(Date.now() - 10800000), createdAt: new Date(Date.now() - 86400000 * 3) },
-    { id: 't4', title: 'Announcement: New "Introductions" category added!', body: '...', intent: 'announcement', authorId: '2', categoryId: 'c4', forumId: 'f1', tags: ['community', 'announcement'], status: 'published', isLocked: false, isPinned: true, replyCount: 23, latestReplyAt: new Date(Date.now() - 900000), createdAt: new Date(Date.now() - 86400000 * 5) },
-];
-
-const dummyCategories: Category[] = [
-    { id: 'c1', name: 'React & Next.js', slug: 'react-nextjs', description: 'Everything about React and the Next.js framework.', threadCount: 34 },
-    { id: 'c2', name: 'UI & Design', slug: 'ui-design', description: 'Discussions on UI/UX, CSS, and design systems.', threadCount: 19 },
-    { id: 'c3', name: 'Firebase & Genkit', slug: 'firebase-genkit', description: 'All things related to Google Cloud services.', threadCount: 25 },
-    { id: 'c4', name: 'General Chat', slug: 'general-chat', description: 'Off-topic conversations and introductions.', threadCount: 52 },
-];
-
-const dummyForums: Forum[] = [
-    { id: 'f1', name: 'General Development', description: 'A public forum for all developers.', createdBy: '2', visibility: 'public', status: 'active', createdAt: new Date() },
-    { id: 'f2', name: 'AI & Machine Learning', description: 'Discuss the latest in AI and ML.', createdBy: '3', visibility: 'public', status: 'active', createdAt: new Date() },
-];
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
+import { getUserProfile } from '@/lib/firebase/firestore';
 
 
 export default function ForumClient() {
@@ -55,17 +32,70 @@ export default function ForumClient() {
 
 
   useEffect(() => {
-    // We are now using dummy data.
+    const { firestore } = initializeFirebase();
     setLoading(true);
-    setForums(dummyForums);
-    setCategories(dummyCategories);
-    setThreads(dummyThreads);
-    setAuthors(dummyAuthors);
-    setLoading(false);
-  }, []);
+
+    const unsubscribes: (() => void)[] = [];
+
+    // Fetch Threads and Authors
+    const threadsQuery = query(collection(firestore, 'threads'), orderBy('createdAt', 'desc'));
+    const threadsUnsubscribe = onSnapshot(threadsQuery, async (snapshot) => {
+        const threadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt.toDate() } as Thread));
+        setThreads(threadsData);
+
+        const authorIds = [...new Set(threadsData.map(t => t.authorId).filter(Boolean))];
+        const newAuthorIds = authorIds.filter(id => !authors[id]);
+        
+        if (newAuthorIds.length > 0) {
+            const authorPromises = newAuthorIds.map(id => getUserProfile(id));
+            const authorResults = await Promise.all(authorPromises);
+            setAuthors(prev => {
+                const newAuthors = { ...prev };
+                authorResults.forEach(author => {
+                    if (author) newAuthors[author.uid] = author;
+                });
+                return newAuthors;
+            });
+        }
+    }, err => {
+        console.error("Error fetching threads:", err);
+        setError("Could not load discussions.");
+    });
+    unsubscribes.push(threadsUnsubscribe);
+
+    // Fetch Forums
+    const forumsQuery = query(collection(firestore, 'forums'), orderBy('createdAt', 'desc'));
+    const forumsUnsubscribe = onSnapshot(forumsQuery, (snapshot) => {
+        setForums(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt.toDate() } as Forum)));
+    }, err => {
+        console.error("Error fetching forums:", err);
+        setError("Could not load forums.");
+    });
+    unsubscribes.push(forumsUnsubscribe);
+
+    // Fetch Categories
+    const categoriesQuery = query(collection(firestore, 'categories'), orderBy('name', 'asc'));
+    const categoriesUnsubscribe = onSnapshot(categoriesQuery, (snapshot) => {
+        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
+    }, err => {
+        console.error("Error fetching categories:", err);
+        setError("Could not load categories.");
+    });
+    unsubscribes.push(categoriesUnsubscribe);
+    
+    // Combine loading states
+    Promise.all([
+      new Promise(resolve => onSnapshot(threadsQuery, resolve)),
+      new Promise(resolve => onSnapshot(forumsQuery, resolve)),
+      new Promise(resolve => onSnapshot(categoriesQuery, resolve)),
+    ]).then(() => setLoading(false)).catch(() => setLoading(false));
+
+    return () => unsubscribes.forEach(unsub => unsub());
+
+  }, [authors]);
 
   const handleForumCreated = (newForum: Forum) => {
-    setForums(prev => [newForum, ...prev]);
+    // The real-time listener will add the new forum, so we just need to close the dialog.
     setCreateForumOpen(false);
   };
   

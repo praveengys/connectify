@@ -318,10 +318,10 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     const newGroupPayload = {
         name,
         type,
-        createdBy: createdBy, // REQUIRED by rules
+        createdBy: createdBy,
         createdAt: serverTimestamp(),
-        members: { [createdBy]: 'owner' }, // REQUIRED: Set creator as owner
-        memberCount: 1, // REQUIRED: Initial member count is 1
+        members: { [createdBy]: 'owner' },
+        memberCount: 1,
     };
 
     try {

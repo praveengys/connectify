@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
@@ -31,6 +32,34 @@ export interface UserProfile {
   lastActiveAt: Date;
   // Include email from auth for convenience
   email?: string | null;
+}
+
+export interface Forum {
+    id: string;
+    name: string;
+    description: string;
+    createdBy: string;
+    visibility: 'public' | 'private';
+    status: 'active' | 'suspended';
+    createdAt: Date;
+}
+  
+export interface Group {
+    id: string;
+    name: string;
+    type: 'public' | 'private';
+    createdBy: string;
+    createdAt: Date;
+    memberCount: number;
+    members: { [uid: string]: 'owner' | 'admin' | 'member' };
+}
+
+export interface Thread {
+    id: string;
+    title: string;
+    body: string;
+    authorId: string;
+    createdAt: Date;
 }
 
 
@@ -101,5 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+    
 
     

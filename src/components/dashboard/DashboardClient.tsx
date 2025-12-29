@@ -1,17 +1,20 @@
+
 'use client';
 
-import { useState } from 'react';
-import type { UserProfile } from '@/hooks/use-auth';
+import { useState, useEffect } from 'react';
+import type { UserProfile, Group, Forum, Thread } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Edit, User, MessageSquare, Users, PlusCircle, ThumbsUp, MessageCircle, MoreHorizontal, Image as ImageIcon, Video, Mic, Search } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Edit, User, MessageSquare, Users, PlusCircle, ThumbsUp, MessageCircle, MoreHorizontal, Image as ImageIcon, Video, Mic, Search, BookOpen } from 'lucide-react';
 import ProfileForm from './ProfileForm';
-import { Progress } from '../ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import Link from 'next/link';
 import { Textarea } from '../ui/textarea';
 import Image from 'next/image';
+import { collection, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
+import { Skeleton } from '../ui/skeleton';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -41,44 +44,62 @@ const getProfileCompleteness = (profile: UserProfile): number => {
     return Math.min(score, 100);
 };
 
-// Placeholder components to match the new layout
-const BlogWidget = () => (
+const ForumsWidget = ({ forums, loading }: { forums: Forum[], loading: boolean }) => (
     <Card>
         <CardHeader>
-            <CardTitle className="text-lg">Blog</CardTitle>
+            <CardTitle className="text-lg">Latest Forums</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-            {[
-                { title: 'Tackle Your closest Spring cleaning', date: 'May 14, 2019', image: 'https://picsum.photos/seed/blog1/200/200' },
-                { title: 'The Truth About Business Blogging', date: 'May 14, 2019', image: 'https://picsum.photos/seed/blog2/200/200' },
-                { title: '10 Tips to stay healthy when...', date: 'May 14, 2019', image: 'https://picsum.photos/seed/blog3/200/200' },
-                { title: 'Visiting Amsterdam on a Budget', date: 'May 8, 2019', image: 'https://picsum.photos/seed/blog4/200/200' },
-            ].map((post, i) => (
+            {loading && Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4">
-                     <Image src={post.image} alt={post.title} width={64} height={64} className="rounded-md object-cover h-16 w-16" />
-                    <div>
-                        <p className="font-semibold text-sm leading-tight hover:text-primary cursor-pointer">{post.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{post.date}</p>
+                    <Skeleton className="h-16 w-16 rounded-md" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-[150px]" />
+                        <Skeleton className="h-4 w-[100px]" />
                     </div>
                 </div>
             ))}
-             <Button variant="outline" className="w-full">See all</Button>
+            {!loading && forums.map((forum) => (
+                <div key={forum.id} className="flex items-center gap-4">
+                     <div className="h-16 w-16 bg-secondary rounded-md flex items-center justify-center">
+                        <BookOpen className="w-8 h-8 text-muted-foreground" />
+                     </div>
+                    <div>
+                        <p className="font-semibold text-sm leading-tight hover:text-primary cursor-pointer">{forum.name}</p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{forum.description}</p>
+                    </div>
+                </div>
+            ))}
+            {!loading && forums.length === 0 && <p className="text-sm text-muted-foreground">No forums created yet.</p>}
+             <Button variant="outline" className="w-full" asChild><Link href="/forum">See all</Link></Button>
         </CardContent>
     </Card>
 );
 
-const FollowingWidget = () => (
+const GroupsWidget = ({ groups, loading }: { groups: Group[], loading: boolean }) => (
     <Card>
         <CardHeader>
-            <CardTitle className="text-lg">I'm Following 16</CardTitle>
+            <CardTitle className="text-lg">My Groups</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-            {Array.from({ length: 16 }).map((_, i) => (
-                <Avatar key={i} className="h-9 w-9">
-                    <AvatarImage src={`https://picsum.photos/seed/follow${i}/40/40`} />
-                    <AvatarFallback>{i}</AvatarFallback>
-                </Avatar>
+            {loading && Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-11 w-11 rounded-full" />)}
+            {!loading && groups.map(group => (
+                 <Link href={`/chat/${group.id}`} key={group.id}>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center hover:ring-2 ring-primary">
+                                    <Users className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{group.name}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                 </Link>
             ))}
+            {!loading && groups.length === 0 && <p className="text-sm text-muted-foreground p-2">You haven't joined any groups yet.</p>}
         </CardContent>
     </Card>
 );
@@ -158,99 +179,125 @@ const ActivityFeed = ({ user }: { user: UserProfile }) => (
     </div>
 );
 
-const CompleteProfileWidget = ({ completeness, user }: { completeness: number, user: UserProfile }) => {
-    const profileItems = [
-        { label: 'General Information', done: (user.bio && user.location) ? true : false},
-        { label: 'Work Experience', done: user.company ? true : false },
-        { label: 'Profile Photo', done: !!user.avatarUrl },
-        { label: 'Cover Photo', done: false }, // Assuming no cover photo yet
-    ];
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-lg">Complete Your Profile</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-center gap-4 mb-6">
-                    <div className="relative h-24 w-24">
-                        <svg className="h-full w-full" width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="18" cy="18" r="16" fill="none" className="stroke-current text-gray-200 dark:text-gray-700" strokeWidth="2"></circle>
-                            <circle cx="18" cy="18" r="16" fill="none" className="stroke-current text-green-500" strokeWidth="2" strokeDasharray={`${completeness * 100.5 / 100}, 100.5`} strokeLinecap="round" transform="rotate(-90 18 18)"></circle>
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-2xl font-bold">{completeness}%</span>
-                        </div>
-                    </div>
-                </div>
-                <ul className="space-y-3 text-sm">
-                    {profileItems.map(item => (
-                        <li key={item.label} className="flex items-center gap-3">
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${item.done ? 'bg-green-500' : 'bg-gray-300'}`}>
-                                {item.done && <User size={12} className="text-white" />}
-                            </div>
-                            <span className={`${item.done ? 'text-foreground' : 'text-muted-foreground'}`}>{item.label}</span>
-                        </li>
-                    ))}
-                </ul>
-            </CardContent>
-        </Card>
-    );
-};
-
-const LatestUpdatesWidget = () => (
-     <Card>
+const CommunityStats = ({ stats, loading }: { stats: Record<string, number>, loading: boolean}) => (
+    <Card>
         <CardHeader>
-            <CardTitle className="text-lg">Latest updates</CardTitle>
+            <CardTitle className="text-lg">Community Stats</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-             {[
-                { name: 'John', update: 'posted an update', time: '3 years ago', avatar: 'https://picsum.photos/seed/john/40/40' },
-                { name: 'Adele', update: 'posted an update', time: '3 years ago', avatar: 'https://picsum.photos/seed/adele/40/40' },
-                { name: 'John', update: 'posted an update in the group Coffee Addicts', time: '4 years ago', avatar: 'https://picsum.photos/seed/john2/40/40' },
-            ].map((item, i) => (
-                 <div key={i} className="flex items-start gap-3">
-                    <Avatar className="h-9 w-9">
-                        <AvatarImage src={item.avatar} />
-                        <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <p className="text-sm">
-                            <span className="font-semibold">{item.name}</span>
-                            <span> {item.update}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">{item.time}</p>
-                    </div>
-                </div>
-            ))}
+        <CardContent className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col items-center p-2 rounded-lg bg-secondary/50">
+                {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{stats.members || 0}</p>}
+                <p className="text-sm text-muted-foreground">Members</p>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg bg-secondary/50">
+                {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{stats.threads || 0}</p>}
+                <p className="text-sm text-muted-foreground">Threads</p>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg bg-secondary/50">
+                {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{stats.forums || 0}</p>}
+                <p className="text-sm text-muted-foreground">Forums</p>
+            </div>
+             <div className="flex flex-col items-center p-2 rounded-lg bg-secondary/50">
+                {loading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{stats.groups || 0}</p>}
+                <p className="text-sm text-muted-foreground">Groups</p>
+            </div>
         </CardContent>
     </Card>
 );
 
-const RecentlyActiveMembersWidget = () => (
+const RecentlyActiveMembersWidget = ({ members, loading }: { members: UserProfile[], loading: boolean }) => (
     <Card>
         <CardHeader>
             <CardTitle className="text-lg">Recently Active Members</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-                <Avatar key={i} className="h-11 w-11">
-                    <AvatarImage src={`https://picsum.photos/seed/active${i}/50/50`} />
-                    <AvatarFallback>{i}</AvatarFallback>
-                </Avatar>
+             {loading && Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-11 w-11 rounded-full" />)}
+            {!loading && members.map((member) => (
+                <Link href={`/members`} key={member.uid}>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Avatar className="h-11 w-11 hover:ring-2 ring-primary">
+                            <AvatarImage src={member.avatarUrl ?? `https://picsum.photos/seed/${member.uid}/50/50`} />
+                            <AvatarFallback>{member.displayName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{member.displayName}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Link>
             ))}
         </CardContent>
     </Card>
 );
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
 export default function DashboardClient({ user: initialUser }: DashboardClientProps) {
   const [user, setUser] = useState<UserProfile>(initialUser);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+
+  const [forums, setForums] = useState<Forum[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [members, setMembers] = useState<UserProfile[]>([]);
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const { firestore } = initializeFirebase();
+    const unsubscribes: (() => void)[] = [];
+    setLoading(true);
+
+    // Fetch Forums
+    const forumsQuery = query(collection(firestore, 'forums'), orderBy('createdAt', 'desc'), limit(4));
+    unsubscribes.push(onSnapshot(forumsQuery, (snapshot) => {
+        setForums(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum)));
+    }));
+    
+    // Fetch Groups user is a member of
+    const groupsQuery = query(collection(firestore, 'groups'), where(`members.${user.uid}`, 'in', ['owner', 'member', 'admin']), limit(16));
+    unsubscribes.push(onSnapshot(groupsQuery, (snapshot) => {
+        setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Group)));
+    }));
+
+    // Fetch Members
+    const membersQuery = query(collection(firestore, 'users'), orderBy('createdAt', 'desc'), limit(8));
+     unsubscribes.push(onSnapshot(membersQuery, (snapshot) => {
+        setMembers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile)));
+    }));
+    
+    // Fetch Threads for count
+    const threadsQuery = query(collection(firestore, 'threads'));
+    unsubscribes.push(onSnapshot(threadsQuery, (snapshot) => {
+        setThreads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Thread)));
+    }));
+    
+    Promise.all([
+        // Wait for first snapshot of all queries
+        new Promise(res => onSnapshot(forumsQuery, res)),
+        new Promise(res => onSnapshot(groupsQuery, res)),
+        new Promise(res => onSnapshot(membersQuery, res)),
+        new Promise(res => onSnapshot(threadsQuery, res)),
+    ]).then(() => setLoading(false));
+
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [user.uid]);
+
 
   const handleProfileUpdate = (updatedUser: UserProfile) => {
     setUser(updatedUser);
   };
   
   const completeness = getProfileCompleteness(user);
+  
+  const communityStats = {
+      members: members.length,
+      forums: forums.length,
+      groups: groups.length,
+      threads: threads.length
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-8 bg-secondary/30">
@@ -259,10 +306,10 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
       <Card className="bg-background">
         <CardContent className="p-6 flex items-center justify-between">
             <div>
-                <h2 className="text-xl font-semibold">You're using the Connectify Hub Demo</h2>
-                <p className="text-muted-foreground">Launch your community today; get it now!</p>
+                <h2 className="text-xl font-semibold">Welcome back, {user.displayName.split(' ')[0]}!</h2>
+                <p className="text-muted-foreground">Here's what's happening in your community.</p>
             </div>
-             <Image src="https://picsum.photos/seed/community/150/80" alt="Community illustration" width={150} height={80} />
+             <Image src="https://picsum.photos/seed/community/150/80" alt="Community illustration" width={150} height={80} className="hidden sm:block" />
         </CardContent>
       </Card>
       
@@ -270,8 +317,8 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
         
         {/* Left Column */}
         <aside className="lg:col-span-3 space-y-6">
-            <BlogWidget />
-            <FollowingWidget />
+            <ForumsWidget forums={forums} loading={loading} />
+            <GroupsWidget groups={groups} loading={loading} />
         </aside>
 
         {/* Middle Column */}
@@ -282,9 +329,8 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
 
         {/* Right Column */}
         <aside className="lg:col-span-3 space-y-6">
-             <CompleteProfileWidget completeness={completeness} user={user} />
-             <LatestUpdatesWidget />
-             <RecentlyActiveMembersWidget />
+             <CommunityStats stats={communityStats} loading={loading} />
+             <RecentlyActiveMembersWidget members={members} loading={loading} />
         </aside>
       </div>
 
@@ -299,3 +345,5 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
     </div>
   );
 }
+
+    

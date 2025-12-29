@@ -1,4 +1,5 @@
 
+
 import { type Timestamp } from 'firebase/firestore';
 
 export type Forum = {
@@ -142,3 +143,5 @@ export type TypingIndicator = {
     updatedAt: Timestamp | Date;
     user: Pick<UserProfile, 'uid' | 'displayName'>;
 };
+
+    

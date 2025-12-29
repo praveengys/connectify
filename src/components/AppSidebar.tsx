@@ -2,26 +2,14 @@
 'use client';
 
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarTrigger,
-  SidebarProvider,
-  SidebarInset,
-  useSidebar,
-} from '@/components/ui/sidebar';
-import {
   LayoutDashboard,
   Users,
   MessageSquare,
   BookOpen,
   LogOut,
   User as UserIcon,
-  ChevronRight
+  ChevronRight,
+  Menu
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
@@ -37,12 +25,14 @@ import {
     DropdownMenuTrigger,
   } from './ui/dropdown-menu';
 import ProfileCard from './auth/ProfileCard';
+import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { useState } from 'react';
 
-function AppSidebar() {
+function HorizontalNav() {
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const router = useRouter();
-  const { state } = useSidebar();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOutUser();
@@ -56,84 +46,108 @@ function AppSidebar() {
     { href: '/chat', icon: MessageSquare, label: 'Chat' },
   ];
 
+  const NavLinks = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <nav className={isMobile ? "flex flex-col gap-2 p-4" : "hidden md:flex items-center gap-4"}>
+      {menuItems.map((item) => (
+        <Button 
+          asChild 
+          key={item.href} 
+          variant={pathname === item.href ? "secondary" : "ghost"}
+          className={isMobile ? "justify-start" : ""}
+          onClick={() => isMobile && setMobileMenuOpen(false)}
+        >
+          <Link href={item.href}>
+            <item.icon className="mr-2 h-4 w-4" />
+            {item.label}
+          </Link>
+        </Button>
+      ))}
+    </nav>
+  );
+
+
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <MessageSquare size={18} />
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center">
+            <div className="mr-4 hidden md:flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <MessageSquare size={18} />
+                </div>
+                <span className="font-bold text-lg">Connectify</span>
             </div>
-            <span className="font-bold text-lg text-sidebar-primary group-data-[collapsible=icon]:hidden">
-                Connectify
-            </span>
-        </div>
-        <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <Link href={item.href}>
-                <SidebarMenuButton
-                  isActive={pathname === item.href}
-                  tooltip={item.label}
-                  icon={item.icon}
-                >
-                  {item.label}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-      <SidebarFooter>
-        {loading ? (
-            <div className="h-12 w-full animate-pulse rounded-md bg-sidebar-accent"></div>
-        ) : user ? (
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? 'user'} />
-                            <AvatarFallback>{user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon />}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden">
-                            <span className="text-sm font-medium text-sidebar-primary leading-tight">{user.displayName}</span>
-                            <span className="text-xs text-muted-foreground leading-tight">@{user.username || '...'}</span>
+
+            {/* Mobile Menu */}
+            <div className="md:hidden">
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                    <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <Menu className="h-5 w-5" />
+                            <span className="sr-only">Open menu</span>
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="w-full max-w-xs p-0">
+                        <div className="p-4 border-b">
+                            <div className="flex items-center gap-2">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                                    <MessageSquare size={18} />
+                                </div>
+                                <span className="font-bold text-lg">Connectify</span>
+                            </div>
                         </div>
-                        <ChevronRight size={16} className="ml-auto group-data-[collapsible=icon]:hidden" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-80 mb-2 ml-2" side="right" align="start">
-                  <ProfileCard user={user} />
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    <span>Dashboard</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-                    <UserIcon className="mr-2 h-4 w-4" />
-                    <span>Edit Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-        ) : (
-            <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-                <Button asChild variant="ghost" className="w-full">
-                  <Link href="/login">Sign In</Link>
-                </Button>
-                <Button asChild className="w-full">
-                  <Link href="/signup">Join Now</Link>
-                </Button>
-              </div>
-        )}
-      </SidebarFooter>
-    </Sidebar>
+                        <NavLinks isMobile />
+                    </SheetContent>
+                </Sheet>
+            </div>
+            
+            <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+                <div className="w-full flex-1 md:w-auto md:flex-none">
+                   <NavLinks />
+                </div>
+                <div className="flex items-center">
+                    {loading ? (
+                        <div className="h-10 w-24 animate-pulse rounded-md bg-muted"></div>
+                    ) : user ? (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? 'user'} />
+                                        <AvatarFallback>{user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon size={16} />}</AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-80" align="end" forceMount>
+                              <ProfileCard user={user} />
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+                                <LayoutDashboard className="mr-2 h-4 w-4" />
+                                <span>Dashboard</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+                                <UserIcon className="mr-2 h-4 w-4" />
+                                <span>Edit Profile</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={handleSignOut}>
+                                <LogOut className="mr-2 h-4 w-4" />
+                                <span>Log out</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <Button asChild variant="ghost">
+                              <Link href="/login">Sign In</Link>
+                            </Button>
+                            <Button asChild>
+                              <Link href="/signup">Join Now</Link>
+                            </Button>
+                          </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    </header>
   );
 }
 
@@ -147,11 +161,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   
     return (
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-            {children}
-        </SidebarInset>
-      </SidebarProvider>
+        <div className="relative flex min-h-screen flex-col">
+            <HorizontalNav />
+            <div className="flex-1">{children}</div>
+        </div>
     );
   }

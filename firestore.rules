@@ -47,10 +47,16 @@ service cloud.firestore {
                     && request.resource.data.members.size() == 1
                     && request.resource.data.memberCount == 1;
 
-      // Only owner or moderator/admin can update group
-      allow update: if isSignedIn()
-                    && (resource.data.members[request.auth.uid] in ['owner', 'admin']
-                        || isModeratorOrAdmin());
+      // Only owner or moderator/admin can update group settings, OR a user can add themselves to a public group.
+      allow update: if (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isModeratorOrAdmin() ||
+                      (
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['members', 'memberCount']) &&
+                        resource.data.type == 'public' &&
+                        request.resource.data.members[request.auth.uid] == 'member' &&
+                        !(request.auth.uid in resource.data.members)
+                      );
+
 
       allow delete: if isOwner(resource.data.createdBy) || isAdmin();
 
@@ -63,7 +69,10 @@ service cloud.firestore {
         allow create: if isSignedIn()
                       && request.resource.data.senderId == request.auth.uid
                       && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
-                      && !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted);
+                      && (
+                        !('muted' in get(/databases/$(database)/documents/groups/$(groupId)).data) ||
+                        !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted)
+                      );
       }
 
       match /typing/{userId} {
@@ -99,6 +108,12 @@ service cloud.firestore {
 
         allow create: if isSignedIn()
                       && request.resource.data.authorId == request.auth.uid;
+      }
+       match /chatMessages/{messageId} {
+        allow read, list: if isSignedIn();
+
+        allow create: if isSignedIn()
+                      && request.resource.data.senderId == request.auth.uid;
       }
     }
 

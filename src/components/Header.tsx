@@ -1,103 +1,40 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Button } from './ui/button';
+import { MessageSquare } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { signOutUser } from '@/lib/firebase/auth';
-import { useRouter } from 'next/navigation';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
-import { LayoutDashboard, LogOut, User as UserIcon, MessageSquare } from 'lucide-react';
-import ProfileCard from './auth/ProfileCard';
 
 export default function Header() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  const handleSignOut = async () => {
-    await signOutUser();
-    router.push('/');
-  };
-
+    const { user, loading } = useAuth();
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
-        <div className="mr-4 flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="font-bold font-headline sm:inline-block">Connectify Hub</span>
-          </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            <Link
-              href="/members"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              Members
+    <header className="w-full py-4 px-4 sm:px-6 lg:px-8 border-b">
+        <div className="container mx-auto flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2 font-bold text-lg">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <MessageSquare size={18} />
+                </div>
+                <span>Connectify Hub</span>
             </Link>
-            <Link
-              href="/forum"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              Forum
-            </Link>
-             <Link
-              href="/chat"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              Chat
-            </Link>
-          </nav>
+            <nav className="flex items-center gap-4">
+                {!loading && !user && (
+                    <>
+                        <Button variant="ghost" asChild>
+                            <Link href="/login">Sign In</Link>
+                        </Button>
+                        <Button asChild>
+                            <Link href="/signup">Join Now</Link>
+                        </Button>
+                    </>
+                )}
+                {!loading && user && (
+                    <Button asChild>
+                        <Link href="/dashboard">Go to Dashboard</Link>
+                    </Button>
+                )}
+            </nav>
         </div>
-        <div className="flex flex-1 items-center justify-end space-x-2">
-          <nav className="flex items-center">
-            {loading ? (
-              <div className="h-8 w-20 animate-pulse rounded-md bg-muted"></div>
-            ) : user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? 'user'} />
-                      <AvatarFallback>{user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon />}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-80" align="end">
-                  <ProfileCard user={user} />
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    <span>Dashboard</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-                    <UserIcon className="mr-2 h-4 w-4" />
-                    <span>Edit Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button asChild variant="ghost">
-                  <Link href="/login">Sign In</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/signup">Join Now</Link>
-                </Button>
-              </div>
-            )}
-          </nav>
-        </div>
-      </div>
     </header>
   );
 }

@@ -1,3 +1,4 @@
+
 import SignUpForm from '@/components/auth/SignUpForm';
 import Header from '@/components/Header';
 import Link from 'next/link';
@@ -20,3 +21,5 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+    

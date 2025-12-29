@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,7 +6,6 @@ import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestor
 import { initializeFirebase } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import type { Group } from '@/lib/types';
-import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -63,7 +63,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div className="text-center md:text-left">
@@ -137,7 +136,7 @@ export default function ChatPage() {
           </div>
         )}
       </main>
-      <footer className="w-full py-6 bg-background">
+      <footer className="w-full py-6">
         <div className="container mx-auto px-4 md:px-6 text-center text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Connectify Hub. All rights reserved.</p>
         </div>
@@ -145,3 +144,5 @@ export default function ChatPage() {
     </div>
   );
 }
+
+    

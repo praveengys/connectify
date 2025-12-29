@@ -9,7 +9,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import Header from '../Header';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function MembersClient() {
@@ -59,7 +58,6 @@ export default function MembersClient() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow">
       <section className="w-full py-12 md:py-16">
         <div className="container mx-auto px-4 md:px-6">
@@ -127,7 +125,7 @@ export default function MembersClient() {
         </div>
       </section>
       </main>
-      <footer className="w-full py-6 bg-background">
+      <footer className="w-full py-6">
         <div className="container mx-auto px-4 md:px-6 text-center text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Connectify Hub. All rights reserved.</p>
         </div>
@@ -135,3 +133,5 @@ export default function MembersClient() {
     </div>
   );
 }
+
+    

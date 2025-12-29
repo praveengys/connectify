@@ -17,7 +17,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import CreateForumForm from './CreateForumForm';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import Header from '../Header';
 
 export default function ForumClient() {
   const [forums, setForums] = useState<Forum[]>([]);
@@ -123,7 +122,6 @@ export default function ForumClient() {
   if (error) {
     return (
       <div className="flex flex-col min-h-screen">
-        <Header />
         <main className="flex-grow flex items-center justify-center">
             <div className="container mx-auto px-4 py-8">
                 <div className="flex flex-col items-center justify-center text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-8">
@@ -139,7 +137,6 @@ export default function ForumClient() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow">
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
@@ -268,7 +265,7 @@ export default function ForumClient() {
         </div>
       </div>
     </main>
-    <footer className="w-full py-6 bg-background">
+    <footer className="w-full py-6">
         <div className="container mx-auto px-4 md:px-6 text-center text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Connectify Hub. All rights reserved.</p>
         </div>
@@ -276,3 +273,5 @@ export default function ForumClient() {
     </div>
   );
 }
+
+    

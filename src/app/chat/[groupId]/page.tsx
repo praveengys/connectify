@@ -2,7 +2,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Header from '@/components/Header';
 import ChatRoomClient from '@/components/chat/ChatRoomClient';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
@@ -103,7 +102,6 @@ export default function ChatRoomPage() {
   if (error) {
      return (
         <div className="flex flex-col h-screen">
-          <Header />
           <div className="flex-grow flex items-center justify-center">
             <div className="flex flex-col items-center justify-center text-destructive bg-destructive/10 p-8 rounded-lg">
                 <ServerCrash className="h-12 w-12 mb-4" />
@@ -120,7 +118,6 @@ export default function ChatRoomPage() {
   
   return (
     <div className="flex flex-col h-screen">
-      <Header />
       {isMember ? (
          <ChatRoomClient group={group} />
       ): (
@@ -138,3 +135,5 @@ export default function ChatRoomPage() {
     </div>
   );
 }
+
+    

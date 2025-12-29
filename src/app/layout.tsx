@@ -1,9 +1,11 @@
+
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import AppLayout from '@/components/AppSidebar';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -24,10 +26,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${inter.variable} font-body antialiased`}>
+      <body className={`${inter.variable} font-body antialiased bg-background`}>
         <FirebaseClientProvider>
           <AuthProvider>
-            {children}
+            <AppLayout>{children}</AppLayout>
             <Toaster />
           </AuthProvider>
         </FirebaseClientProvider>
@@ -35,3 +37,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    

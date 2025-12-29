@@ -6,11 +6,10 @@ import type { UserProfile, Group, Forum, Thread } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Edit, User, MessageSquare, Users, PlusCircle, ThumbsUp, MessageCircle, MoreHorizontal, Image as ImageIcon, Video, Mic, Search, BookOpen } from 'lucide-react';
+import { Edit, Users, Search, BookOpen } from 'lucide-react';
 import ProfileForm from './ProfileForm';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import Link from 'next/link';
-import { Textarea } from '../ui/textarea';
 import Image from 'next/image';
 import { collection, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
@@ -125,81 +124,6 @@ const GroupsWidget = ({ groups, loading }: { groups: Group[], loading: boolean }
             {!loading && groups.length === 0 && <p className="text-sm text-muted-foreground p-2">You haven't joined any groups yet.</p>}
         </CardContent>
     </Card>
-);
-
-const ActivityFeed = ({ user }: { user: UserProfile }) => (
-    <div className="space-y-6">
-        <Card>
-            <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                    <Avatar>
-                        <AvatarImage src={user.avatarUrl ?? undefined} />
-                        <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <Textarea placeholder={`Share what's on your mind, ${user.displayName.split(' ')[0]}...`} className="border-none focus-visible:ring-0 shadow-none p-0" />
-                </div>
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><ImageIcon className="h-5 w-5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Video className="h-5 w-5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Mic className="h-5 w-5" /></Button>
-                    </div>
-                    <Button>Post Update</Button>
-                </div>
-            </CardContent>
-        </Card>
-
-        {/* Sample Post */}
-        <Card>
-            <CardContent className="p-4">
-                <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                        <Avatar>
-                            <AvatarImage src={user.avatarUrl ?? undefined} />
-                            <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold">{user.displayName} posted an update</p>
-                            <p className="text-xs text-muted-foreground">3 years ago (edited)</p>
-                        </div>
-                    </div>
-                    <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
-                </div>
-                <div className="mt-4 -mx-4">
-                     <Image src="https://picsum.photos/seed/beach/800/500" alt="Beach photo" width={800} height={500} className="w-full h-auto" />
-                </div>
-                <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                        <ThumbsUp size={16} className="text-primary" />
-                        You and Jennifer
-                    </div>
-                    <span>2 Comments</span>
-                </div>
-
-                <div className="flex gap-4 mt-4 pt-4 border-t">
-                    <Button variant="ghost"><ThumbsUp className="mr-2" /> Love</Button>
-                    <Button variant="ghost"><MessageCircle className="mr-2" /> Comment</Button>
-                </div>
-
-                <div className="mt-4 pt-4 border-t space-y-4">
-                    <div className="flex items-start gap-3">
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src="https://picsum.photos/seed/jennifer/40/40" />
-                            <AvatarFallback>J</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p><span className="font-semibold">Jennifer</span> Where is that? Looks beautiful.</p>
-                            <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                                <span>Like</span>
-                                <span>Reply</span>
-                                <span>3 years ago</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    </div>
 );
 
 const CommunityStats = ({ stats, loading }: { stats: Record<string, number>, loading: boolean}) => (
@@ -332,30 +256,24 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
                 <h2 className="text-xl font-semibold">Welcome back, {user.displayName.split(' ')[0]}!</h2>
                 <p className="text-muted-foreground">Here's what's happening in your community.</p>
             </div>
-             <Image src="https://picsum.photos/seed/community/150/80" alt="Community illustration" width={150} height={80} className="hidden sm:block" />
+             <Image data-ai-hint="community abstract" src="https://picsum.photos/seed/community/150/80" alt="Community illustration" width={150} height={80} className="hidden sm:block rounded-md" />
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
         
         {/* Left Column */}
-        <aside className="lg:col-span-3 space-y-6">
+        <div className="md:col-span-2 lg:col-span-2 space-y-6">
             <ForumsWidget forums={forums} loading={loading} />
             <GroupsWidget groups={groups} loading={loading} />
-        </aside>
-
-        {/* Middle Column */}
-        <main className="lg:col-span-6 space-y-6">
-            <h2 className="text-2xl font-bold">Activity Feed</h2>
-            <ActivityFeed user={user} />
-        </main>
+             <RecentlyActiveMembersWidget members={members} loading={loading} />
+        </div>
 
         {/* Right Column */}
-        <aside className="lg:col-span-3 space-y-6">
+        <div className="space-y-6">
              <ProfileCompleteness user={user} completeness={completeness} onEdit={() => setEditDialogOpen(true)} />
              <CommunityStats stats={communityStats} loading={loading} />
-             <RecentlyActiveMembersWidget members={members} loading={loading} />
-        </aside>
+        </div>
       </div>
 
        <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -369,3 +287,5 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
     </div>
   );
 }
+
+    

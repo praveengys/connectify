@@ -2,21 +2,45 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, orderBy, query, where, limit, onSnapshot } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Category, Thread, UserProfile, Forum } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Loader2, MessageSquare, PlusCircle, ServerCrash } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
-import { getUserProfile } from '@/lib/firebase/firestore';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import CreateForumForm from './CreateForumForm';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
+
+
+const dummyAuthors: Record<string, UserProfile> = {
+    '1': { uid: '1', displayName: 'Alex Johnson', username: 'alexj', avatarUrl: 'https://picsum.photos/seed/101/200', bio: '', interests: [], skills: [], languages: [], location: '', currentlyExploring: '', role: 'member', profileVisibility: 'public', emailVerified: true, createdAt: new Date(), updatedAt: new Date(), lastActiveAt: new Date(), profileScore: 0, postCount: 0, commentCount: 0 },
+    '2': { uid: '2', displayName: 'Samantha Lee', username: 'samlee', avatarUrl: 'https://picsum.photos/seed/102/200', bio: '', interests: [], skills: [], languages: [], location: '', currentlyExploring: '', role: 'member', profileVisibility: 'public', emailVerified: true, createdAt: new Date(), updatedAt: new Date(), lastActiveAt: new Date(), profileScore: 0, postCount: 0, commentCount: 0 },
+    '3': { uid: '3', displayName: 'Michael Chen', username: 'mikec', avatarUrl: 'https://picsum.photos/seed/103/200', bio: '', interests: [], skills: [], languages: [], location: '', currentlyExploring: '', role: 'member', profileVisibility: 'public', emailVerified: true, createdAt: new Date(), updatedAt: new Date(), lastActiveAt: new Date(), profileScore: 0, postCount: 0, commentCount: 0 },
+};
+
+const dummyThreads: Thread[] = [
+    { id: 't1', title: 'Best practices for state management in Next.js 14?', body: '...', intent: 'question', authorId: '1', categoryId: 'c1', forumId: 'f1', tags: ['react', 'nextjs', 'state-management'], status: 'published', isLocked: false, isPinned: false, replyCount: 12, latestReplyAt: new Date(Date.now() - 3600000), createdAt: new Date(Date.now() - 86400000 * 2) },
+    { id: 't2', title: 'Showcase: My new portfolio built with ShadCN UI and Tailwind', body: '...', intent: 'discussion', authorId: '2', categoryId: 'c2', forumId: 'f1', tags: ['showcase', 'design', 'tailwindcss'], status: 'published', isLocked: false, isPinned: false, replyCount: 8, latestReplyAt: new Date(Date.now() - 7200000), createdAt: new Date(Date.now() - 86400000) },
+    { id: 't3', title: 'How to deploy a Genkit app to Firebase App Hosting?', body: '...', intent: 'help', authorId: '3', categoryId: 'c3', forumId: 'f2', tags: ['firebase', 'genkit', 'deployment'], status: 'published', isLocked: false, isPinned: false, replyCount: 5, latestReplyAt: new Date(Date.now() - 10800000), createdAt: new Date(Date.now() - 86400000 * 3) },
+    { id: 't4', title: 'Announcement: New "Introductions" category added!', body: '...', intent: 'announcement', authorId: '2', categoryId: 'c4', forumId: 'f1', tags: ['community', 'announcement'], status: 'published', isLocked: false, isPinned: true, replyCount: 23, latestReplyAt: new Date(Date.now() - 900000), createdAt: new Date(Date.now() - 86400000 * 5) },
+];
+
+const dummyCategories: Category[] = [
+    { id: 'c1', name: 'React & Next.js', slug: 'react-nextjs', description: 'Everything about React and the Next.js framework.', threadCount: 34 },
+    { id: 'c2', name: 'UI & Design', slug: 'ui-design', description: 'Discussions on UI/UX, CSS, and design systems.', threadCount: 19 },
+    { id: 'c3', name: 'Firebase & Genkit', slug: 'firebase-genkit', description: 'All things related to Google Cloud services.', threadCount: 25 },
+    { id: 'c4', name: 'General Chat', slug: 'general-chat', description: 'Off-topic conversations and introductions.', threadCount: 52 },
+];
+
+const dummyForums: Forum[] = [
+    { id: 'f1', name: 'General Development', description: 'A public forum for all developers.', createdBy: '2', visibility: 'public', status: 'active', createdAt: new Date() },
+    { id: 'f2', name: 'AI & Machine Learning', description: 'Discuss the latest in AI and ML.', createdBy: '3', visibility: 'public', status: 'active', createdAt: new Date() },
+];
+
 
 export default function ForumClient() {
   const [forums, setForums] = useState<Forum[]>([]);
@@ -31,82 +55,16 @@ export default function ForumClient() {
 
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to resolve
-    if (!user) {
-        setLoading(false);
-        // Optionally redirect or show a login prompt
-        return;
-    }
-
+    // We are now using dummy data.
     setLoading(true);
-    const { firestore } = initializeFirebase();
-
-    // Set up listeners for real-time updates
-    const forumsQuery = query(
-      collection(firestore, 'forums'),
-      orderBy('createdAt', 'desc')
-    );
-    const threadsQuery = query(
-        collection(firestore, 'threads'),
-        orderBy('createdAt', 'desc'),
-        limit(10)
-    );
-    const categoriesQuery = query(collection(firestore, 'categories'));
-
-    const unsubscribeForums = onSnapshot(forumsQuery, (snapshot) => {
-        const forumsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Forum));
-        setForums(forumsData);
-    }, (err) => {
-        console.error("Error fetching forums:", err);
-        setError("Could not load forums.");
-    });
-
-    const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
-        const categoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
-        setCategories(categoriesData);
-    });
-
-    const unsubscribeThreads = onSnapshot(threadsQuery, async (snapshot) => {
-        const threadsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt.toDate(),
-          latestReplyAt: doc.data().latestReplyAt?.toDate(),
-        } as Thread));
-
-        setThreads(threadsData);
-
-        // Fetch authors for the new threads
-        const authorIds = [...new Set(threadsData.map(t => t.authorId))];
-        if (authorIds.length > 0) {
-            const authorPromises = authorIds.map(id => getUserProfile(id));
-            const authorResults = await Promise.all(authorPromises);
-            const authorMap: Record<string, UserProfile> = {};
-            authorResults.forEach((author) => {
-              if (author) {
-                authorMap[author.uid] = author;
-              }
-            });
-            setAuthors(prev => ({ ...prev, ...authorMap }));
-        }
-         setLoading(false);
-         setError(null);
-    }, (err) => {
-        console.error("Error fetching threads:", err);
-        setError("Could not load discussions.");
-        setLoading(false);
-    });
-
-    // Cleanup listeners on component unmount
-    return () => {
-      unsubscribeForums();
-      unsubscribeThreads();
-      unsubscribeCategories();
-    };
-  }, [user, authLoading]);
+    setForums(dummyForums);
+    setCategories(dummyCategories);
+    setThreads(dummyThreads);
+    setAuthors(dummyAuthors);
+    setLoading(false);
+  }, []);
 
   const handleForumCreated = (newForum: Forum) => {
-    // The listener will add the forum, but we can optimistically add it here too
     setForums(prev => [newForum, ...prev]);
     setCreateForumOpen(false);
   };
@@ -273,5 +231,3 @@ export default function ForumClient() {
     </div>
   );
 }
-
-    

@@ -348,9 +348,8 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
 export async function joinChatGroup(groupId: string, userId: string) {
     const firestore = getFirestoreInstance();
     const groupRef = doc(firestore, 'groups', groupId);
-
     const payload = {
-        [`members.${userId}`]: 'member',
+        [`members.${userId}`]: 'member'
     };
 
     return runTransaction(firestore, async (transaction) => {
@@ -369,7 +368,6 @@ export async function joinChatGroup(groupId: string, userId: string) {
             ...payload,
             memberCount: newMemberCount,
         });
-
     }).catch(async (serverError) => {
         console.error("Error joining group:", serverError);
         const permissionError = new FirestorePermissionError({

@@ -22,21 +22,28 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   }
   try {
     const firestore = getFirestoreInstance();
+    
+    // TEMPORARY: Assign admin role to specific user
+    const isAdmin = data.email === 'tnbit@gmail.com';
+    const userRole = isAdmin ? 'admin' : 'member';
+
     // Add the user's UID to the data object to satisfy security rules.
     const userRef = doc(firestore, 'users', uid);
-    setDoc(userRef, {
+    const profileData = {
       username: `user_${uid.substring(0, 8)}`,
-      role: 'member',
+      role: userRole,
       profileVisibility: 'public',
       ...data,
       uid: uid, 
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    }, { merge: true }).catch(async (serverError) => {
+    };
+
+    setDoc(userRef, profileData, { merge: true }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: userRef.path,
             operation: 'create',
-            requestResourceData: data,
+            requestResourceData: profileData,
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
     });

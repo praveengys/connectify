@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteGroup } from '@/lib/firebase/firestore';
+import ViewGroupMembersDialog from './ViewGroupMembersDialog';
 
 
 export default function GroupTable() {
@@ -41,6 +42,8 @@ export default function GroupTable() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [isMembersDialogOpen, setMembersDialogOpen] = useState(false);
   const [actionGroup, setActionGroup] = useState<Group | null>(null);
   const [isConfirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
@@ -89,6 +92,11 @@ export default function GroupTable() {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
         }
     });
+  };
+
+  const handleViewMembers = (group: Group) => {
+    setSelectedGroup(group);
+    setMembersDialogOpen(true);
   };
 
   const filteredGroups = useMemo(() => {
@@ -169,7 +177,7 @@ export default function GroupTable() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem>View Members</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleViewMembers(group)}>View Members</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteAction(group)}>
                           <Trash2 className="mr-2 h-4 w-4" /> Delete Group
@@ -191,6 +199,15 @@ export default function GroupTable() {
         </CardContent>
       </Card>
       
+      {/* View Members Dialog */}
+      {selectedGroup && (
+        <ViewGroupMembersDialog 
+          group={selectedGroup} 
+          isOpen={isMembersDialogOpen} 
+          setIsOpen={setMembersDialogOpen} 
+        />
+      )}
+
       {/* Confirmation Dialog */}
       <AlertDialog open={isConfirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>

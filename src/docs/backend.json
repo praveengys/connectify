@@ -28,6 +28,48 @@
       },
       "required": ["uid", "displayName", "role", "profileVisibility", "emailVerified", "createdAt", "updatedAt"]
     },
+    "Post": {
+      "title": "Post",
+      "type": "object",
+      "description": "A community feed post created by a member.",
+      "properties": {
+        "authorId": { "type": "string", "description": "The UID of the user who created the post." },
+        "content": { "type": "string", "description": "The text content of the post." },
+        "media": { "type": "array", "description": "An array of URLs for images or videos attached to the post.", "items": { "type": "string", "format": "uri" } },
+        "visibility": { "type": "string", "enum": ["public", "group-only"], "description": "The visibility of the post." },
+        "groupId": { "type": "string", "description": "The ID of the group if visibility is 'group-only'." },
+        "status": { "type": "string", "enum": ["active", "deleted", "reported"], "default": "active" },
+        "likesCount": { "type": "number", "default": 0 },
+        "commentsCount": { "type": "number", "default": 0 },
+        "sharesCount": { "type": "number", "default": 0 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "content", "visibility", "status", "createdAt", "updatedAt"]
+    },
+    "PostComment": {
+        "title": "PostComment",
+        "type": "object",
+        "description": "A comment on a post.",
+        "properties": {
+            "postId": { "type": "string" },
+            "authorId": { "type": "string" },
+            "content": { "type": "string" },
+            "parentCommentId": { "type": "string", "nullable": true },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["postId", "authorId", "content", "createdAt"]
+    },
+    "PostLike": {
+      "title": "PostLike",
+      "type": "object",
+      "description": "Represents a user's like on a post.",
+      "properties": {
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "createdAt"]
+    },
     "Forum": {
       "title": "Forum",
       "type": "object",
@@ -180,6 +222,18 @@
         "path": "/users/{userId}",
         "definition": { "entityName": "User", "schema": { "$ref": "#/entities/User" } }
       },
+       {
+        "path": "/posts/{postId}",
+        "definition": { "entityName": "Post", "schema": { "$ref": "#/entities/Post" } }
+      },
+      {
+        "path": "/posts/{postId}/comments/{commentId}",
+        "definition": { "entityName": "PostComment", "schema": { "$ref": "#/entities/PostComment" } }
+      },
+      {
+        "path": "/posts/{postId}/likes/{likeId}",
+        "definition": { "entityName": "PostLike", "schema": { "$ref": "#/entities/PostLike" } }
+      },
       {
         "path": "/roles_admin/{userId}",
         "definition": { "description": "Stores admin roles. Existence of document dictates admin role." }
@@ -227,3 +281,5 @@
     ]
   }
 }
+
+    

@@ -1,8 +1,9 @@
 
+
 'use client';
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion, FieldValue } from 'firebase/firestore';
-import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage, Group, Member } from '@/lib/types';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion, FieldValue, increment } from 'firebase/firestore';
+import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage, Group, Member, Post } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -151,7 +152,7 @@ export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]>
       } as UserProfile;
     });
   } catch (error) {
-    console.error('Error fetching public profiles:', error);
+    console.error('Fetching public profiles:', error);
     return [];
   }
 }
@@ -565,3 +566,60 @@ export async function updateUserGroupRole(groupId: string, userId: string, role:
         [`members.${userId}`]: role
     });
 }
+
+// Create a new post in the feed
+export async function createPost(authorId: string, content: string, media?: string[]) {
+    const firestore = getFirestoreInstance();
+    const postsCollection = collection(firestore, 'posts');
+    
+    const payload = {
+        authorId,
+        content,
+        media: media || [],
+        visibility: 'public' as const,
+        status: 'active' as const,
+        likesCount: 0,
+        commentsCount: 0,
+        sharesCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+
+    return addDoc(postsCollection, payload).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: postsCollection.path,
+            operation: 'create',
+            requestResourceData: payload,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
+    });
+}
+
+// Toggle like on a post
+export async function toggleLikePost(postId: string, userId: string) {
+    const firestore = getFirestoreInstance();
+    const postRef = doc(firestore, 'posts', postId);
+    const likeRef = doc(firestore, 'posts', postId, 'likes', userId);
+
+    return runTransaction(firestore, async (transaction) => {
+        const likeDoc = await transaction.get(likeRef);
+        const postDoc = await transaction.get(postRef);
+
+        if (!postDoc.exists()) {
+            throw new Error("Post not found");
+        }
+
+        if (likeDoc.exists()) {
+            // User has liked the post, so unlike it
+            transaction.delete(likeRef);
+            transaction.update(postRef, { likesCount: increment(-1) });
+        } else {
+            // User has not liked the post, so like it
+            transaction.set(likeRef, { userId, createdAt: serverTimestamp() });
+            transaction.update(postRef, { likesCount: increment(1) });
+        }
+    });
+}
+
+    

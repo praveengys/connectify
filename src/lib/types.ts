@@ -146,3 +146,40 @@ export type TypingIndicator = {
     updatedAt: Timestamp | Date;
     user: Pick<UserProfile, 'uid' | 'displayName'>;
 };
+
+// Feed-related types
+export type Post = {
+    id: string;
+    authorId: string;
+    content: string;
+    media?: string[];
+    visibility: 'public' | 'group-only';
+    groupId?: string;
+    status: 'active' | 'deleted' | 'reported';
+    likesCount: number;
+    commentsCount: number;
+    sharesCount: number;
+    createdAt: Date | Timestamp;
+    updatedAt: Date | Timestamp;
+    // Denormalized author data for easy display
+    author?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>;
+    // For real-time updates on the client
+    isLiked?: boolean;
+};
+
+export type PostComment = {
+    id: string;
+    postId: string;
+    authorId: string;
+    content: string;
+    parentCommentId: string | null;
+    createdAt: Date | Timestamp;
+    author?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>;
+};
+
+export type PostLike = {
+    userId: string;
+    createdAt: Date | Timestamp;
+};
+
+    

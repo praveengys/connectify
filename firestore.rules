@@ -54,6 +54,33 @@ service cloud.firestore {
 
       allow delete: if false;
     }
+    
+    /* Posts */
+    match /posts/{postId} {
+      allow read: if isSignedIn() && resource.data.visibility == 'public';
+      allow list: if isSignedIn();
+      
+      allow create: if canWrite()
+                    && request.resource.data.authorId == request.auth.uid;
+                      
+      allow update: if (isOwner(request.resource.data.authorId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'media', 'visibility', 'updatedAt']))
+                      || isAdmin();
+
+      allow delete: if isOwner(request.resource.data.authorId) || isAdmin();
+      
+      match /likes/{userId} {
+        allow read: if isSignedIn();
+        allow create, delete: if canWrite() && isOwner(userId);
+      }
+      
+      match /comments/{commentId} {
+        allow read, list: if isSignedIn();
+        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isOwner(request.resource.data.authorId) || isAdmin();
+        allow delete: if isOwner(request.resource.data.authorId) || isAdmin();
+      }
+    }
+
 
     /* Groups + messages */
     match /groups/{groupId} {
@@ -87,8 +114,7 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read, list: if isSignedIn()
                           && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-
-        // Members can send messages if they are not globally muted AND they are a member of the group
+        
         allow create: if request.auth != null
           && request.resource.data.senderId == request.auth.uid
           && exists(/databases/$(database)/documents/groups/$(groupId))
@@ -159,3 +185,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

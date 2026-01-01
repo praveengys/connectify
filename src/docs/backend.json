@@ -133,7 +133,11 @@
           "description": "A map of user UIDs to their roles ('owner', 'admin', 'member').",
           "additionalProperties": { "type": "string", "enum": ["owner", "admin", "member"] }
         },
-         "muted": { "type": "boolean", "description": "If true, no one can send messages in this group." }
+         "muted": {
+          "type": "object",
+          "description": "A map of user UIDs to their mute expiration timestamps.",
+          "additionalProperties": { "type": "string", "format": "date-time" }
+        }
       },
       "required": ["name", "type", "createdBy", "createdAt", "memberCount", "members"]
     },

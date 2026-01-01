@@ -389,7 +389,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
         createdAt: serverTimestamp(),
         members: { [createdBy]: 'owner' },
         memberCount: 1,
-        muted: false,
+        muted: {},
     };
 
     try {
@@ -516,12 +516,28 @@ export async function deleteGroup(groupId: string) {
     await deleteDoc(groupRef);
 }
 
-// Admin: Mute/unmute a group
-export async function toggleGroupMute(groupId: string, muted: boolean) {
+// Admin: Mute/unmute a user in a group
+export async function toggleUserMuteInGroup(groupId: string, userId: string, mute: boolean) {
     const firestore = getFirestoreInstance();
     const groupRef = doc(firestore, 'groups', groupId);
-    return updateDoc(groupRef, { muted });
+    
+    if (mute) {
+        // Mute user until a far-future date
+        const muteUntil = new Date('2200-01-01');
+        return updateDoc(groupRef, {
+            [`muted.${userId}`]: muteUntil
+        });
+    } else {
+        // Unmute by removing the field
+        const groupData = (await getDoc(groupRef)).data();
+        if (groupData && groupData.muted) {
+            const newMutedMap = { ...groupData.muted };
+            delete newMutedMap[userId];
+            return updateDoc(groupRef, { muted: newMutedMap });
+        }
+    }
 }
+
 
 // Admin: Remove a member from a group
 export async function removeUserFromGroup(groupId: string, userId: string) {

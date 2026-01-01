@@ -12,8 +12,6 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // BEST PRACTICE: Use custom claims for roles. This is much faster and more secure.
-      // Claims are set on the backend using the Admin SDK.
       return isSignedIn() && request.auth.token.role == 'admin';
     }
 
@@ -26,36 +24,29 @@ service cloud.firestore {
     }
 
     function isNotMuted() {
-      // Check for custom claim. Assumes false if not present.
       return request.auth.token.isMuted != true;
     }
 
     function isNotBanned() {
-      // Check for custom claim. Assumes false if not present.
       return request.auth.token.isBanned != true;
     }
 
     function canWrite() {
-      // Combines all write-related checks using custom claims.
       return isSignedIn() && isNotMuted() && isNotBanned();
     }
 
     /* Users */
     match /users/{userId} {
-      // Admins can read any, owners can read their own, others can read public profiles.
-      // Crucially, this rule does NOT read its own document.
-      allow read: if isOwner(userId) || isAdmin() || (isSignedIn() && isNotBanned() && resource.data.profileVisibility == 'public');
+      allow read: if isOwner(userId) || isAdmin() || (isSignedIn() && resource.data.profileVisibility == 'public');
       
       allow list: if isSignedIn();
 
-      // Users can create their own profile. Roles and status flags cannot be set from the client.
       allow create: if isOwner(userId)
                     && request.resource.data.uid == userId
                     && request.resource.data.role == 'member'
                     && request.resource.data.isMuted == false
                     && request.resource.data.isBanned == false;
       
-      // Users can update their own profile (limited fields). Admins can update any field.
       allow update: if 
         (isOwner(userId) && 
             (
@@ -66,7 +57,7 @@ service cloud.firestore {
         ) || isAdmin();
 
 
-      allow delete: if false; // Disallow permanent user deletion to prevent orphaned content
+      allow delete: if false;
     }
 
     /* Groups + messages */
@@ -75,15 +66,12 @@ service cloud.firestore {
                     || (isSignedIn() && request.auth.uid in resource.data.members);
       allow list: if isSignedIn();
 
-      // Users can create a group, becoming the owner. Must not be muted/banned.
       allow create: if canWrite()
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.members[request.auth.uid] == 'owner'
                     && request.resource.data.members.size() == 1
                     && request.resource.data.memberCount == 1;
 
-      // Group owners, admins, or platform admins can update settings.
-      // Other users can join a public group.
       allow update: if (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isAdmin() ||
                       (
                         canWrite() &&
@@ -98,15 +86,17 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.createdBy) || isAdmin();
 
       match /messages/{messageId} {
-        // Members only can read messages.
         allow read, list: if isSignedIn()
                           && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
 
-        // Members can send messages if they are not muted AND the group is not muted.
+        // Members can send messages if they are not muted AND the group is not globally muted AND the member is not individually muted in the group.
         allow create: if canWrite()
-                      && get(/databases/$(database)/documents/groups/$(groupId)).data.muted != true
                       && request.resource.data.senderId == request.auth.uid
-                      && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+                      && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
+                      && (
+                        !('muted' in get(/databases/$(database)/documents/groups/$(groupId)).data) ||
+                        !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted)
+                      );
       }
 
       match /typing/{userId} {

@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { deleteGroup, toggleGroupMute } from '@/lib/firebase/firestore';
+import { deleteGroup } from '@/lib/firebase/firestore';
 import ViewGroupMembersDialog from './ViewGroupMembersDialog';
 
 
@@ -76,7 +76,7 @@ export default function GroupTable() {
     return () => unsubscribe();
   }, []);
   
-  const handleAction = (group: Group, action: 'delete' | 'mute' | 'unmute') => {
+  const handleAction = (group: Group, action: 'delete') => {
       setActionGroup(group);
       let title = '', description = '', actionFn: (() => void) | null = null, buttonText = 'Confirm';
 
@@ -86,18 +86,6 @@ export default function GroupTable() {
               description = "This action is permanent and cannot be undone. All messages within this group will also be deleted.";
               actionFn = () => performDelete(group.id);
               buttonText = 'Confirm Delete';
-              break;
-          case 'mute':
-              title = `Mute Group: "${group.name}"?`;
-              description = "This will prevent all members from sending new messages until the group is unmuted. Members will not be notified.";
-              actionFn = () => performToggleMute(group.id, true);
-              buttonText = 'Mute Group';
-              break;
-          case 'unmute':
-              title = `Unmute Group: "${group.name}"?`;
-              description = "Members will be able to send messages in this group again.";
-              actionFn = () => performToggleMute(group.id, false);
-              buttonText = 'Unmute Group';
               break;
       }
 
@@ -117,17 +105,6 @@ export default function GroupTable() {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
         }
     });
-  };
-  
-  const performToggleMute = async (groupId: string, muted: boolean) => {
-      startTransition(async () => {
-          try {
-              await toggleGroupMute(groupId, muted);
-              toast({ title: 'Success', description: `Group has been ${muted ? 'muted' : 'unmuted'}.`});
-          } catch(e: any) {
-              toast({ title: 'Error', description: e.message, variant: 'destructive'});
-          }
-      });
   };
 
   const handleViewMembers = (group: Group) => {
@@ -205,7 +182,7 @@ export default function GroupTable() {
                     </Badge>
                   </TableCell>
                    <TableCell>
-                    {group.muted && <Badge variant="destructive">Muted</Badge>}
+                    {group.muted && Object.keys(group.muted).length > 0 && <Badge variant="destructive">Muted Members</Badge>}
                   </TableCell>
                   <TableCell>{group.memberCount}</TableCell>
                   <TableCell>{format(new Date(group.createdAt), 'PP')}</TableCell>
@@ -218,16 +195,6 @@ export default function GroupTable() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuItem onSelect={() => handleViewMembers(group)}>View Members</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {group.muted ? (
-                           <DropdownMenuItem onSelect={() => handleAction(group, 'unmute')}>
-                             <Volume2 className="mr-2 h-4 w-4" /> Unmute Group
-                           </DropdownMenuItem>
-                        ) : (
-                           <DropdownMenuItem onSelect={() => handleAction(group, 'mute')}>
-                             <MicOff className="mr-2 h-4 w-4" /> Mute Group
-                           </DropdownMenuItem>
-                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onSelect={() => handleAction(group, 'delete')}>
                           <Trash2 className="mr-2 h-4 w-4" /> Delete Group

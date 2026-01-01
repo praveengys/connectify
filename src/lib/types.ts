@@ -125,7 +125,7 @@ export type Group = {
     createdAt: Timestamp | Date;
     memberCount: number;
     members: { [uid: string]: 'owner' | 'admin' | 'member' };
-    muted?: { [uid: string]: Timestamp | Date };
+    muted: boolean;
     lastMessage?: {
       text: string;
       sender: string;

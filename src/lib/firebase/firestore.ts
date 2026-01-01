@@ -1,7 +1,7 @@
 
 'use client';
 
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, DocumentData, collection, getDocs, query, where, orderBy, addDoc, deleteDoc, runTransaction, Transaction, writeBatch, arrayUnion, FieldValue } from 'firebase/firestore';
 import type { UserProfile, Thread, Forum, Category, Reply, ChatMessage, Group, Member } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -87,12 +87,14 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
     }
     const firestore = getFirestoreInstance();
     const userRef = doc(firestore, 'users', uid);
-    
-    // Do not await, chain .catch for error handling
-    updateDoc(userRef, {
+
+    const updateData: Partial<UserProfile> & { updatedAt: FieldValue } = {
         ...data,
         updatedAt: serverTimestamp(),
-    }).catch(async (serverError) => {
+    };
+
+    // Do not await, chain .catch for error handling
+    updateDoc(userRef, updateData).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: userRef.path,
             operation: 'update',
@@ -355,7 +357,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
         createdAt: serverTimestamp(),
         members: { [createdBy]: 'owner' },
         memberCount: 1,
-        muted: {}, // Initialize muted map
+        muted: false,
     };
 
     try {
@@ -469,23 +471,49 @@ export async function deleteGroup(groupId: string) {
     const firestore = getFirestoreInstance();
     const groupRef = doc(firestore, 'groups', groupId);
 
-    // Note: Deleting subcollections from the client-side is not recommended for large collections.
-    // For a production app, a Cloud Function would be a better approach.
-    // This implementation is for demonstration purposes.
-
-    // Delete messages subcollection
     const messagesRef = collection(firestore, 'groups', groupId, 'messages');
     const messagesSnap = await getDocs(messagesRef);
     const batch = writeBatch(firestore);
     messagesSnap.forEach(doc => batch.delete(doc.ref));
     
-    // Delete typing subcollection
     const typingRef = collection(firestore, 'groups', groupId, 'typing');
     const typingSnap = await getDocs(typingRef);
     typingSnap.forEach(doc => batch.delete(doc.ref));
 
     await batch.commit();
-
-    // Finally, delete the group document itself
     await deleteDoc(groupRef);
+}
+
+// Admin: Mute/unmute a group
+export async function toggleGroupMute(groupId: string, muted: boolean) {
+    const firestore = getFirestoreInstance();
+    const groupRef = doc(firestore, 'groups', groupId);
+    return updateDoc(groupRef, { muted });
+}
+
+// Admin: Remove a member from a group
+export async function removeUserFromGroup(groupId: string, userId: string) {
+    const firestore = getFirestoreInstance();
+    const groupRef = doc(firestore, 'groups', groupId);
+    return runTransaction(firestore, async (transaction) => {
+        const groupDoc = await transaction.get(groupRef);
+        if (!groupDoc.exists()) throw new Error("Group not found");
+        
+        const data = groupDoc.data();
+        const newMembers = { ...data.members };
+        delete newMembers[userId];
+        
+        const newMemberCount = Math.max(0, (data.memberCount || 1) - 1);
+        
+        transaction.update(groupRef, { members: newMembers, memberCount: newMemberCount });
+    });
+}
+
+// Admin: Update a member's role in a group
+export async function updateUserGroupRole(groupId: string, userId: string, role: 'admin' | 'member') {
+    const firestore = getFirestoreInstance();
+    const groupRef = doc(firestore, 'groups', groupId);
+    return updateDoc(groupRef, {
+        [`members.${userId}`]: role
+    });
 }

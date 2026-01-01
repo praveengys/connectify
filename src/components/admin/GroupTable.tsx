@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Loader2, ServerCrash, Users, Trash2 } from 'lucide-react';
+import { Search, MoreHorizontal, Loader2, ServerCrash, Users, Trash2, MicOff, Volume2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { deleteGroup } from '@/lib/firebase/firestore';
+import { deleteGroup, toggleGroupMute } from '@/lib/firebase/firestore';
 import ViewGroupMembersDialog from './ViewGroupMembersDialog';
 
 
@@ -49,6 +49,7 @@ export default function GroupTable() {
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [confirmTitle, setConfirmTitle] = useState('');
   const [confirmDescription, setConfirmDescription] = useState('');
+  const [confirmButtonText, setConfirmButtonText] = useState('Confirm');
 
   useEffect(() => {
     const { firestore } = initializeFirebase();
@@ -74,15 +75,39 @@ export default function GroupTable() {
 
     return () => unsubscribe();
   }, []);
-
-  const handleDeleteAction = (group: Group) => {
-    setActionGroup(group);
-    setConfirmTitle(`Delete Group: "${group.name}"?`);
-    setConfirmDescription("This action is permanent and cannot be undone. All messages within this group will also be deleted.");
-    setConfirmAction(() => () => performDelete(group.id));
-    setConfirmOpen(true);
-  };
   
+  const handleAction = (group: Group, action: 'delete' | 'mute' | 'unmute') => {
+      setActionGroup(group);
+      let title = '', description = '', actionFn: (() => void) | null = null, buttonText = 'Confirm';
+
+      switch(action) {
+          case 'delete':
+              title = `Delete Group: "${group.name}"?`;
+              description = "This action is permanent and cannot be undone. All messages within this group will also be deleted.";
+              actionFn = () => performDelete(group.id);
+              buttonText = 'Confirm Delete';
+              break;
+          case 'mute':
+              title = `Mute Group: "${group.name}"?`;
+              description = "This will prevent all members from sending new messages until the group is unmuted. Members will not be notified.";
+              actionFn = () => performToggleMute(group.id, true);
+              buttonText = 'Mute Group';
+              break;
+          case 'unmute':
+              title = `Unmute Group: "${group.name}"?`;
+              description = "Members will be able to send messages in this group again.";
+              actionFn = () => performToggleMute(group.id, false);
+              buttonText = 'Unmute Group';
+              break;
+      }
+
+      setConfirmTitle(title);
+      setConfirmDescription(description);
+      setConfirmAction(() => actionFn);
+      setConfirmButtonText(buttonText);
+      setConfirmOpen(true);
+  }
+
   const performDelete = async (groupId: string) => {
     startTransition(async () => {
         try {
@@ -92,6 +117,17 @@ export default function GroupTable() {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
         }
     });
+  };
+  
+  const performToggleMute = async (groupId: string, muted: boolean) => {
+      startTransition(async () => {
+          try {
+              await toggleGroupMute(groupId, muted);
+              toast({ title: 'Success', description: `Group has been ${muted ? 'muted' : 'unmuted'}.`});
+          } catch(e: any) {
+              toast({ title: 'Error', description: e.message, variant: 'destructive'});
+          }
+      });
   };
 
   const handleViewMembers = (group: Group) => {
@@ -146,6 +182,7 @@ export default function GroupTable() {
               <TableRow>
                 <TableHead>Group Name</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Members</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -167,6 +204,9 @@ export default function GroupTable() {
                       {group.type}
                     </Badge>
                   </TableCell>
+                   <TableCell>
+                    {group.muted && <Badge variant="destructive">Muted</Badge>}
+                  </TableCell>
                   <TableCell>{group.memberCount}</TableCell>
                   <TableCell>{format(new Date(group.createdAt), 'PP')}</TableCell>
                   <TableCell className="text-right">
@@ -179,7 +219,17 @@ export default function GroupTable() {
                       <DropdownMenuContent>
                         <DropdownMenuItem onSelect={() => handleViewMembers(group)}>View Members</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteAction(group)}>
+                        {group.muted ? (
+                           <DropdownMenuItem onSelect={() => handleAction(group, 'unmute')}>
+                             <Volume2 className="mr-2 h-4 w-4" /> Unmute Group
+                           </DropdownMenuItem>
+                        ) : (
+                           <DropdownMenuItem onSelect={() => handleAction(group, 'mute')}>
+                             <MicOff className="mr-2 h-4 w-4" /> Mute Group
+                           </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive" onSelect={() => handleAction(group, 'delete')}>
                           <Trash2 className="mr-2 h-4 w-4" /> Delete Group
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -189,7 +239,7 @@ export default function GroupTable() {
               ))}
               {filteredGroups.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No groups found.
                   </TableCell>
                 </TableRow>
@@ -199,7 +249,6 @@ export default function GroupTable() {
         </CardContent>
       </Card>
       
-      {/* View Members Dialog */}
       {selectedGroup && (
         <ViewGroupMembersDialog 
           group={selectedGroup} 
@@ -208,7 +257,6 @@ export default function GroupTable() {
         />
       )}
 
-      {/* Confirmation Dialog */}
       <AlertDialog open={isConfirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
@@ -221,7 +269,7 @@ export default function GroupTable() {
                 if (confirmAction) confirmAction();
                 setConfirmOpen(false);
             }} className="bg-destructive hover:bg-destructive/90">
-                Confirm Delete
+                {confirmButtonText}
             </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

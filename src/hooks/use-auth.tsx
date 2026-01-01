@@ -7,61 +7,11 @@ import { onSnapshot, doc } from 'firebase/firestore';
 import { createUserProfile, getUserProfile } from '@/lib/firebase/firestore';
 import { useFirebaseUser } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
+import type { UserProfile as UserProfileType } from '@/lib/types';
 
-// This defines the rich user profile object, combining auth and firestore data.
-export interface UserProfile {
-  uid: string;
-  username: string;
-  displayName: string;
-  bio: string;
-  company: string;
-  avatarUrl: string | null;
-  interests: string[];
-  skills: string[];
-  languages: string[];
-  location: string;
-  currentlyExploring: string;
-  role: 'member' | 'moderator' | 'admin';
-  profileVisibility: 'public' | 'private';
-  emailVerified: boolean;
-  profileScore: number;
-  postCount: number;
-  commentCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-  lastActiveAt: Date;
-  // Include email from auth for convenience
-  email?: string | null;
-}
 
-export interface Forum {
-    id: string;
-    name: string;
-    description: string;
-    createdBy: string;
-    visibility: 'public' | 'private';
-    status: 'active' | 'suspended';
-    createdAt: Date;
-}
-  
-export interface Group {
-    id: string;
-    name: string;
-    type: 'public' | 'private';
-    createdBy: string;
-    createdAt: Date;
-    memberCount: number;
-    members: { [uid: string]: 'owner' | 'admin' | 'member' };
-}
-
-export interface Thread {
-    id: string;
-    title: string;
-    body: string;
-    authorId: string;
-    createdAt: Date;
-}
-
+// Re-export the type from lib/types to avoid circular dependencies
+export type UserProfile = UserProfileType;
 
 interface AuthContextType {
   user: UserProfile | null;

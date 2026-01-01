@@ -12,11 +12,14 @@ service cloud.firestore {
     }
 
     function isModerator() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator';
+      // A user is a moderator if their role field is 'moderator' or 'admin'
+      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return userRole == 'moderator' || userRole == 'admin';
     }
     
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // A user is an admin if their role field is 'admin'
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     function isModeratorOrAdmin() {
@@ -24,24 +27,26 @@ service cloud.firestore {
     }
     
     function isNotMuted(uid) {
-      // If isMuted is not present, assume not muted.
+      // If isMuted is not present or false, they are not muted.
       return get(/databases/$(database)/documents/users/$(uid)).data.isMuted != true;
     }
 
     function isNotBanned(uid) {
+      // If isBanned is not present or false, they are not banned.
       return get(/databases/$(database)/documents/users/$(uid)).data.isBanned != true;
     }
 
     function canWrite(uid) {
+      // Combines all write-related checks
       return isSignedIn() && isNotMuted(uid) && isNotBanned(uid);
     }
 
     /* Users */
     match /users/{userId} {
-      // Any signed in user can read profiles (respects client-side visibility logic)
-      allow read: if isSignedIn();
+      // Any signed in user can read profiles (client-side logic must respect visibility)
+      allow read: if isSignedIn() && isNotBanned(userId);
 
-      // Users can create their own profile, but not set their own role.
+      // Users can create their own profile, but cannot set their own role.
       allow create: if isOwner(userId)
                     && request.resource.data.uid == userId
                     && (!('role' in request.resource.data) || request.resource.data.role == 'member')
@@ -52,14 +57,15 @@ service cloud.firestore {
       allow update: if 
         (isOwner(userId) && 
             (
+                // Allow username to be set only if it doesn't exist
                 (!('username' in request.resource.data.diff(resource.data).affectedKeys())) ||
-                ('username' in request.resource.data.diff(resource.data).affectedKeys() && !exists(resource.data.username))
+                ('username' in request.resource.data.diff(resource.data).affectedKeys() && resource.data.username == null)
             ) &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'bio', 'avatarUrl', 'interests', 'skills', 'languages', 'location', 'currentlyExploring', 'company', 'profileVisibility', 'updatedAt', 'username'])
         ) || isAdmin();
 
 
-      allow delete: if false; // Disallow permanent user deletion for now to prevent orphaned content
+      allow delete: if false; // Disallow permanent user deletion to prevent orphaned content
     }
 
     /* Groups + messages */

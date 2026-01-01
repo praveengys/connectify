@@ -112,6 +112,7 @@ export type UserProfile = {
   updatedAt: Date;
   lastActiveAt: Date;
   email?: string | null;
+  company?: string;
 };
 
 export type Group = {
@@ -143,5 +144,3 @@ export type TypingIndicator = {
     updatedAt: Timestamp | Date;
     user: Pick<UserProfile, 'uid' | 'displayName'>;
 };
-
-    

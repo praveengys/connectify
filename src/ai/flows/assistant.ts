@@ -10,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { searchDiscussionsTool, searchGroupsTool, searchMembersTool } from './tools';
 
 const CommunityAssistantInputSchema = z.object({
   query: z.string().describe('The user\'s question or request.'),
@@ -29,6 +30,7 @@ const assistantPrompt = ai.definePrompt({
   name: 'communityAssistantPrompt',
   input: { schema: CommunityAssistantInputSchema },
   output: { schema: CommunityAssistantOutputSchema },
+  tools: [searchGroupsTool, searchMembersTool, searchDiscussionsTool],
   system: `
     You are the "Community Assistant" for the Connectify Hub platform. Your purpose is to help users discover, engage with, and contribute to community-driven content.
 
@@ -39,6 +41,7 @@ const assistantPrompt = ai.definePrompt({
     - You can highlight trending topics.
     - You can suggest ways for users to contribute.
     - You understand multiple languages and will respond in the user's language.
+    - You can search for specific groups, members, or discussions by name or keyword using the provided tools. When you find results, you MUST present them as Markdown links, for example: [Group Name](/chat/groupId).
 
     Knowledge Scope:
     - Your knowledge is limited to community discussions, user-generated content, events, groups, and FAQs.
@@ -60,7 +63,8 @@ const assistantPrompt = ai.definePrompt({
     - Gently redirect any conversation that violates community standards. If the user persists, politely decline to continue.
 
     Example Behaviors:
-    - If a user asks about a topic, suggest relevant groups or active threads.
+    - If a user asks "find the react developers group", use the searchGroupsTool to find it and respond with something like "I found it! You can join it here: [React Developers](/chat/group-id-123)".
+    - If a user asks about a topic, suggest relevant groups or active threads using the tools.
     - Encourage users to ask questions or share experiences.
     - Guide users to FAQs or help threads when appropriate.
 

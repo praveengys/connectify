@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -9,11 +10,29 @@ import { communityAssistant } from '@/ai/flows/assistant';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { useAuth } from '@/hooks/use-auth';
+import Link from 'next/link';
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
 }
+
+const renderContentWithLinks = (content: string) => {
+    const parts = content.split(/(\[.*?\]\(.*?\))/g);
+    return parts.map((part, index) => {
+      const match = part.match(/\[(.*?)\]\((.*?)\)/);
+      if (match) {
+        const text = match[1];
+        const href = match[2];
+        return (
+          <Link key={index} href={href} className="text-primary underline hover:text-primary/80">
+            {text}
+          </Link>
+        );
+      }
+      return part;
+    });
+};
 
 export default function CommunityAssistantWidget() {
     const { user } = useAuth();
@@ -62,7 +81,7 @@ export default function CommunityAssistantWidget() {
                                     </Avatar>
                                 )}
                                 <div className={`rounded-lg px-4 py-2 text-sm max-w-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                    <p className="whitespace-pre-wrap">{message.content}</p>
+                                    <p className="whitespace-pre-wrap">{renderContentWithLinks(message.content)}</p>
                                 </div>
                                 {message.role === 'user' && (
                                      <Avatar className="h-8 w-8">

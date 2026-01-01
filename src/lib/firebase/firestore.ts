@@ -182,6 +182,37 @@ export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' |
     });
 }
 
+// Admin: Lock/Unlock a thread
+export async function toggleThreadLock(threadId: string, isLocked: boolean) {
+    const firestore = getFirestoreInstance();
+    const threadRef = doc(firestore, 'threads', threadId);
+    return updateDoc(threadRef, { isLocked });
+}
+
+// Admin: Pin/Unpin a thread
+export async function toggleThreadPin(threadId: string, isPinned: boolean) {
+    const firestore = getFirestoreInstance();
+    const threadRef = doc(firestore, 'threads', threadId);
+    return updateDoc(threadRef, { isPinned });
+}
+
+// Admin: Delete a thread and its replies
+export async function deleteThread(threadId: string) {
+    const firestore = getFirestoreInstance();
+    const threadRef = doc(firestore, 'threads', threadId);
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+    
+    // Delete all replies in a batch
+    const repliesSnapshot = await getDocs(repliesRef);
+    const batch = writeBatch(firestore);
+    repliesSnapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+
+    // Delete the thread itself
+    return deleteDoc(threadRef);
+}
+
+
 // Create a new forum
 export async function createForum(name: string, description: string, createdBy: string) {
     const firestore = getFirestoreInstance();

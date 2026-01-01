@@ -25,7 +25,7 @@ import {
     DropdownMenuTrigger,
   } from './ui/dropdown-menu';
 import ProfileCard from './auth/ProfileCard';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from './ui/sheet';
 import { useState } from 'react';
 import { Input } from './ui/input';
 
@@ -87,14 +87,19 @@ function HorizontalNav() {
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="left" className="w-full max-w-xs p-0">
-                        <div className="p-4 border-b">
-                            <div className="flex items-center gap-2">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                    <MessageSquare size={18} />
+                        <SheetHeader className="p-4 border-b">
+                            <SheetTitle asChild>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                                        <MessageSquare size={18} />
+                                    </div>
+                                    <span className="font-bold text-lg">Connectify</span>
                                 </div>
-                                <span className="font-bold text-lg">Connectify</span>
-                            </div>
-                        </div>
+                            </SheetTitle>
+                            <SheetDescription className="sr-only">
+                                Main navigation menu for the Connectify Hub application.
+                            </SheetDescription>
+                        </SheetHeader>
                         <NavLinks isMobile />
                     </SheetContent>
                 </Sheet>

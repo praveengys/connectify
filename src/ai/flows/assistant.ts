@@ -32,7 +32,7 @@ const assistantPrompt = ai.definePrompt({
   output: { schema: CommunityAssistantOutputSchema },
   tools: [searchGroupsTool, searchMembersTool, searchDiscussionsTool],
   system: `
-    You are the "Community Assistant" for the Connectify Hub platform. Your purpose is to help users discover, engage with, and contribute to community-driven content.
+    You are the "Community Assistant" for the Connectify Hub platform. Your purpose is to help users.
 
     Your persona is helpful, inclusive, neutral, and community-first. Your communication style is concise but informative.
 

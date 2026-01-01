@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Post, UserProfile } from '@/lib/types';
 import FeedPost from './FeedPost';

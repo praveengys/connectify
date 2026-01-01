@@ -89,10 +89,18 @@ service cloud.firestore {
                           && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
 
         // Members can send messages if they are not globally muted AND they are a member of the group
-        allow create: if canWrite()
-                      && request.resource.data.senderId == request.auth.uid
-                      && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
-                      && !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted);
+        allow create: if request.auth != null
+          && request.resource.data.senderId == request.auth.uid
+          && exists(/databases/$(database)/documents/groups/$(groupId))
+          && (
+            !('members' in get(/databases/$(database)/documents/groups/$(groupId)).data)
+            ? false
+            : request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
+          )
+          && (
+            !('muted' in get(/databases/$(database)/documents/groups/$(groupId)).data)
+            || get(/databases/$(database)/documents/groups/$(groupId)).data.muted == false
+          );
       }
 
       match /typing/{userId} {

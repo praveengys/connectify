@@ -64,6 +64,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid;
                       
       allow update: if (isOwner(request.resource.data.authorId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'media', 'visibility', 'updatedAt']))
+                      || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']))
                       || isAdmin();
 
       allow delete: if isOwner(request.resource.data.authorId) || isAdmin();

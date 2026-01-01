@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -71,15 +72,19 @@ service cloud.firestore {
                     && request.resource.data.members.size() == 1
                     && request.resource.data.memberCount == 1;
 
-      allow update: if (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isAdmin() ||
-                      (
-                        canWrite() &&
-                        request.resource.data.diff(resource.data).affectedKeys()
-                          .hasOnly(['members', 'memberCount']) &&
-                        resource.data.type == 'public' &&
-                        request.resource.data.members[request.auth.uid] == 'member' &&
-                        !(request.auth.uid in resource.data.members)
-                      );
+      allow update: if 
+        // Group owner/admin can manage members and settings
+        (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isAdmin() ||
+        // A user can join a public group
+        (
+          canWrite() &&
+          resource.data.type == 'public' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberCount']) &&
+          // Ensure they are only adding themselves and not already a member
+          !(request.auth.uid in resource.data.members) &&
+          request.resource.data.members[request.auth.uid] == 'member' &&
+          request.resource.data.memberCount == resource.data.memberCount + 1
+        );
 
 
       allow delete: if isOwner(resource.data.createdBy) || isAdmin();

@@ -83,12 +83,21 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
-      const updatedData = {
-        ...values,
+      const updatedData: Partial<UserProfile> = {
+        displayName: values.displayName,
+        bio: values.bio,
+        company: values.company,
+        location: values.location,
+        currentlyExploring: values.currentlyExploring,
         interests: values.interests ? values.interests.split(',').map(s => s.trim()).filter(Boolean) : [],
         skills: values.skills ? values.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
         languages: values.languages ? values.languages.split(',').map(s => s.trim()).filter(Boolean) : [],
       };
+
+      // Only include username if admin is editing or if the user is setting it for the first time
+      if (isAdminEditing || !user.username) {
+        updatedData.username = values.username;
+      }
 
       await updateUserProfile(user.uid, updatedData);
       

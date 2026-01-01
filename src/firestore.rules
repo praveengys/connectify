@@ -49,8 +49,15 @@ service cloud.firestore {
                     && request.resource.data.isBanned == false;
       
       // Users can update their own profile (limited fields). Admins can update any field.
-      allow update: if (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'bio', 'avatarUrl', 'interests', 'skills', 'languages', 'location', 'currentlyExploring', 'company', 'profileVisibility', 'updatedAt']))
-                    || isAdmin();
+      allow update: if 
+        (isOwner(userId) && 
+            (
+                (!('username' in request.resource.data.diff(resource.data).affectedKeys())) ||
+                ('username' in request.resource.data.diff(resource.data).affectedKeys() && !exists(resource.data.username))
+            ) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'bio', 'avatarUrl', 'interests', 'skills', 'languages', 'location', 'currentlyExploring', 'company', 'profileVisibility', 'updatedAt', 'username'])
+        ) || isAdmin();
+
 
       allow delete: if false; // Disallow permanent user deletion for now to prevent orphaned content
     }

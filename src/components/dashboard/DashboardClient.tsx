@@ -6,15 +6,16 @@ import type { UserProfile, Group, Forum, Thread } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Edit, Users, Search, BookOpen } from 'lucide-react';
+import { Edit, Users, BookOpen } from 'lucide-react';
 import ProfileForm from './ProfileForm';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import Link from 'next/link';
 import Image from 'next/image';
 import { collection, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { Skeleton } from '../ui/skeleton';
 import { Progress } from '../ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import CommunityAssistantWidget from './CommunityAssistantWidget';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -44,7 +45,7 @@ const getProfileCompleteness = (profile: UserProfile): number => {
     return Math.min(score, 100);
 };
 
-const ProfileCompleteness = ({ user, completeness, onEdit }: { user: UserProfile, completeness: number, onEdit: () => void }) => (
+const ProfileCompleteness = ({ completeness, onEdit }: { completeness: number, onEdit: () => void }) => (
     <Card>
         <CardHeader className="pb-4">
             <CardTitle className="text-lg flex justify-between items-center">
@@ -64,7 +65,6 @@ const ProfileCompleteness = ({ user, completeness, onEdit }: { user: UserProfile
         </CardContent>
     </Card>
 );
-
 
 const ForumsWidget = ({ forums, loading }: { forums: Forum[], loading: boolean }) => (
     <Card>
@@ -152,36 +152,6 @@ const CommunityStats = ({ stats, loading }: { stats: Record<string, number>, loa
     </Card>
 );
 
-const RecentlyActiveMembersWidget = ({ members, loading }: { members: UserProfile[], loading: boolean }) => (
-    <Card>
-        <CardHeader>
-            <CardTitle className="text-lg">Recently Active Members</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-             {loading && Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-11 w-11 rounded-full" />)}
-            {!loading && members.map((member) => (
-                <Link href={`/members`} key={member.uid}>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Avatar className="h-11 w-11 hover:ring-2 ring-primary">
-                            <AvatarImage src={member.avatarUrl ?? `https://picsum.photos/seed/${member.uid}/50/50`} />
-                            <AvatarFallback>{member.displayName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{member.displayName}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Link>
-            ))}
-        </CardContent>
-    </Card>
-);
-
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-
 export default function DashboardClient({ user: initialUser }: DashboardClientProps) {
   const [user, setUser] = useState<UserProfile>(initialUser);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
@@ -209,8 +179,8 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
         setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Group)));
     }));
 
-    // Fetch Members
-    const membersQuery = query(collection(firestore, 'users'), orderBy('createdAt', 'desc'), limit(8));
+    // Fetch Members for count
+    const membersQuery = query(collection(firestore, 'users'), orderBy('createdAt', 'desc'));
      unsubscribes.push(onSnapshot(membersQuery, (snapshot) => {
         setMembers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile)));
     }));
@@ -263,12 +233,12 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
         <div className="lg:col-span-2 space-y-6">
+            <CommunityAssistantWidget />
             <ForumsWidget forums={forums} loading={loading} />
-            <RecentlyActiveMembersWidget members={members} loading={loading} />
         </div>
 
         <div className="space-y-6">
-             <ProfileCompleteness user={user} completeness={completeness} onEdit={() => setEditDialogOpen(true)} />
+             <ProfileCompleteness completeness={completeness} onEdit={() => setEditDialogOpen(true)} />
              <CommunityStats stats={communityStats} loading={loading} />
              <GroupsWidget groups={groups} loading={loading} />
         </div>

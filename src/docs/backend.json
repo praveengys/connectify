@@ -38,7 +38,7 @@
         "media": { "type": "array", "description": "An array of URLs for images or videos attached to the post.", "items": { "type": "string", "format": "uri" } },
         "visibility": { "type": "string", "enum": ["public", "group-only"], "description": "The visibility of the post." },
         "groupId": { "type": "string", "description": "The ID of the group if visibility is 'group-only'." },
-        "status": { "type": "string", "enum": ["active", "deleted", "reported"], "default": "active" },
+        "status": { "type": "string", "enum": ["active", "draft", "deleted", "reported"], "default": "active" },
         "likesCount": { "type": "number", "default": 0 },
         "commentsCount": { "type": "number", "default": 0 },
         "sharesCount": { "type": "number", "default": 0 },
@@ -281,5 +281,3 @@
     ]
   }
 }
-
-    

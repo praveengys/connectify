@@ -568,7 +568,7 @@ export async function updateUserGroupRole(groupId: string, userId: string, role:
 }
 
 // Create a new post in the feed
-export async function createPost(authorId: string, content: string, media?: string[]) {
+export async function createPost(authorId: string, content: string, status: 'active' | 'draft' = 'active', media?: string[]) {
     const firestore = getFirestoreInstance();
     const postsCollection = collection(firestore, 'posts');
     
@@ -577,7 +577,7 @@ export async function createPost(authorId: string, content: string, media?: stri
         content,
         media: media || [],
         visibility: 'public' as const,
-        status: 'active' as const,
+        status,
         likesCount: 0,
         commentsCount: 0,
         sharesCount: 0,
@@ -621,5 +621,3 @@ export async function toggleLikePost(postId: string, userId: string) {
         }
     });
 }
-
-    

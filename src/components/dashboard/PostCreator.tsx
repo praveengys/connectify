@@ -16,7 +16,7 @@ export default function PostCreator({ user }: { user: UserProfile }) {
   const [isPosting, setIsPosting] = useState(false);
   const { toast } = useToast();
 
-  const handlePost = async () => {
+  const handleCreatePost = async (status: 'active' | 'draft') => {
     if (!content.trim()) {
         toast({
             title: "Post is empty",
@@ -28,11 +28,13 @@ export default function PostCreator({ user }: { user: UserProfile }) {
 
     setIsPosting(true);
     try {
-        await createPost(user.uid, content);
+        await createPost(user.uid, content, status);
         setContent('');
         toast({
-            title: "Posted!",
-            description: "Your post is now live on the feed.",
+            title: status === 'active' ? "Posted!" : "Draft saved!",
+            description: status === 'active' 
+                ? "Your post is now live on the feed."
+                : "Your draft has been saved.",
         });
     } catch (error: any) {
         toast({
@@ -69,8 +71,11 @@ export default function PostCreator({ user }: { user: UserProfile }) {
                 <MapPin className="cursor-pointer hover:text-primary" />
             </div>
             <div className="flex gap-2">
-                <Button variant="outline" disabled={isPosting}>Draft</Button>
-                <Button onClick={handlePost} disabled={isPosting || !content.trim()}>
+                <Button variant="outline" onClick={() => handleCreatePost('draft')} disabled={isPosting || !content.trim()}>
+                    {isPosting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save Draft
+                </Button>
+                <Button onClick={() => handleCreatePost('active')} disabled={isPosting || !content.trim()}>
                     {isPosting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Post
                 </Button>
@@ -80,5 +85,3 @@ export default function PostCreator({ user }: { user: UserProfile }) {
     </Card>
   );
 }
-
-    

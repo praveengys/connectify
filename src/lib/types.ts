@@ -155,7 +155,7 @@ export type Post = {
     media?: string[];
     visibility: 'public' | 'group-only';
     groupId?: string;
-    status: 'active' | 'deleted' | 'reported';
+    status: 'active' | 'draft' | 'deleted' | 'reported';
     likesCount: number;
     commentsCount: number;
     sharesCount: number;
@@ -181,5 +181,3 @@ export type PostLike = {
     userId: string;
     createdAt: Date | Timestamp;
 };
-
-    

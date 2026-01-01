@@ -27,7 +27,10 @@ service cloud.firestore {
 
     /* Users */
     match /users/{userId} {
-      allow read: if (isSignedIn() && get(/databases/$(database)/documents/users/$(userId)).data.isBanned != true) || isAdmin();
+      // Let admins get any user, and signed-in users get non-banned users.
+      allow get: if (isAdmin()) || (isSignedIn() && get(/databases/$(database)/documents/users/$(userId)).data.isBanned != true);
+      // Let any signed-in user list the collection for searching.
+      allow list: if isSignedIn();
       
       // A user can create their own profile document.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;

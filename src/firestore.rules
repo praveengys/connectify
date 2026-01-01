@@ -43,7 +43,8 @@ service cloud.firestore {
 
     /* Users */
     match /users/{userId} {
-      allow read: if (isSignedIn() && get(/databases/$(database)/documents/users/$(userId)).data.isBanned != true) || isAdmin();
+      // Admins can read any user profile. Other signed-in users can only read non-banned profiles.
+      allow read: if isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(userId)).data.isBanned != true);
 
       // Users can create their own profile, but cannot set their own role.
       allow create: if isOwner(userId)

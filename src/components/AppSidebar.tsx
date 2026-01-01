@@ -10,6 +10,7 @@ import {
   User as UserIcon,
   Menu,
   Search,
+  Shield,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
@@ -29,6 +30,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 import { useState } from 'react';
 import { Input } from './ui/input';
 import FloatingAssistant from './assistant/FloatingAssistant';
+import { cn } from '@/lib/utils';
 
 function HorizontalNav() {
   const pathname = usePathname();
@@ -54,8 +56,8 @@ function HorizontalNav() {
         <Button 
           asChild 
           key={item.href} 
-          variant={pathname === item.href ? "secondary" : "ghost"}
-          className={isMobile ? "justify-start" : ""}
+          variant={pathname.startsWith(item.href) ? "secondary" : "ghost"}
+          className={cn("justify-start", isMobile ? "" : "w-full")}
           onClick={() => isMobile && setMobileMenuOpen(false)}
         >
           <Link href={item.href}>
@@ -64,6 +66,19 @@ function HorizontalNav() {
           </Link>
         </Button>
       ))}
+      {user?.role === 'admin' && (
+         <Button 
+          asChild 
+          variant={pathname.startsWith('/admin') ? "secondary" : "ghost"}
+          className={isMobile ? "justify-start" : ""}
+          onClick={() => isMobile && setMobileMenuOpen(false)}
+        >
+          <Link href="/admin">
+            <Shield className="mr-2 h-4 w-4" />
+            Admin
+          </Link>
+        </Button>
+      )}
     </nav>
   );
 
@@ -97,7 +112,7 @@ function HorizontalNav() {
                                     <span className="font-bold text-lg">Connectify</span>
                                 </div>
                             </SheetTitle>
-                            <SheetDescription className="sr-only">
+                             <SheetDescription className="sr-only">
                                 Main navigation menu for the Connectify Hub application.
                             </SheetDescription>
                         </SheetHeader>
@@ -107,14 +122,14 @@ function HorizontalNav() {
             </div>
             
             <div className="flex flex-1 items-center justify-end space-x-2">
-                 <div className="relative w-full max-w-sm">
+                <div className="hidden md:flex flex-1 items-center gap-4">
+                  <NavLinks />
+                </div>
+                <div className="relative w-full max-w-sm ml-auto">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search..." className="pl-8" />
                 </div>
-                <div className="hidden md:flex">
-                   <NavLinks />
-                </div>
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex items-center gap-2">
                     {loading ? (
                         <div className="h-10 w-24 animate-pulse rounded-md bg-muted"></div>
                     ) : user ? (
@@ -165,9 +180,10 @@ function HorizontalNav() {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const publicPages = ['/', '/login', '/signup', '/forgot-password'];
+    const isAdminPage = pathname.startsWith('/admin');
     const isPublicPage = publicPages.includes(pathname);
   
-    if (isPublicPage) {
+    if (isPublicPage || isAdminPage) {
       return <>{children}</>;
     }
   

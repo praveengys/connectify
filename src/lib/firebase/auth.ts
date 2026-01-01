@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -12,7 +13,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
-import { createUserProfile } from './firestore';
+import { createUserProfile, getUserProfile } from './firestore';
 
 const { auth } = initializeFirebase();
 
@@ -23,13 +24,16 @@ export async function signUpWithEmail(email: string, password: string, displayNa
     const user = userCredential.user;
     await updateProfile(user, { displayName });
     
-    // Create user profile in Firestore
-    await createUserProfile(user.uid, {
-        displayName,
-        email,
-        authProvider: 'password',
-        profileVisibility: 'public',
-    });
+    // Create user profile in Firestore if it doesn't exist.
+    // This is important for both new sign-ups and first-time Google sign-ins.
+    const existingProfile = await getUserProfile(user.uid);
+    if (!existingProfile) {
+        await createUserProfile(user.uid, {
+            displayName,
+            email,
+            avatarUrl: user.photoURL,
+        });
+    }
 
     return { user, error: null };
   } catch (error: any) {
@@ -54,14 +58,15 @@ export async function signInWithGoogle() {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
     
-    // On first sign-in, this will create the profile.
-    await createUserProfile(user.uid, {
-        displayName: user.displayName,
-        email: user.email,
-        avatarUrl: user.photoURL,
-        authProvider: 'google.com',
-        profileVisibility: 'public',
-    });
+    // Create user profile in Firestore if it doesn't exist.
+    const existingProfile = await getUserProfile(user.uid);
+    if (!existingProfile) {
+        await createUserProfile(user.uid, {
+            displayName: user.displayName,
+            email: user.email,
+            avatarUrl: user.photoURL,
+        });
+    }
 
     return { user, error: null };
   } catch (error: any) {

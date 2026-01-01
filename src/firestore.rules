@@ -43,7 +43,8 @@ service cloud.firestore {
     /* Users */
     match /users/{userId} {
       // Admins can read any, owners can read their own, others can read public profiles.
-      allow read: if isAdmin() || isOwner(userId) || (isSignedIn() && resource.data.profileVisibility == 'public');
+      // Crucially, this rule does NOT read its own document.
+      allow read: if isOwner(userId) || isAdmin() || (isSignedIn() && isNotBanned() && resource.data.profileVisibility == 'public');
       
       allow list: if isSignedIn();
 
@@ -81,6 +82,8 @@ service cloud.firestore {
                     && request.resource.data.members.size() == 1
                     && request.resource.data.memberCount == 1;
 
+      // Group owners, admins, or platform admins can update settings.
+      // Other users can join a public group.
       allow update: if (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isAdmin() ||
                       (
                         canWrite() &&

@@ -8,6 +8,7 @@ import { createUserProfile, getUserProfile } from '@/lib/firebase/firestore';
 import { useFirebaseUser } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 import type { UserProfile as UserProfileType } from '@/lib/types';
+import { getAuth, getIdTokenResult } from 'firebase/auth';
 
 
 // Re-export the type from lib/types to avoid circular dependencies
@@ -43,26 +44,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const profileRef = doc(firestore, 'users', firebaseUser.uid);
 
     const unsubscribe = onSnapshot(profileRef, async (docSnap) => {
+      let finalProfile: UserProfile | null = null;
       if (docSnap.exists()) {
         const profileData = docSnap.data();
-        setUserProfile({
+        finalProfile = {
           ...profileData,
           uid: docSnap.id,
           createdAt: profileData.createdAt?.toDate(),
           updatedAt: profileData.updatedAt?.toDate(),
           email: firebaseUser.email,
-        } as UserProfile);
+        } as UserProfile;
       } else {
         // First-time user, create a profile.
         console.log(`Creating profile for new user: ${firebaseUser.uid}`);
-        await createUserProfile(firebaseUser.uid, {
+        const newProfile = await createUserProfile(firebaseUser.uid, {
           displayName: firebaseUser.displayName || 'New Member',
           email: firebaseUser.email,
           emailVerified: firebaseUser.emailVerified,
           avatarUrl: firebaseUser.photoURL,
         });
         // The onSnapshot listener will automatically pick up the newly created profile.
+        // But we can set it here to speed up the UI update.
+        if (newProfile) {
+            finalProfile = newProfile;
+        }
       }
+
+      // Sync custom claims to the profile state
+      if (finalProfile) {
+          try {
+              const auth = getAuth();
+              const tokenResult = await getIdTokenResult(auth.currentUser!, true); // Force refresh
+              const claims = tokenResult.claims;
+              finalProfile.role = (claims.role as 'admin' | 'member') || 'member';
+              finalProfile.isBanned = claims.banned === true;
+              finalProfile.isMuted = claims.muted === true;
+          } catch (e) {
+              console.error("Error fetching custom claims:", e);
+          }
+      }
+
+      setUserProfile(finalProfile);
       setProfileLoading(false);
     }, (error) => {
         console.error("Error listening to user profile:", error);
@@ -80,7 +102,3 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-
-    
-
-    

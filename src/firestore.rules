@@ -42,8 +42,8 @@ service cloud.firestore {
 
     /* Users */
     match /users/{userId} {
-      // Anyone can read a public profile, admins can read any.
-      allow read: if (resource.data.profileVisibility == 'public' && isNotBanned(userId)) || isAdmin();
+      // Admins can read any, owners can read their own, others can read public profiles.
+      allow read: if isAdmin() || isOwner(userId) || (isSignedIn() && resource.data.profileVisibility == 'public');
       
       allow list: if isSignedIn();
 

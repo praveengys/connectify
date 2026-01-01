@@ -35,6 +35,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
       profileVisibility: 'public',
       ...data,
       uid: uid, 
+      isMuted: false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -99,6 +100,22 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
     });
+}
+
+// Admin function to update a user's role
+export async function updateUserRole(uid: string, role: 'admin' | 'member') {
+  if (!uid) throw new Error('UID is required.');
+  const firestore = getFirestoreInstance();
+  const userRef = doc(firestore, 'users', uid);
+  return updateDoc(userRef, { role, updatedAt: serverTimestamp() });
+}
+
+// Admin function to mute/unmute a user
+export async function toggleMuteUser(uid: string, isMuted: boolean) {
+  if (!uid) throw new Error('UID is required.');
+  const firestore = getFirestoreInstance();
+  const userRef = doc(firestore, 'users', uid);
+  return updateDoc(userRef, { isMuted: isMuted, updatedAt: serverTimestamp() });
 }
 
 // Get all public user profiles

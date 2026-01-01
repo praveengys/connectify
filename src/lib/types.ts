@@ -113,6 +113,7 @@ export type UserProfile = {
   lastActiveAt: Date;
   email?: string | null;
   company?: string;
+  isMuted?: boolean;
 };
 
 export type Group = {

@@ -12,24 +12,34 @@ service cloud.firestore {
     }
 
     function isModerator() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/roles_moderator/$(request.auth.uid));
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator';
     }
     
     function isAdmin() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     function isModeratorOrAdmin() {
       return isModerator() || isAdmin();
     }
+    
+    function isNotMuted(uid) {
+      // If isMuted is not present, assume not muted.
+      return get(/databases/$(database)/documents/users/$(uid)).data.isMuted != true;
+    }
 
     /* Users */
     match /users/{userId} {
+      // Any signed in user can read profiles (respects client-side visibility logic)
       allow read: if isSignedIn();
-      allow create: if isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if isOwner(userId) && request.resource.data.uid == resource.data.uid;
+      // Users can create their own profile, but not set their own role.
+      allow create: if isOwner(userId)
+                    && request.resource.data.uid == userId
+                    && (!('role' in request.resource.data) || request.resource.data.role == 'member')
+                    && request.resource.data.isMuted == false;
+      // Users can update their own profile, but not their role or mute status.
+      allow update: if (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'bio', 'avatarUrl', 'interests', 'skills', 'languages', 'location', 'currentlyExploring', 'company', 'profileVisibility', 'updatedAt', 'uid']))
+                    || (isAdmin() && request.resource.data.uid == resource.data.uid);
       allow delete: if false;
     }
 
@@ -40,15 +50,16 @@ service cloud.firestore {
                     || (isSignedIn() && request.auth.uid in resource.data.members);
       allow list: if isSignedIn();
 
-      // Users can create a group, becoming the owner.
+      // Users can create a group, becoming the owner. Must not be muted.
       allow create: if isSignedIn()
+                    && isNotMuted(request.auth.uid)
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.members[request.auth.uid] == 'owner'
                     && request.resource.data.members.size() == 1
                     && request.resource.data.memberCount == 1;
 
-      // Only owner or moderator/admin can update group settings, OR a user can add themselves to a public group.
-      allow update: if (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isModeratorOrAdmin() ||
+      // Admins or group owners can update settings. Public group members can join.
+      allow update: if (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isAdmin() ||
                       (
                         request.resource.data.diff(resource.data).affectedKeys()
                           .hasOnly(['members', 'memberCount']) &&
@@ -65,8 +76,9 @@ service cloud.firestore {
         allow read, list: if isSignedIn()
                           && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
 
-        // Members can send messages if they are not muted.
+        // Members can send messages if they are not muted (globally or in the group).
         allow create: if isSignedIn()
+                      && isNotMuted(request.auth.uid)
                       && request.resource.data.senderId == request.auth.uid
                       && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
                       && (
@@ -89,6 +101,7 @@ service cloud.firestore {
       allow get, list: if isSignedIn();
 
       allow create: if isSignedIn()
+                    && isNotMuted(request.auth.uid)
                     && request.resource.data.createdBy == request.auth.uid;
 
       allow update, delete: if isOwner(resource.data.createdBy) || isModeratorOrAdmin();
@@ -99,6 +112,7 @@ service cloud.firestore {
       allow get, list: if isSignedIn();
 
       allow create: if isSignedIn()
+                    && isNotMuted(request.auth.uid)
                     && request.resource.data.authorId == request.auth.uid;
 
       allow update, delete: if isOwner(resource.data.authorId) || isModeratorOrAdmin();
@@ -107,12 +121,14 @@ service cloud.firestore {
         allow read, list: if isSignedIn();
 
         allow create: if isSignedIn()
+                      && isNotMuted(request.auth.uid)
                       && request.resource.data.authorId == request.auth.uid;
       }
        match /chatMessages/{messageId} {
         allow read, list: if isSignedIn();
 
         allow create: if isSignedIn()
+                      && isNotMuted(request.auth.uid)
                       && request.resource.data.senderId == request.auth.uid;
       }
     }

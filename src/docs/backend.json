@@ -1,0 +1,228 @@
+
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile in the Connectify Hub community platform.",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique identifier for the user, matching their Firebase Auth UID." },
+        "username": { "type": "string", "description": "A unique, immutable community handle for the user." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "bio": { "type": "string", "description": "A short, personal biography for the user." },
+        "company": { "type": "string", "description": "The company the user works for." },
+        "avatarUrl": { "type": "string", "format": "uri", "description": "URL of the user's profile photo or avatar." },
+        "interests": { "type": "array", "description": "A list of the user's interests or topics.", "items": { "type": "string" } },
+        "skills": { "type": "array", "description": "A list of the user's skills.", "items": { "type": "string" } },
+        "languages": { "type": "array", "description": "A list of languages the user speaks.", "items": { "type": "string" } },
+        "location": { "type": "string", "description": "The user's city or country." },
+        "currentlyExploring": { "type": "string", "description": "A short free-text field about what the user is currently learning or exploring." },
+        "role": { "type": "string", "description": "The user's role in the community.", "enum": ["member", "admin"] },
+        "profileVisibility": { "type": "string", "description": "The visibility setting of the user's profile.", "enum": ["public", "private"] },
+        "emailVerified": { "type": "boolean", "description": "Indicates if the user has verified their email address." },
+        "isMuted": { "type": "boolean", "description": "If true, the user is globally muted and cannot create content." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user profile was created." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user profile was last updated." }
+      },
+      "required": ["uid", "displayName", "role", "profileVisibility", "emailVerified", "createdAt", "updatedAt"]
+    },
+    "Forum": {
+      "title": "Forum",
+      "type": "object",
+      "description": "A user-created container for discussion threads.",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdBy": { "type": "string", "description": "UID of the user who created the forum." },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "description", "createdBy", "visibility", "status", "createdAt"]
+    },
+    "Thread": {
+      "title": "Thread",
+      "type": "object",
+      "description": "Represents a single discussion topic within a category.",
+      "properties": {
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "intent": { "type": "string", "enum": ["question", "discussion", "announcement", "feedback", "help"] },
+        "authorId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "forumId": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["published", "hidden", "deleted"] },
+        "isLocked": { "type": "boolean" },
+        "isPinned": { "type": "boolean" },
+        "replyCount": { "type": "number" },
+        "latestReplyAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "moderatorNotes": { "type": "string", "description": "Internal notes for moderators." }
+      },
+      "required": ["title", "body", "intent", "authorId", "categoryId", "forumId", "status", "isLocked", "isPinned", "createdAt", "updatedAt"]
+    },
+    "Reply": {
+      "title": "Reply",
+      "type": "object",
+      "description": "A single-level reply to a thread.",
+      "properties": {
+        "threadId": { "type": "string" },
+        "body": { "type": "string" },
+        "authorId": { "type": "string" },
+        "replyToAuthorId": { "type": "string", "description": "The UID of the user this reply is directed at, for conversational context." },
+        "status": { "type": "string", "enum": ["published", "hidden", "deleted"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "moderatorNotes": { "type": "string", "description": "Internal notes for moderators." }
+      },
+      "required": ["threadId", "body", "authorId", "status", "createdAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "type": "object",
+      "description": "A topic to group threads.",
+      "properties": {
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "threadCount": { "type": "number" }
+      },
+      "required": ["name", "slug", "description"]
+    },
+    "Tag": {
+      "title": "Tag",
+      "type": "object",
+      "description": "A metadata tag for discoverability.",
+      "properties": {
+        "name": { "type": "string" },
+        "threadCount": { "type": "number" }
+      },
+      "required": ["name"]
+    },
+    "Report": {
+      "title": "Report",
+      "type": "object",
+      "description": "A user-submitted report against a piece of content.",
+      "properties": {
+        "reporterId": { "type": "string" },
+        "contentType": { "type": "string", "enum": ["thread", "reply"] },
+        "contentId": { "type": "string" },
+        "threadId": { "type": "string" },
+        "reason": { "type": "string", "enum": ["spam", "harassment", "inappropriate_content", "other"] },
+        "comment": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "in_review", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "contentType", "contentId", "reason", "status", "createdAt"]
+    },
+    "Group": {
+      "title": "Group",
+      "type": "object",
+      "description": "A real-time chat group. Members are stored in a map on the document.",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["public", "private"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "memberCount": { "type": "number" },
+        "members": {
+          "type": "object",
+          "description": "A map of user UIDs to their roles ('owner', 'admin', 'member').",
+          "additionalProperties": { "type": "string", "enum": ["owner", "admin", "member"] }
+        },
+         "muted": {
+          "type": "object",
+          "description": "A map of user UIDs to their mute expiration timestamps.",
+          "additionalProperties": { "type": "string", "format": "date-time" }
+        }
+      },
+      "required": ["name", "type", "createdBy", "createdAt", "memberCount", "members"]
+    },
+    "Message": {
+      "title": "Message",
+      "type": "object",
+      "description": "A single message within a chat group.",
+      "properties": {
+        "senderId": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "image"] },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "reactions": { "type": "object" },
+        "status": { "type": "string", "enum": ["visible", "deleted"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "type", "status", "createdAt"]
+    },
+    "TypingIndicator": {
+      "title": "Typing Indicator",
+      "type": "object",
+      "description": "Indicates that a user is currently typing in a group.",
+      "properties": {
+        "isTyping": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["isTyping", "updatedAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous",
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": { "entityName": "User", "schema": { "$ref": "#/entities/User" } }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": { "description": "Stores admin roles. Existence of document dictates admin role." }
+      },
+      {
+        "path": "/forums/{forumId}",
+        "definition": { "entityName": "Forum", "schema": { "$ref": "#/entities/Forum" } }
+      },
+      {
+        "path": "/threads/{threadId}",
+        "definition": { "entityName": "Thread", "schema": { "$ref": "#/entities/Thread" } }
+      },
+      {
+        "path": "/threads/{threadId}/replies/{replyId}",
+        "definition": { "entityName": "Reply", "schema": { "$ref": "#/entities/Reply" } }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": { "entityName": "Category", "schema": { "$ref": "#/entities/Category" } }
+      },
+      {
+        "path": "/tags/{tagId}",
+        "definition": { "entityName": "Tag", "schema": { "$ref": "#/entities/Tag" } }
+      },
+      {
+        "path": "/reports/{reportId}",
+        "definition": { "entityName": "Report", "schema": { "$ref": "#/entities/Report" } }
+      },
+      {
+        "path": "/moderation_queue/{queueItemId}",
+        "definition": { "description": "Denormalized collection for efficient moderation queue retrieval." }
+      },
+      {
+        "path": "/groups/{groupId}",
+        "definition": { "entityName": "Group", "schema": { "$ref": "#/entities/Group" } }
+      },
+      {
+        "path": "/groups/{groupId}/messages/{messageId}",
+        "definition": { "entityName": "Message", "schema": { "$ref": "#/entities/Message" } }
+      },
+      {
+        "path": "/groups/{groupId}/typing/{userId}",
+        "definition": { "entityName": "TypingIndicator", "schema": { "$ref": "#/entities/TypingIndicator" } }
+      }
+    ]
+  }
+}

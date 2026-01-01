@@ -15,7 +15,6 @@ import { initializeFirebase } from '@/firebase';
 import { Skeleton } from '../ui/skeleton';
 import { Progress } from '../ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import CommunityAssistantWidget from './CommunityAssistantWidget';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -233,7 +232,6 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
         <div className="lg:col-span-2 space-y-6">
-            <CommunityAssistantWidget />
             <ForumsWidget forums={forums} loading={loading} />
         </div>
 

@@ -28,6 +28,7 @@ import ProfileCard from './auth/ProfileCard';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from './ui/sheet';
 import { useState } from 'react';
 import { Input } from './ui/input';
+import FloatingAssistant from './assistant/FloatingAssistant';
 
 function HorizontalNav() {
   const pathname = usePathname();
@@ -174,6 +175,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="relative flex min-h-screen flex-col">
             <HorizontalNav />
             <div className="flex-1">{children}</div>
+            <FloatingAssistant />
         </div>
     );
   }

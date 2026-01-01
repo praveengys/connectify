@@ -5,6 +5,9 @@ import { ai } from '@/ai/genkit';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { z } from 'zod';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import type { SecurityRuleContext } from '@/firebase/errors';
 
 const SearchInputSchema = z.object({
   query: z.string().describe('The search query provided by the user.'),
@@ -36,15 +39,26 @@ export const searchGroupsTool = ai.defineTool(
       limit(5)
     );
 
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      return [];
+    try {
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        return [];
+      }
+      return snapshot.docs.map(doc => ({
+        name: doc.data().name,
+        path: `/chat/${doc.id}`,
+      }));
+    } catch (serverError: any) {
+        console.error("Error in searchGroupsTool", serverError.message);
+        const permissionError = new FirestorePermissionError({
+            path: groupsRef.path,
+            operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        // Return empty or throw, depending on how you want the AI to handle it.
+        // For now, returning empty is safer for the user experience.
+        return [];
     }
-
-    return snapshot.docs.map(doc => ({
-      name: doc.data().name,
-      path: `/chat/${doc.id}`,
-    }));
   }
 );
 
@@ -67,15 +81,24 @@ export const searchMembersTool = ai.defineTool(
       limit(5)
     );
 
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
+    try {
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        return [];
+      }
+      return snapshot.docs.map(doc => ({
+        name: doc.data().displayName,
+        path: `/members`, // No individual member page yet, so link to the main list
+      }));
+    } catch (serverError: any) {
+      console.error("Error in searchMembersTool", serverError.message);
+      const permissionError = new FirestorePermissionError({
+          path: usersRef.path,
+          operation: 'list',
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
       return [];
     }
-
-    return snapshot.docs.map(doc => ({
-      name: doc.data().displayName,
-      path: `/members`, // No individual member page yet, so link to the main list
-    }));
   }
 );
 
@@ -99,14 +122,23 @@ export const searchDiscussionsTool = ai.defineTool(
       limit(5)
     );
     
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      return [];
+    try {
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        return [];
+      }
+      return snapshot.docs.map(doc => ({
+        name: doc.data().title,
+        path: `/forum/threads/${doc.id}`,
+      }));
+    } catch (serverError: any) {
+        console.error("Error in searchDiscussionsTool", serverError.message);
+        const permissionError = new FirestorePermissionError({
+            path: threadsRef.path,
+            operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        return [];
     }
-
-    return snapshot.docs.map(doc => ({
-      name: doc.data().title,
-      path: `/forum/threads/${doc.id}`,
-    }));
   }
 );

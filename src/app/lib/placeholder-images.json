@@ -1,0 +1,35 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "blog-1",
+      "description": "Woman in a pink dress in a garden.",
+      "imageUrl": "https://picsum.photos/seed/blog1/200/150",
+      "imageHint": "woman garden"
+    },
+    {
+      "id": "blog-2",
+      "description": "Laptop on a desk with papers.",
+      "imageUrl": "https://picsum.photos/seed/blog2/200/150",
+      "imageHint": "laptop desk"
+    },
+    {
+      "id": "blog-3",
+      "description": "Plate of healthy food.",
+      "imageUrl": "https://picsum.photos/seed/blog3/200/150",
+      "imageHint": "healthy food"
+    },
+    {
+      "id": "blog-4",
+      "description": "Canal in Amsterdam.",
+      "imageUrl": "https://picsum.photos/seed/blog4/200/150",
+      "imageHint": "amsterdam canal"
+    },
+    {
+      "id": "blog-5",
+      "description": "Modern art gallery interior.",
+      "imageUrl": "https://picsum.photos/seed/blog5/200/150",
+      "imageHint": "art gallery"
+    }
+  ]
+}

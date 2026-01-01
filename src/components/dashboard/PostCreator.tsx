@@ -3,20 +3,20 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import type { UserProfile } from "@/hooks/use-auth";
 import { Image, MapPin, Video, Mic, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { createPost } from "@/lib/firebase/firestore";
+import { Card, CardContent } from "../ui/card";
 
 export default function PostCreator({ user }: { user: UserProfile }) {
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const { toast } = useToast();
 
-  const handleCreatePost = async (status: 'active' | 'draft') => {
+  const handleCreatePost = async () => {
     if (!content.trim()) {
         toast({
             title: "Post is empty",
@@ -28,13 +28,11 @@ export default function PostCreator({ user }: { user: UserProfile }) {
 
     setIsPosting(true);
     try {
-        await createPost(user.uid, content, status);
+        await createPost(user.uid, content, 'active');
         setContent('');
         toast({
-            title: status === 'active' ? "Posted!" : "Draft saved!",
-            description: status === 'active' 
-                ? "Your post is now live on the feed."
-                : "Your draft has been saved.",
+            title: "Posted!",
+            description: "Your post is now live on the feed.",
         });
     } catch (error: any) {
         toast({
@@ -56,26 +54,22 @@ export default function PostCreator({ user }: { user: UserProfile }) {
             <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
           </Avatar>
           <Textarea 
-            placeholder="What's on your mind?" 
-            className="flex-grow border-none focus-visible:ring-0" 
+            placeholder={`Share what's on your mind, ${user.displayName.split(' ')[0]}...`}
+            className="flex-grow border-none focus-visible:ring-0 bg-transparent p-0" 
             value={content}
             onChange={(e) => setContent(e.target.value)}
             disabled={isPosting}
           />
         </div>
-        <div className="flex justify-between items-center mt-4">
-            <div className="flex gap-4 text-muted-foreground">
-                <Image className="cursor-pointer hover:text-primary" />
-                <Video className="cursor-pointer hover:text-primary" />
-                <Mic className="cursor-pointer hover:text-primary" />
-                <MapPin className="cursor-pointer hover:text-primary" />
+        <div className="flex justify-between items-center mt-4 pt-4 border-t">
+            <div className="flex gap-2 text-muted-foreground">
+                <Button variant="ghost" size="icon"><Image /></Button>
+                <Button variant="ghost" size="icon"><Video /></Button>
+                <Button variant="ghost" size="icon"><Mic /></Button>
+                <Button variant="ghost" size="icon"><MapPin /></Button>
             </div>
             <div className="flex gap-2">
-                <Button variant="outline" onClick={() => handleCreatePost('draft')} disabled={isPosting || !content.trim()}>
-                    {isPosting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save Draft
-                </Button>
-                <Button onClick={() => handleCreatePost('active')} disabled={isPosting || !content.trim()}>
+                <Button onClick={handleCreatePost} disabled={isPosting || !content.trim()}>
                     {isPosting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Post
                 </Button>

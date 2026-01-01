@@ -2,31 +2,43 @@
 'use client';
 
 import type { UserProfile } from '@/hooks/use-auth';
-import Stories from './Stories';
 import PostCreator from './PostCreator';
-import { Card, CardContent } from '../ui/card';
 import Feed from './Feed';
+import LeftSidebar from './LeftSidebar';
+import RightSidebar from './RightSidebar';
+import { Card, CardContent } from '../ui/card';
 
 type DashboardClientProps = {
   user: UserProfile;
 };
 
 export default function DashboardClient({ user }: DashboardClientProps) {
-
   return (
-    <div className="space-y-8">
-       <Card>
+    <div className="container mx-auto py-8">
+       <Card className="mb-8">
         <CardContent className="p-6">
-            <h2 className="text-2xl font-semibold">Welcome back, {user.displayName.split(' ')[0]}!</h2>
-            <p className="text-muted-foreground">Here's what's happening in your community today.</p>
+            <h2 className="text-2xl font-semibold">You're using the BuddyBoss Online Community Demo</h2>
+            <p className="text-muted-foreground">Launch your community today with BuddyBoss; get it now!</p>
         </CardContent>
       </Card>
-      
-      <Stories />
-      <PostCreator user={user} />
-      <Feed user={user} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <aside className="hidden lg:block lg:col-span-3">
+          <LeftSidebar />
+        </aside>
+        
+        <div className="lg:col-span-6">
+           <h2 className="text-2xl font-bold mb-4">Activity Feed</h2>
+          <PostCreator user={user} />
+          <div className="mt-8">
+            <Feed user={user} />
+          </div>
+        </div>
+
+        <aside className="hidden lg:block lg:col-span-3">
+          <RightSidebar user={user} />
+        </aside>
+      </div>
     </div>
   );
 }
-
-    

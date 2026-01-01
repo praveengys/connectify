@@ -106,15 +106,15 @@ function HorizontalNav() {
                 </Sheet>
             </div>
             
-            <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+            <div className="flex flex-1 items-center justify-between space-x-2 md:justify-start">
+                 <div className="relative w-full max-w-sm ml-auto">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search..." className="pl-8" />
+                </div>
                 <div className="w-full flex-1 md:w-auto md:flex-none">
                    <NavLinks />
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="relative w-full max-w-sm ml-auto">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Search..." className="pl-8" />
-                    </div>
+                <div className="flex items-center gap-2 ml-auto">
                     {loading ? (
                         <div className="h-10 w-24 animate-pulse rounded-md bg-muted"></div>
                     ) : user ? (

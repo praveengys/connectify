@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
@@ -33,6 +32,7 @@ import {
 import { deleteThread, getUserProfile, toggleThreadLock, toggleThreadPin } from '@/lib/firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import Link from 'next/link';
+import ViewThreadDialog from './ViewThreadDialog';
 
 export default function DiscussionTable() {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -48,6 +48,7 @@ export default function DiscussionTable() {
   const [confirmAction, setConfirmAction] = useState<{ fn: () => void; text: string } | null>(null);
   const [confirmTitle, setConfirmTitle] = useState('');
   const [confirmDescription, setConfirmDescription] = useState('');
+  const [viewingThread, setViewingThread] = useState<Thread | null>(null);
 
   useEffect(() => {
     const { firestore } = initializeFirebase();
@@ -197,7 +198,7 @@ export default function DiscussionTable() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem asChild><Link href={`/forum/threads/${thread.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" /> View Thread</Link></DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setViewingThread(thread)}><Eye className="mr-2 h-4 w-4" /> View Thread</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {thread.isLocked 
                             ? <DropdownMenuItem onSelect={() => handleAction(thread, 'unlock')}><Unlock className="mr-2 h-4 w-4" /> Unlock</DropdownMenuItem>
@@ -222,6 +223,14 @@ export default function DiscussionTable() {
         </CardContent>
       </Card>
       
+      {viewingThread && (
+        <ViewThreadDialog 
+            threadId={viewingThread.id} 
+            isOpen={!!viewingThread} 
+            setIsOpen={(isOpen) => !isOpen && setViewingThread(null)}
+        />
+      )}
+
       <AlertDialog open={isConfirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>

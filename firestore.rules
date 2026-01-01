@@ -14,31 +14,26 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && request.auth.token.role == 'admin';
     }
-
-    function isModerator() {
-      return isSignedIn() && (request.auth.token.role == 'admin' || request.auth.token.role == 'moderator');
-    }
     
     function isModeratorOrAdmin() {
-        return isModerator() || isAdmin();
+        return request.auth.token.role == 'admin' || request.auth.token.role == 'moderator';
     }
-
-    function isNotMuted() {
-      return request.auth.token.isMuted != true;
-    }
-
-    function isNotBanned() {
-      return request.auth.token.isBanned != true;
-    }
-
+    
     function canWrite() {
-      return isSignedIn() && isNotMuted() && isNotBanned();
+      return request.auth != null
+        && (
+          !('isMuted' in request.auth.token)
+          || request.auth.token.isMuted == false
+        )
+        && (
+          !('isBanned' in request.auth.token)
+          || request.auth.token.isBanned == false
+        );
     }
 
     /* Users */
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin() || (isSignedIn() && resource.data.profileVisibility == 'public');
-      
+      allow read: if isOwner(userId) || isAdmin() || resource.data.profileVisibility == 'public';
       allow list: if isSignedIn();
 
       allow create: if isOwner(userId)

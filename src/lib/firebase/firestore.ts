@@ -462,3 +462,30 @@ export async function createChatMessage(threadId: string, messageData: { senderI
         throw serverError;
     });
 }
+
+
+// Delete a group and all its subcollections (messages, typing indicators)
+export async function deleteGroup(groupId: string) {
+    const firestore = getFirestoreInstance();
+    const groupRef = doc(firestore, 'groups', groupId);
+
+    // Note: Deleting subcollections from the client-side is not recommended for large collections.
+    // For a production app, a Cloud Function would be a better approach.
+    // This implementation is for demonstration purposes.
+
+    // Delete messages subcollection
+    const messagesRef = collection(firestore, 'groups', groupId, 'messages');
+    const messagesSnap = await getDocs(messagesRef);
+    const batch = writeBatch(firestore);
+    messagesSnap.forEach(doc => batch.delete(doc.ref));
+    
+    // Delete typing subcollection
+    const typingRef = collection(firestore, 'groups', groupId, 'typing');
+    const typingSnap = await getDocs(typingRef);
+    typingSnap.forEach(doc => batch.delete(doc.ref));
+
+    await batch.commit();
+
+    // Finally, delete the group document itself
+    await deleteDoc(groupRef);
+}

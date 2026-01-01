@@ -18,7 +18,7 @@ service cloud.firestore {
     
     function isAdmin() {
       return isSignedIn() &&
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     function isModeratorOrAdmin() {
@@ -27,9 +27,15 @@ service cloud.firestore {
 
     /* Users */
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if (isSignedIn() && get(/databases/$(database)/documents/users/$(userId)).data.isBanned != true) || isAdmin();
+      
+      // A user can create their own profile document.
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if isOwner(userId) && request.resource.data.uid == resource.data.uid;
+      
+      // An owner can update their own profile, but cannot change their role.
+      // An admin can update any field on any user profile.
+      allow update: if (isOwner(userId) && !('role' in request.resource.data.diff(resource.data).affectedKeys())) || isAdmin();
+
       allow delete: if false;
     }
 

@@ -39,8 +39,8 @@ service cloud.firestore {
       allow create: if isOwner(userId)
                     && request.resource.data.uid == userId
                     && request.resource.data.role == 'member'
-                    && request.resource.data.isMuted == false
-                    && request.resource.data.isBanned == false;
+                    && !('isMuted' in request.resource.data)
+                    && !('isBanned' in request.resource.data);
       
       allow update: if 
         (isOwner(userId) && 
@@ -70,7 +70,7 @@ service cloud.firestore {
       
       match /likes/{userId} {
         allow read: if isSignedIn();
-        allow create, delete: if canWrite() && isOwner(userId);
+        allow create, delete: if canWrite() && request.auth.uid == userId;
       }
       
       match /comments/{commentId} {
@@ -125,7 +125,7 @@ service cloud.firestore {
           )
           && (
             !('muted' in get(/databases/$(database)/documents/groups/$(groupId)).data)
-            || get(/databases/$(database)/documents/groups/$(groupId)).data.muted == false
+            || !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted)
           );
       }
 
@@ -185,5 +185,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

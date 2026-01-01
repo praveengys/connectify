@@ -22,6 +22,7 @@
         "profileVisibility": { "type": "string", "description": "The visibility setting of the user's profile.", "enum": ["public", "private"] },
         "emailVerified": { "type": "boolean", "description": "Indicates if the user has verified their email address." },
         "isMuted": { "type": "boolean", "description": "If true, the user is globally muted and cannot create content." },
+        "isBanned": { "type": "boolean", "description": "If true, the user is banned and cannot create content or be seen." },
         "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user profile was created." },
         "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the user profile was last updated." }
       },

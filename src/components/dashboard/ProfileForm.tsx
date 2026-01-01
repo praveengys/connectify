@@ -16,6 +16,7 @@ import { updateUserProfile } from '@/lib/firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadPhoto } from '@/lib/actions';
 import { Card, CardContent } from '../ui/card';
+import { useAuth } from '@/hooks/use-auth';
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
@@ -36,11 +37,15 @@ type ProfileFormProps = {
 };
 
 export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileFormProps) {
+  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(user.avatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  
+  const isAdminEditing = currentUser?.role === 'admin' && currentUser.uid !== user.uid;
+
 
   useEffect(() => {
     setPreviewUrl(user.avatarUrl);
@@ -60,6 +65,20 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       languages: user.languages?.join(', ') ?? '',
     },
   });
+
+  useEffect(() => {
+    form.reset({
+      displayName: user.displayName ?? '',
+      username: user.username ?? '',
+      bio: user.bio ?? '',
+      company: user.company ?? '',
+      interests: user.interests?.join(', ') ?? '',
+      skills: user.skills?.join(', ') ?? '',
+      location: user.location ?? '',
+      currentlyExploring: user.currentlyExploring ?? '',
+      languages: user.languages?.join(', ') ?? '',
+    });
+  }, [user, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
@@ -214,9 +233,9 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 name="username"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Nickname</FormLabel>
+                    <FormLabel>Username</FormLabel>
                     <FormControl>
-                    <Input placeholder="your_unique_handle" {...field} disabled={!!user.username} />
+                    <Input placeholder="your_unique_handle" {...field} disabled={!isAdminEditing && !!user.username} />
                     </FormControl>
                     <FormMessage />
                 </FormItem>

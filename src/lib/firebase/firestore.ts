@@ -36,6 +36,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
       ...data,
       uid: uid, 
       isMuted: false,
+      isBanned: false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -90,7 +91,6 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
     // Do not await, chain .catch for error handling
     updateDoc(userRef, {
         ...data,
-        uid: uid, // Ensure UID is present for security rules
         updatedAt: serverTimestamp(),
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -117,6 +117,15 @@ export async function toggleMuteUser(uid: string, isMuted: boolean) {
   const userRef = doc(firestore, 'users', uid);
   return updateDoc(userRef, { isMuted: isMuted, updatedAt: serverTimestamp() });
 }
+
+// Admin function to ban/unban a user
+export async function toggleBanUser(uid: string, isBanned: boolean) {
+  if (!uid) throw new Error('UID is required.');
+  const firestore = getFirestoreInstance();
+  const userRef = doc(firestore, 'users', uid);
+  return updateDoc(userRef, { isBanned: isBanned, updatedAt: serverTimestamp() });
+}
+
 
 // Get all public user profiles
 export async function getPublicProfiles(limitCount = 20): Promise<UserProfile[]> {

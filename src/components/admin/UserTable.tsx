@@ -19,10 +19,10 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Loader2, ServerCrash, MicOff, UserCheck, UserX, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Search, MoreHorizontal, Loader2, ServerCrash, MicOff, UserCheck, UserX, ShieldCheck, ShieldOff, Edit, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { toggleMuteUser, updateUserRole } from '@/lib/firebase/firestore';
+import { toggleBanUser, toggleMuteUser, updateUserProfile, updateUserRole } from '@/lib/firebase/firestore';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import ViewUserProfileDialog from './ViewUserProfileDialog';
 import { useAuth } from '@/hooks/use-auth';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import ProfileForm from '../dashboard/ProfileForm';
 
 export default function UserTable() {
   const { user: adminUser } = useAuth();
@@ -47,6 +49,7 @@ export default function UserTable() {
 
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isViewProfileOpen, setViewProfileOpen] = useState(false);
+  const [isEditProfileOpen, setEditProfileOpen] = useState(false);
   const [actionUser, setActionUser] = useState<UserProfile | null>(null);
   const [isConfirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
@@ -79,7 +82,7 @@ export default function UserTable() {
     return () => unsubscribe();
   }, []);
 
-  const handleAction = (user: UserProfile, action: 'mute' | 'unmute' | 'makeAdmin' | 'removeAdmin') => {
+  const handleAction = (user: UserProfile, action: 'mute' | 'unmute' | 'makeAdmin' | 'removeAdmin' | 'ban' | 'unban') => {
     setActionUser(user);
     let title = '';
     let description = '';
@@ -106,6 +109,16 @@ export default function UserTable() {
             description = "This will revoke their administrative privileges.";
             actionFn = () => performAction(user.uid, updateUserRole(user.uid, 'member'), 'User role updated to member');
             break;
+        case 'ban':
+            title = `Ban ${user.displayName}?`;
+            description = "This user will be BANNED and will not be able to log in or create content. This action is reversible.";
+            actionFn = () => performAction(user.uid, toggleBanUser(user.uid, true), 'User banned successfully');
+            break;
+        case 'unban':
+            title = `Unban ${user.displayName}?`;
+            description = "This will lift the ban, allowing the user to log in and participate again.";
+            actionFn = () => performAction(user.uid, toggleBanUser(user.uid, false), 'User unbanned successfully');
+            break;
     }
     
     setConfirmTitle(title);
@@ -123,6 +136,11 @@ export default function UserTable() {
               toast({ title: 'Error', description: error.message, variant: 'destructive' });
           }
       });
+  };
+
+  const handleProfileUpdate = (updatedUser: UserProfile) => {
+    setUsers(prevUsers => prevUsers.map(u => u.uid === updatedUser.uid ? updatedUser : u));
+    setEditProfileOpen(false);
   };
 
   const filteredUsers = useMemo(() => {
@@ -202,7 +220,10 @@ export default function UserTable() {
                     </Badge>
                   </TableCell>
                    <TableCell>
-                    {user.isMuted && <Badge variant="destructive" className="capitalize"><MicOff className="mr-1 h-3 w-3"/> Muted</Badge>}
+                    <div className="flex flex-col gap-1">
+                        {user.isMuted && <Badge variant="destructive" className="capitalize w-fit"><MicOff className="mr-1 h-3 w-3"/> Muted</Badge>}
+                        {user.isBanned && <Badge variant="destructive" className="capitalize w-fit"><ShieldAlert className="mr-1 h-3 w-3"/> Banned</Badge>}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {user.createdAt ? format(user.createdAt, 'PP') : 'N/A'}
@@ -217,6 +238,9 @@ export default function UserTable() {
                       <DropdownMenuContent>
                         <DropdownMenuItem onSelect={() => { setSelectedUser(user); setViewProfileOpen(true); }}>
                             <UserCheck className="mr-2 h-4 w-4" /> View Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => { setSelectedUser(user); setEditProfileOpen(true); }}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit Profile
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {user.role !== 'admin' ? (
@@ -238,9 +262,15 @@ export default function UserTable() {
                             </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" disabled>
-                            <UserX className="mr-2 h-4 w-4" /> Ban User
-                        </DropdownMenuItem>
+                        {user.isBanned ? (
+                           <DropdownMenuItem className="text-green-600" onSelect={() => handleAction(user, 'unban')}>
+                                <UserCheck className="mr-2 h-4 w-4" /> Unban User
+                            </DropdownMenuItem>
+                        ) : (
+                            <DropdownMenuItem className="text-destructive" onSelect={() => handleAction(user, 'ban')}>
+                                <UserX className="mr-2 h-4 w-4" /> Ban User
+                            </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -265,6 +295,18 @@ export default function UserTable() {
             isOpen={isViewProfileOpen} 
             setIsOpen={setViewProfileOpen}
         />
+      )}
+
+      {/* Edit Profile Dialog */}
+      {selectedUser && (
+        <Dialog open={isEditProfileOpen} onOpenChange={setEditProfileOpen}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Edit Profile for {selectedUser.displayName}</DialogTitle>
+                </DialogHeader>
+                <ProfileForm user={selectedUser} onUpdate={handleProfileUpdate} closeDialog={() => setEditProfileOpen(false)} />
+            </DialogContent>
+        </Dialog>
       )}
 
       {/* Confirmation Dialog */}

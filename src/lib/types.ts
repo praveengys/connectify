@@ -114,6 +114,7 @@ export type UserProfile = {
   email?: string | null;
   company?: string;
   isMuted?: boolean;
+  isBanned?: boolean;
 };
 
 export type Group = {

@@ -106,12 +106,12 @@ function HorizontalNav() {
                 </Sheet>
             </div>
             
-            <div className="flex flex-1 items-center justify-between space-x-2 md:justify-start">
-                 <div className="relative w-full max-w-sm ml-auto">
+            <div className="flex flex-1 items-center justify-end space-x-2">
+                 <div className="relative w-full max-w-sm">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search..." className="pl-8" />
                 </div>
-                <div className="w-full flex-1 md:w-auto md:flex-none">
+                <div className="hidden md:flex">
                    <NavLinks />
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
@@ -179,3 +179,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
   }
+

@@ -162,6 +162,8 @@ export default function DashboardClient({ user: initialUser }: DashboardClientPr
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user.uid) return;
+
     const { firestore } = initializeFirebase();
     const unsubscribes: (() => void)[] = [];
     setLoading(true);

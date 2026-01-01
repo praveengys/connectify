@@ -9,129 +9,8 @@ import { Loader2, Search, Users } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { Input } from '../ui/input';
-
-const dummyMembers: UserProfile[] = [
-    {
-      uid: '1',
-      displayName: 'Alex Johnson',
-      username: 'alexj',
-      email: 'alex.j@example.com',
-      bio: 'Full-stack developer with a passion for open-source and Next.js.',
-      avatarUrl: 'https://picsum.photos/seed/101/200',
-      interests: ['React', 'Node.js', 'GraphQL'],
-      skills: ['TypeScript', 'Firebase', 'Docker'],
-      languages: ['English', 'Spanish'],
-      location: 'San Francisco, CA',
-      currentlyExploring: 'WebAssembly',
-      role: 'member',
-      profileVisibility: 'public',
-      emailVerified: true,
-      createdAt: new Date('2023-01-15T09:30:00Z'),
-      updatedAt: new Date(),
-      lastActiveAt: new Date(),
-      profileScore: 85, postCount: 12, commentCount: 45
-    },
-    {
-      uid: '2',
-      displayName: 'Samantha Lee',
-      username: 'samlee',
-      email: 'samantha.lee@example.com',
-      bio: 'UI/UX designer focused on creating intuitive and beautiful user experiences.',
-      avatarUrl: 'https://picsum.photos/seed/102/200',
-      interests: ['Design Systems', 'Figma', 'Accessibility'],
-      skills: ['UI Design', 'Prototyping', 'User Research'],
-      languages: ['English', 'Mandarin'],
-      location: 'New York, NY',
-      currentlyExploring: 'AI in Design',
-      role: 'admin',
-      profileVisibility: 'public',
-      emailVerified: true,
-      createdAt: new Date('2023-02-20T14:00:00Z'),
-      updatedAt: new Date(),
-      lastActiveAt: new Date(),
-      profileScore: 92, postCount: 5, commentCount: 22
-    },
-    {
-      uid: '3',
-      displayName: 'Michael Chen',
-      username: 'mikec',
-      email: 'michael.chen@example.com',
-      bio: 'Data scientist and machine learning enthusiast.',
-      avatarUrl: 'https://picsum.photos/seed/103/200',
-      interests: ['Python', 'TensorFlow', 'NLP'],
-      skills: ['Data Analysis', 'ML Models', 'Statistics'],
-      languages: ['English'],
-      location: 'Chicago, IL',
-      currentlyExploring: 'Large Language Models',
-      role: 'member',
-      profileVisibility: 'public',
-      emailVerified: true,
-      createdAt: new Date('2023-03-10T11:45:00Z'),
-      updatedAt: new Date(),
-      lastActiveAt: new Date(),
-      profileScore: 78, postCount: 8, commentCount: 19
-    },
-    {
-        uid: '4',
-        displayName: 'Jessica Williams',
-        username: 'jessw',
-        email: 'jess.williams@example.com',
-        bio: 'Product Manager driving innovation in tech. Love hiking on weekends.',
-        avatarUrl: 'https://picsum.photos/seed/104/200',
-        interests: ['Agile', 'Product Strategy', 'User Stories'],
-        skills: ['Roadmapping', 'JIRA', 'Market Research'],
-        languages: ['English', 'French'],
-        location: 'Seattle, WA',
-        currentlyExploring: 'Sustainable Tech',
-        role: 'member',
-        profileVisibility: 'public',
-        emailVerified: true,
-        createdAt: new Date('2023-04-05T18:20:00Z'),
-        updatedAt: new Date(),
-        lastActiveAt: new Date(),
-        profileScore: 88, postCount: 3, commentCount: 31
-    },
-     {
-      uid: '5',
-      displayName: 'Chris Rodriguez',
-      username: 'chrisr',
-      email: 'chris.rod@example.com',
-      bio: 'DevOps engineer ensuring everything runs smoothly. Cloud native advocate.',
-      avatarUrl: 'https://picsum.photos/seed/105/200',
-      interests: ['Kubernetes', 'CI/CD', 'AWS'],
-      skills: ['Terraform', 'Ansible', 'Prometheus'],
-      languages: ['English'],
-      location: 'Austin, TX',
-      currentlyExploring: 'eBPF',
-      role: 'member',
-      profileVisibility: 'public',
-      emailVerified: true,
-      createdAt: new Date('2023-05-12T21:00:00Z'),
-      updatedAt: new Date(),
-      lastActiveAt: new Date(),
-      profileScore: 82, postCount: 7, commentCount: 28
-    },
-    {
-        uid: '6',
-        displayName: 'Emily Davis',
-        username: 'emilyd',
-        email: 'emily.d@example.com',
-        bio: 'Frontend developer who loves building beautiful and performant UIs.',
-        avatarUrl: 'https://picsum.photos/seed/106/200',
-        interests: ['Vue.js', 'Svelte', 'Web Performance'],
-        skills: ['CSS Grid', 'Animation', 'State Management'],
-        languages: ['English', 'German'],
-        location: 'Berlin, Germany',
-        currentlyExploring: 'Solid.js',
-        role: 'member',
-        profileVisibility: 'public',
-        emailVerified: true,
-        createdAt: new Date('2023-06-18T10:00:00Z'),
-        updatedAt: new Date(),
-        lastActiveAt: new Date(),
-        profileScore: 90, postCount: 15, commentCount: 50
-    }
-  ];
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
 export default function MembersClient() {
   const [members, setMembers] = useState<UserProfile[]>([]);
@@ -140,10 +19,32 @@ export default function MembersClient() {
   const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    // We are now using dummy data, so we don't need to fetch from Firestore.
-    setMembers(dummyMembers);
-    setLoading(false);
-  }, []);
+    if (authLoading) return;
+    if (!user) {
+        setLoading(false);
+        return;
+    }
+
+    const { firestore } = initializeFirebase();
+    const usersRef = collection(firestore, 'users');
+    const q = query(usersRef, where('profileVisibility', '==', 'public'));
+    
+    setLoading(true);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const membersData = snapshot.docs.map(doc => ({
+            ...doc.data(),
+            uid: doc.id,
+            createdAt: doc.data().createdAt?.toDate() ?? new Date(),
+        } as UserProfile));
+        setMembers(membersData);
+        setLoading(false);
+    }, (error) => {
+        console.error("Error fetching members:", error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user, authLoading]);
 
   const filteredMembers = useMemo(() => {
     if (!searchQuery) {
@@ -152,7 +53,8 @@ export default function MembersClient() {
     const lowercasedQuery = searchQuery.toLowerCase();
     return members.filter(member => 
       member.displayName.toLowerCase().includes(lowercasedQuery) ||
-      (member.email && member.email.toLowerCase().includes(lowercasedQuery))
+      (member.email && member.email.toLowerCase().includes(lowercasedQuery)) ||
+      (member.username && member.username.toLowerCase().includes(lowercasedQuery))
     );
   }, [members, searchQuery]);
 
@@ -190,7 +92,7 @@ export default function MembersClient() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input 
                     type="search"
-                    placeholder="Search by name or email..."
+                    placeholder="Search by name, username or email..."
                     className="pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}

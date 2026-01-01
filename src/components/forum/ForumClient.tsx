@@ -32,6 +32,13 @@ export default function ForumClient() {
 
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+        setLoading(false);
+        // No need to set an error, the UI will guide the user to log in.
+        return;
+    }
+    
     const { firestore } = initializeFirebase();
     setLoading(true);
 
@@ -92,7 +99,7 @@ export default function ForumClient() {
 
     return () => unsubscribes.forEach(unsub => unsub());
 
-  }, [authors]);
+  }, [authLoading, user]);
 
   const handleForumCreated = (newForum: Forum) => {
     // The real-time listener will add the new forum, so we just need to close the dialog.
@@ -141,118 +148,128 @@ export default function ForumClient() {
               </Button>
           )}
         </div>
+        
+        {!user && (
+             <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <h3 className="mt-4 text-lg font-semibold">Please Log In</h3>
+                  <p className="mt-1 text-sm">You must be logged in to view the community forum.</p>
+                  <Button asChild className="mt-4"><Link href="/login">Log In</Link></Button>
+              </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="lg:col-span-3">
-            <h2 className="text-2xl font-bold mb-4">Recent Discussions</h2>
-            <div className="space-y-4">
-              {threads.map(thread => (
-                <Card key={thread.id} className="card-hover">
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <div className="flex flex-col items-center text-center w-20 shrink-0">
-                      <p className="font-bold text-2xl">{thread.replyCount ?? 0}</p>
-                      <p className="text-xs text-muted-foreground">Replies</p>
-                    </div>
+        {user && (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-3">
+                <h2 className="text-2xl font-bold mb-4">Recent Discussions</h2>
+                <div className="space-y-4">
+                {threads.map(thread => (
+                    <Card key={thread.id} className="card-hover">
+                    <CardContent className="p-4 flex items-center gap-4">
+                        <div className="flex flex-col items-center text-center w-20 shrink-0">
+                        <p className="font-bold text-2xl">{thread.replyCount ?? 0}</p>
+                        <p className="text-xs text-muted-foreground">Replies</p>
+                        </div>
 
-                    <div className="flex-grow">
-                      <Link href={`/forum/threads/${thread.id}`}>
-                        <h3 className="font-semibold text-lg hover:text-primary leading-tight">{thread.title}</h3>
-                      </Link>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1.5">
-                        <Avatar className="h-6 w-6">
-                            <AvatarImage src={authors[thread.authorId]?.avatarUrl ?? undefined} />
-                            <AvatarFallback>{authors[thread.authorId]?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
-                        </Avatar>
-                        <span>{authors[thread.authorId]?.displayName ?? '...'}</span>
-                        <span className="hidden sm:inline">·</span>
-                        <span className="hidden sm:inline">{formatDistanceToNow(thread.createdAt, { addSuffix: true })}</span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                          {thread.tags?.map(tag => (
-                              <Badge key={tag} variant="secondary">{tag}</Badge>
-                          ))}
-                      </div>
-                    </div>
-                    
-                    <Button variant="ghost" size="icon" className="shrink-0" asChild>
+                        <div className="flex-grow">
                         <Link href={`/forum/threads/${thread.id}`}>
-                            <MessageSquare className="h-5 w-5" />
+                            <h3 className="font-semibold text-lg hover:text-primary leading-tight">{thread.title}</h3>
                         </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-              {threads.length === 0 && !loading && (
-                  <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-                      <MessageSquare className="mx-auto h-12 w-12" />
-                      <h3 className="mt-4 text-lg font-semibold">No discussions yet</h3>
-                      <p className="mt-1 text-sm">Be the first to start a conversation!</p>
-                  </div>
-              )}
-            </div>
-          </div>
-
-          <div className="lg:col-span-1 space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-4">
-                <CardTitle className="text-lg">Forums</CardTitle>
-                {user && (
-                  <Dialog open={isCreateForumOpen} onOpenChange={setCreateForumOpen}>
-                      <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                              <PlusCircle className="mr-2 h-4 w-4" />
-                              Create
-                          </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                          <DialogHeader>
-                              <DialogTitle>Create a new Forum</DialogTitle>
-                          </DialogHeader>
-                          <CreateForumForm onForumCreated={handleForumCreated} />
-                      </DialogContent>
-                  </Dialog>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1.5">
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={authors[thread.authorId]?.avatarUrl ?? undefined} />
+                                <AvatarFallback>{authors[thread.authorId]?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
+                            </Avatar>
+                            <span>{authors[thread.authorId]?.displayName ?? '...'}</span>
+                            <span className="hidden sm:inline">·</span>
+                            <span className="hidden sm:inline">{formatDistanceToNow(thread.createdAt, { addSuffix: true })}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {thread.tags?.map(tag => (
+                                <Badge key={tag} variant="secondary">{tag}</Badge>
+                            ))}
+                        </div>
+                        </div>
+                        
+                        <Button variant="ghost" size="icon" className="shrink-0" asChild>
+                            <Link href={`/forum/threads/${thread.id}`}>
+                                <MessageSquare className="h-5 w-5" />
+                            </Link>
+                        </Button>
+                    </CardContent>
+                    </Card>
+                ))}
+                {threads.length === 0 && !loading && (
+                    <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                        <MessageSquare className="mx-auto h-12 w-12" />
+                        <h3 className="mt-4 text-lg font-semibold">No discussions yet</h3>
+                        <p className="mt-1 text-sm">Be the first to start a conversation!</p>
+                    </div>
                 )}
-              </CardHeader>
-              <CardContent>
-                  {forums.length > 0 ? (
-                      <ul className="space-y-1">
-                          {forums.filter(f => f.visibility === 'public').map(forum => (
-                          <li key={forum.id}>
-                              <div className="p-3 rounded-md hover:bg-accent transition-colors">
-                                  <p className="font-semibold">{forum.name}</p>
-                                  <p className="text-sm text-muted-foreground line-clamp-2">{forum.description}</p>
-                              </div>
-                          </li>
-                          ))}
-                      </ul>
-                  ) : (
-                      <p className="text-sm text-muted-foreground">No active forums.</p>
-                  )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Categories</CardTitle>
-              </CardHeader>
-              <CardContent>
-                  {categories.length > 0 ? (
-                      <ul className="space-y-1">
-                          {categories.map(category => (
-                          <li key={category.id}>
-                              <div className="p-3 rounded-md hover:bg-accent transition-colors">
-                                  <p className="font-semibold">{category.name}</p>
-                                  <p className="text-sm text-muted-foreground line-clamp-2">{category.description}</p>
-                              </div>
-                          </li>
-                          ))}
-                      </ul>
-                  ) : (
-                      <p className="text-sm text-muted-foreground">No categories available.</p>
-                  )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                </div>
+            </div>
+
+            <div className="lg:col-span-1 space-y-6">
+                <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-4">
+                    <CardTitle className="text-lg">Forums</CardTitle>
+                    {user && (
+                    <Dialog open={isCreateForumOpen} onOpenChange={setCreateForumOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Create
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create a new Forum</DialogTitle>
+                            </DialogHeader>
+                            <CreateForumForm onForumCreated={handleForumCreated} />
+                        </DialogContent>
+                    </Dialog>
+                    )}
+                </CardHeader>
+                <CardContent>
+                    {forums.length > 0 ? (
+                        <ul className="space-y-1">
+                            {forums.filter(f => f.visibility === 'public').map(forum => (
+                            <li key={forum.id}>
+                                <div className="p-3 rounded-md hover:bg-accent transition-colors">
+                                    <p className="font-semibold">{forum.name}</p>
+                                    <p className="text-sm text-muted-foreground line-clamp-2">{forum.description}</p>
+                                </div>
+                            </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No active forums.</p>
+                    )}
+                </CardContent>
+                </Card>
+                <Card>
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg">Categories</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {categories.length > 0 ? (
+                        <ul className="space-y-1">
+                            {categories.map(category => (
+                            <li key={category.id}>
+                                <div className="p-3 rounded-md hover:bg-accent transition-colors">
+                                    <p className="font-semibold">{category.name}</p>
+                                    <p className="text-sm text-muted-foreground line-clamp-2">{category.description}</p>
+                                </div>
+                            </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No categories available.</p>
+                    )}
+                </CardContent>
+                </Card>
+            </div>
+            </div>
+        )}
       </div>
     </main>
     <footer className="w-full py-6">

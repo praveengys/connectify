@@ -25,6 +25,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { signOutUser } from '@/lib/firebase/auth';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import CommunityAssistantWidget from '../dashboard/CommunityAssistantWidget';
 
 const NavLink = ({ href, children, exact = false }: { href: string; children: React.ReactNode, exact?: boolean }) => {
   const pathname = usePathname();
@@ -84,18 +86,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="mt-auto p-4">
             <Card>
-              <CardHeader className="p-2 pt-0 md:p-4">
-                <CardTitle>Need Help?</CardTitle>
-                <CardDescription>
-                  Check the documentation for help with the admin console.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-2 pt-0 md:p-4 md:pt-0">
-                <Button size="sm" className="w-full">
-                  Get Help
-                </Button>
-              </CardContent>
-            </Card>
+                <CardHeader className="p-2 pt-0 md:p-4">
+                  <CardTitle>Need Help?</CardTitle>
+                  <CardDescription>
+                    Ask the assistant or check our documentation.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-2 pt-0 md:p-4 md:pt-0">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button size="sm" className="w-full">
+                        Get Help
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-80 md:w-96 p-0 rounded-xl shadow-2xl" 
+                      side="top" 
+                      align="end"
+                    >
+                      <CommunityAssistantWidget />
+                    </PopoverContent>
+                  </Popover>
+                </CardContent>
+              </Card>
           </div>
         </div>
       </div>

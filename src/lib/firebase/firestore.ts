@@ -23,11 +23,10 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   try {
     const firestore = getFirestoreInstance();
     
-    // TEMPORARY: Assign admin role to specific user
-    const isAdmin = data.email === 'tnbit@gmail.com';
-    const userRole = isAdmin ? 'admin' : 'member';
+    // Roles should be managed on the backend via custom claims for security.
+    // The client always creates a user with the 'member' role.
+    const userRole = 'member';
 
-    // Add the user's UID to the data object to satisfy security rules.
     const userRef = doc(firestore, 'users', uid);
     const profileData = {
       username: `user_${uid.substring(0, 8)}`,
@@ -109,6 +108,8 @@ export async function updateUserRole(uid: string, role: 'admin' | 'member') {
   if (!uid) throw new Error('UID is required.');
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
+  // Note: For custom claims to work, you also need a backend function
+  // to set the claim on the user's auth token. This only updates the DB record.
   return updateDoc(userRef, { role, updatedAt: serverTimestamp() });
 }
 

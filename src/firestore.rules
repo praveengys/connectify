@@ -11,48 +11,46 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    function isModerator() {
-      // A user is a moderator if their role field is 'moderator' or 'admin'
-      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-      return userRole == 'moderator' || userRole == 'admin';
-    }
-    
     function isAdmin() {
-      // A user is an admin if their role field is 'admin'
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // BEST PRACTICE: Use custom claims for roles. This is much faster and more secure.
+      // Claims are set on the backend using the Admin SDK.
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    function isModerator() {
+      return isSignedIn() && (request.auth.token.role == 'admin' || request.auth.token.role == 'moderator');
     }
     
     function isModeratorOrAdmin() {
-      return isModerator() || isAdmin();
-    }
-    
-    function isNotMuted(uid) {
-      // If isMuted is not present or false, they are not muted.
-      return get(/databases/$(database)/documents/users/$(uid)).data.isMuted != true;
+        return isModerator() || isAdmin();
     }
 
-    function isNotBanned(uid) {
-      // If isBanned is not present or false, they are not banned.
-      return get(/databases/$(database)/documents/users/$(uid)).data.isBanned != true;
+    function isNotMuted() {
+      // Check for custom claim. Assumes false if not present.
+      return request.auth.token.isMuted != true;
     }
 
-    function canWrite(uid) {
-      // Combines all write-related checks
-      return isSignedIn() && isNotMuted(uid) && isNotBanned(uid);
+    function isNotBanned() {
+      // Check for custom claim. Assumes false if not present.
+      return request.auth.token.isBanned != true;
+    }
+
+    function canWrite() {
+      // Combines all write-related checks using custom claims.
+      return isSignedIn() && isNotMuted() && isNotBanned();
     }
 
     /* Users */
     match /users/{userId} {
-      // Admins can read any user profile. Other signed-in users can only read non-banned profiles.
-      allow read: if isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(userId)).data.isBanned != true);
+      // Anyone can read a public profile, admins can read any.
+      allow read: if (resource.data.profileVisibility == 'public' && isNotBanned(userId)) || isAdmin();
       
-      // Allow list for any signed-in user. Queries must be secured via `where` clauses.
       allow list: if isSignedIn();
 
-      // Users can create their own profile, but cannot set their own role.
+      // Users can create their own profile. Roles and status flags cannot be set from the client.
       allow create: if isOwner(userId)
                     && request.resource.data.uid == userId
-                    && (!('role' in request.resource.data) || request.resource.data.role == 'member')
+                    && request.resource.data.role == 'member'
                     && request.resource.data.isMuted == false
                     && request.resource.data.isBanned == false;
       
@@ -61,7 +59,7 @@ service cloud.firestore {
         (isOwner(userId) && 
             (
                 (!('username' in request.resource.data.diff(resource.data).affectedKeys())) ||
-                ('username' in request.resource.data.diff(resource.data).affectedKeys() && !exists(resource.data.username))
+                ('username' in request.resource.data.diff(resource.data).affectedKeys() && resource.data.username == null)
             ) &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'bio', 'avatarUrl', 'interests', 'skills', 'languages', 'location', 'currentlyExploring', 'company', 'profileVisibility', 'updatedAt', 'username'])
         ) || isAdmin();
@@ -77,7 +75,7 @@ service cloud.firestore {
       allow list: if isSignedIn();
 
       // Users can create a group, becoming the owner. Must not be muted/banned.
-      allow create: if canWrite(request.auth.uid)
+      allow create: if canWrite()
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.members[request.auth.uid] == 'owner'
                     && request.resource.data.members.size() == 1
@@ -85,7 +83,7 @@ service cloud.firestore {
 
       allow update: if (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isAdmin() ||
                       (
-                        canWrite(request.auth.uid) &&
+                        canWrite() &&
                         request.resource.data.diff(resource.data).affectedKeys()
                           .hasOnly(['members', 'memberCount']) &&
                         resource.data.type == 'public' &&
@@ -102,16 +100,14 @@ service cloud.firestore {
                           && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
 
         // Members can send messages if they are not muted AND the group is not muted.
-        allow create: if canWrite(request.auth.uid)
+        allow create: if canWrite()
                       && get(/databases/$(database)/documents/groups/$(groupId)).data.muted != true
                       && request.resource.data.senderId == request.auth.uid
                       && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
       }
 
       match /typing/{userId} {
-        // Only the user themselves can update their typing status.
         allow write: if isOwner(userId);
-        // Only members can see who is typing.
         allow read: if isSignedIn()
                     && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
       }
@@ -121,7 +117,7 @@ service cloud.firestore {
     match /forums/{forumId} {
       allow get, list: if isSignedIn();
 
-      allow create: if canWrite(request.auth.uid)
+      allow create: if canWrite()
                     && request.resource.data.createdBy == request.auth.uid;
 
       allow update, delete: if isOwner(resource.data.createdBy) || isModeratorOrAdmin();
@@ -131,22 +127,19 @@ service cloud.firestore {
     match /threads/{threadId} {
       allow get, list: if isSignedIn();
 
-      allow create: if canWrite(request.auth.uid)
+      allow create: if canWrite()
                     && request.resource.data.authorId == request.auth.uid;
 
       allow update, delete: if isOwner(resource.data.authorId) || isModeratorOrAdmin();
 
       match /replies/{replyId} {
         allow read, list: if isSignedIn();
-
-        allow create: if canWrite(request.auth.uid)
-                      && request.resource.data.authorId == request.auth.uid;
+        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
       }
-       match /chatMessages/{messageId} {
-        allow read, list: if isSignedIn();
 
-        allow create: if canWrite(request.auth.uid)
-                      && request.resource.data.senderId == request.auth.uid;
+      match /chatMessages/{messageId} {
+        allow read, list: if isSignedIn();
+        allow create: if canWrite() && request.resource.data.senderId == request.auth.uid;
       }
     }
 

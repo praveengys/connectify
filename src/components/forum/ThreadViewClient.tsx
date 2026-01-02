@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
+import { onSnapshot, collection, query, orderBy, Timestamp } from 'firebase/firestore';
 import { notFound, useRouter } from 'next/navigation';
 
 import { initializeFirebase } from '@/firebase';
@@ -121,8 +121,8 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
         const threadData = {
           id: docSnap.id,
           ...docSnap.data(),
-          createdAt: docSnap.data().createdAt.toDate(),
-          updatedAt: docSnap.data().updatedAt.toDate(),
+          createdAt: (docSnap.data().createdAt as Timestamp)?.toDate() ?? new Date(),
+          updatedAt: (docSnap.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
         } as Thread;
         setThread(threadData);
         if (threadData.authorId && !authors[threadData.authorId]) {
@@ -135,11 +135,14 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
     const q = query(repliesRef, orderBy('createdAt', 'asc'));
 
     const unsubscribeReplies = onSnapshot(q, (snapshot) => {
-      const newReplies = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt.toDate(),
-      } as Reply)).filter(reply => reply.status === 'published');
+      const newReplies = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+          } as Reply;
+        }).filter(reply => reply.status === 'published');
       
       setReplies(newReplies);
 
@@ -373,5 +376,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
     </div>
   );
 }
+
+    
 
     

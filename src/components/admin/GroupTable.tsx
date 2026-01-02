@@ -96,12 +96,10 @@ export default function GroupTable() {
       setConfirmOpen(true);
   }
 
-  const performDelete = async (groupId: string) => {
+  const performDelete = (groupId: string) => {
     startTransition(async () => {
         try {
-            // This is a server-side action, so you might need to call an API route
-            // For now, we assume a server action `deleteGroup` exists.
-            // await deleteGroup(groupId);
+            await deleteGroup(groupId);
             toast({ title: 'Success', description: 'Group deleted successfully.' });
         } catch (error: any) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });

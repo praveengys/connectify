@@ -20,7 +20,7 @@ export async function uploadPhoto(formData: FormData) {
     const results = await new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
             {
-                tags: ['profile-photo'],
+                tags: ['community-post'],
             },
             (error, result) => {
                 if (error) {

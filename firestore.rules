@@ -1,150 +1,117 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-  
+
     // Helper functions
-    function isAuth() {
+    function isUserAuthenticated() {
       return request.auth != null;
     }
-    
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
     function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    
-    // User Profiles
+
+    function isProfileOwnerOrPublic(userId) {
+      let userProfile = get(/databases/$(database)/documents/users/$(userId)).data;
+      return isOwner(userId) || userProfile.profileVisibility == 'public';
+    }
+
+    // User profiles
     match /users/{userId} {
-      // Admins can see all profiles
-      // Users can see public profiles
-      allow read: if isAdmin() || (isAuth() && resource.data.profileVisibility == 'public');
-      
-      // Users can see their own full profile
-      allow get: if isAuth() && request.auth.uid == userId;
-
-      // Users can create their own profile
-      allow create: if isAuth() && request.auth.uid == userId;
-
-      // Users can update their own profile, but cannot change their role
-      allow update: if isAuth() && request.auth.uid == userId && !('role' in request.resource.data);
-      
-      // Admins can update any profile, including changing roles
-      allow update: if isAdmin();
-    }
-    
-    // Groups
-    match /groups/{groupId} {
-      // Anyone authenticated can view a public group's details
-      allow get: if isAuth() && resource.data.type == 'public';
-
-      // Members can get their own group details, even if private
-      allow get: if isAuth() && resource.data.members[request.auth.uid] != null;
-      
-      // Anyone authenticated can see the list of public groups
-      allow list: if isAuth() && query.get('where')[0][2] == 'public';
-
-      // Only authenticated users can create groups
-      allow create: if isAuth();
-
-      // Only the owner or an admin of the group can update its details
-      // (e.g. name, type), or an overall admin
-      allow update: if isAdmin() || (isAuth() && (
-        resource.data.members[request.auth.uid] == 'owner' || 
-        resource.data.members[request.auth.uid] == 'admin'
-      ));
-      
-      // Only the group owner or a platform admin can delete a group
-      allow delete: if isAdmin() || (isAuth() && resource.data.members[request.auth.uid] == 'owner');
-      
-       // Messages within a group
-       match /messages/{messageId} {
-         // Members of the group can read messages
-         allow read: if isAuth() && get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] != null;
-         
-         // Members of the group can send messages
-         allow create: if isAuth() && get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] != null;
-       }
-       
-       // Typing indicators within a group
-       match /typing/{userId} {
-         allow read, write: if isAuth() && get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] != null;
-       }
-    }
-    
-    // Forums & Threads
-    match /forums/{forumId} {
-      allow read: if isAuth();
-      allow create: if isAdmin(); // Only admins can create forums
-      allow update, delete: if isAdmin();
-    }
-    
-    match /threads/{threadId} {
-      allow read: if isAuth();
-      
-      // Users can create threads. 'authorId' must be their own UID.
-      allow create: if isAuth() && request.resource.data.authorId == request.auth.uid;
-      
-      // Author or admin can update. Protect sensitive fields.
-      allow update: if isAuth() && (request.resource.data.authorId == request.auth.uid || isAdmin())
-                    && !('authorId' in request.resource.data);
-                    
+      allow read: if isProfileOwnerOrPublic(userId) || isAdmin();
+      allow create: if isUserAuthenticated();
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
-      
-      // Replies within a thread
-      match /replies/{replyId} {
-        allow read: if isAuth();
-        allow create: if isAuth() && !get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked;
-        allow update, delete: if isAdmin();
-      }
-      
-       match /chatMessages/{messageId} {
-        allow read: if isAuth();
-        allow create: if isAuth() && !get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked;
-        allow update, delete: if isAdmin();
-      }
     }
 
-    match /posts/{postId} {
-      allow read: if isAuth() && resource.data.visibility == 'public';
-      allow create: if isAuth() && request.resource.data.authorId == request.auth.uid;
-      allow update: if isAuth() && resource.data.authorId == request.auth.uid;
-      allow delete: if isAuth() && resource.data.authorId == request.auth.uid || isAdmin();
-      
-      match /likes/{userId} {
-        allow read: if isAuth();
-        allow write: if isAuth() && request.auth.uid == userId;
+    // Groups & Messages
+    match /groups/{groupId} {
+      allow read: if isUserAuthenticated(); // Further checks can be done client-side or with more complex rules
+      allow create: if isUserAuthenticated();
+      allow update, delete: if isOwner(resource.data.createdBy) || isAdmin();
+
+      match /messages/{messageId} {
+        allow read, create: if isUserAuthenticated() && get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] != null;
+        allow update, delete: if isOwner(resource.data.senderId) || isAdmin();
       }
-      
-      match /comments/{commentId} {
-        allow read: if isAuth();
-        allow create: if isAuth();
-        allow update, delete: if isAuth() && resource.data.authorId == request.auth.uid || isAdmin();
+       match /typing/{userId} {
+        allow read, write: if isUserAuthenticated();
       }
     }
-
-    match /reports/{reportId} {
-      allow read: if isAdmin();
-      allow create: if isAuth();
+    
+    // Forums, Threads, & Replies
+    match /forums/{forumId} {
+        allow read: if true;
+        allow create, update, delete: if isAdmin();
     }
     
     match /categories/{categoryId} {
-      allow read: if isAuth();
-      allow create: if isAuth();
-      allow update, delete: if isAdmin();
+        allow read: if true;
+        allow create, update, delete: if isAdmin();
     }
-    
-    match /tags/{tagId} {
-      allow read: if isAuth();
+
+    match /threads/{threadId} {
+        allow read: if true;
+        allow create: if isUserAuthenticated();
+        allow update: if isOwner(resource.data.authorId) || isAdmin();
+        allow delete: if isAdmin();
+        
+        match /replies/{replyId} {
+            allow read: if true;
+            allow create: if isUserAuthenticated();
+            allow update: if isOwner(resource.data.authorId) || isAdmin();
+            allow delete: if isAdmin();
+        }
+
+        match /chatMessages/{messageId} {
+            allow read, create: if isUserAuthenticated();
+            allow update, delete: if isOwner(resource.data.senderId) || isAdmin();
+        }
+    }
+
+    // Social Feed: Posts, Comments, Likes
+    match /posts/{postId} {
+        allow read: if true;
+        allow create: if isUserAuthenticated();
+        allow update: if isOwner(resource.data.authorId) || isAdmin();
+        allow delete: if isAdmin();
+
+        match /likes/{userId} {
+            allow read: if true;
+            allow create, delete: if isOwner(userId);
+        }
+
+        match /comments/{commentId} {
+            allow read: if true;
+            allow create: if isUserAuthenticated();
+            allow update: if isOwner(resource.data.authorId) || isAdmin();
+            allow delete: if isAdmin();
+        }
+    }
+
+    // Demo Scheduling
+    match /demoSlots/{slotId} {
+      // Anyone (even logged-out users) can view available demo slots.
+      allow read: if true;
+      // Only admins can create/update/delete slots.
+      allow write: if isAdmin();
     }
 
     match /demoBookings/{bookingId} {
-      allow read: if isAdmin();
-      allow create: if true; // Anyone can request a demo
-      allow update, delete: if isAdmin();
-    }
-    
-    match /demoSlots/{slotId} {
-      allow read: if true; // Public can see available slots
-      allow write: if isAdmin(); // Only admins can create/update/delete slots
+      // Anyone can create a booking request.
+      allow create: if true;
+      // Only admins or the user who created it can read it.
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+      // Only admins can update the status (approve/deny).
+      allow update: if isAdmin();
+      // No one can delete from the client.
+      allow delete: if false;
     }
   }
 }

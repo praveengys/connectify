@@ -59,7 +59,7 @@ export default function DiscussionTable() {
 
     const unsubscribe = onSnapshot(q,
       async (snapshot) => {
-        const threadsData = snapshot.docs.map(doc => ({
+        const threadsData: Thread[] = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate() ?? new Date(),
@@ -67,16 +67,22 @@ export default function DiscussionTable() {
         setThreads(threadsData);
 
         const authorIds = [...new Set(threadsData.map(t => t.authorId))];
-        const newAuthors: Record<string, UserProfile> = {};
-        for (const authorId of authorIds) {
-          if (!authors[authorId]) {
-            const profile = await getUserProfile(authorId);
-            if (profile) {
-              newAuthors[authorId] = profile;
-            }
-          }
+        
+        // Fetch any author profiles that we don't have cached yet
+        const newAuthorIds = authorIds.filter(id => id && !authors[id]);
+        if (newAuthorIds.length > 0) {
+            const fetchedAuthors = await Promise.all(
+                newAuthorIds.map(id => getUserProfile(id))
+            );
+            setAuthors(prev => {
+                const updatedAuthors = { ...prev };
+                fetchedAuthors.forEach(author => {
+                    if (author) updatedAuthors[author.uid] = author;
+                });
+                return updatedAuthors;
+            });
         }
-        setAuthors(prev => ({ ...prev, ...newAuthors }));
+        
         setLoading(false);
       },
       (err) => {
@@ -87,7 +93,7 @@ export default function DiscussionTable() {
     );
 
     return () => unsubscribe();
-  }, [authors]);
+  }, []);
   
   const handleAction = (thread: Thread, action: 'lock' | 'unlock' | 'pin' | 'unpin' | 'delete') => {
       setActionThread(thread);
@@ -134,9 +140,10 @@ export default function DiscussionTable() {
   };
 
   const filteredThreads = useMemo(() => {
+    const lowercasedTerm = searchTerm.toLowerCase();
     return threads.filter(thread =>
-      thread.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      authors[thread.authorId]?.displayName.toLowerCase().includes(searchTerm.toLowerCase())
+      thread.title.toLowerCase().includes(lowercasedTerm) ||
+      authors[thread.authorId]?.displayName.toLowerCase().includes(lowercasedTerm)
     );
   }, [threads, searchTerm, authors]);
 

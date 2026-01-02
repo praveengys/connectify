@@ -4,12 +4,15 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { MoreHorizontal, MessageSquare, ThumbsUp, Share2 } from "lucide-react";
+import { MoreHorizontal, MessageSquare, Share2 } from "lucide-react";
 import Image from "next/image";
 import type { Post } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from "@/hooks/use-auth";
 import LikeButton from "./LikeButton";
+import { useState } from "react";
+import CommentSection from "./CommentSection";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 type FeedPostProps = {
     post: Post;
@@ -21,6 +24,8 @@ const isVideo = (url: string) => {
 
 export default function FeedPost({ post }: FeedPostProps) {
   const { user } = useAuth();
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  
   if (!user) return null;
 
   return (
@@ -56,11 +61,18 @@ export default function FeedPost({ post }: FeedPostProps) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between border-t pt-4">
-            <LikeButton postId={post.id} initialLikes={post.likesCount} initialIsLiked={!!post.isLiked} />
-            <Button variant="ghost" size="sm"><MessageSquare className="mr-2"/> Comment ({post.commentsCount})</Button>
-            <Button variant="ghost" size="sm"><Share2 className="mr-2"/> Share</Button>
-      </CardFooter>
+       <Collapsible open={isCommentsOpen} onOpenChange={setIsCommentsOpen}>
+        <CardFooter className="flex justify-between border-t pt-4">
+              <LikeButton postId={post.id} initialLikes={post.likesCount} initialIsLiked={!!post.isLiked} />
+              <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm"><MessageSquare className="mr-2"/> Comment ({post.commentsCount})</Button>
+              </CollapsibleTrigger>
+              <Button variant="ghost" size="sm"><Share2 className="mr-2"/> Share</Button>
+        </CardFooter>
+        <CollapsibleContent>
+            <CommentSection postId={post.id} />
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }

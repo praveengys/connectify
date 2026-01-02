@@ -4,51 +4,56 @@
 import {
   getFirestore,
   doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
   collection,
   addDoc,
-  updateDoc,
-  deleteDoc,
-  runTransaction,
-  writeBatch,
+  setDoc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
   query,
   where,
-  getDocs,
-  Timestamp,
+  orderBy,
+  limit,
+  deleteDoc,
+  updateDoc,
+  writeBatch,
   increment,
+  runTransaction,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import {
-  type UserProfile,
-  type Group,
-  type ChatMessage,
   type Forum,
   type Thread,
-  type Category,
   type Reply,
+  type Category,
+  type UserProfile,
+  type ChatMessage,
+  type Group,
   type Post,
+  type PostComment,
 } from '../types';
 
-// USER-related functions
+// Initialize Firebase
+const { firestore } = initializeFirebase();
 
-export async function createUserProfile(
-  uid: string,
-  email: string,
-  displayName: string,
-  avatarUrl: string | null
-): Promise<UserProfile> {
-  const { firestore } = initializeFirebase();
-  const userRef = doc(firestore, 'users', uid);
-  const username = email.split('@')[0]; // Simple username generation
-
-  const newUserProfile: UserProfile = {
-    uid,
-    username,
-    displayName,
-    email,
-    avatarUrl,
+/**
+ * Creates a new user profile document in Firestore.
+ * This is typically called when a new user signs up.
+ */
+export async function createUserProfile(user: {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl?: string | null;
+}) {
+  const userRef = doc(firestore, 'users', user.uid);
+  const username = user.email ? user.email.split('@')[0] : `user_${user.uid.substring(0, 6)}`;
+  const profile: UserProfile = {
+    uid: user.uid,
+    username: username,
+    displayName: user.displayName || username,
+    email: user.email,
+    avatarUrl: user.avatarUrl || null,
     bio: '',
     interests: [],
     skills: [],
@@ -65,132 +70,284 @@ export async function createUserProfile(
     updatedAt: new Date(),
     lastActiveAt: new Date(),
   };
-
-  await setDoc(userRef, newUserProfile);
-  return newUserProfile;
+  await setDoc(userRef, profile);
+  return profile;
 }
 
-export async function getUserProfile(
-  uid: string
-): Promise<UserProfile | null> {
-  const { firestore } = initializeFirebase();
+/**
+ * Retrieves a user's profile from Firestore.
+ */
+export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const userRef = doc(firestore, 'users', uid);
-  const userSnap = await getDoc(userRef);
-
-  if (userSnap.exists()) {
-    const data = userSnap.data();
+  const docSnap = await getDoc(userRef);
+  if (docSnap.exists()) {
+    const data = docSnap.data();
     return {
       ...data,
-      uid,
-      createdAt: data.createdAt?.toDate() ?? new Date(),
-      updatedAt: data.updatedAt?.toDate() ?? new Date(),
-      lastActiveAt: data.lastActiveAt?.toDate() ?? new Date(),
+      uid: docSnap.id,
+      createdAt: (data.createdAt as any)?.toDate() ?? new Date(),
+      updatedAt: (data.updatedAt as any)?.toDate() ?? new Date(),
+      lastActiveAt: (data.lastActiveAt as any)?.toDate() ?? new Date(),
     } as UserProfile;
   }
   return null;
 }
 
-export async function updateUserProfile(
-  uid: string,
-  data: Partial<UserProfile>
-): Promise<void> {
-  const { firestore } = initializeFirebase();
+/**
+ * Updates a user's profile data in Firestore.
+ */
+export async function updateUserProfile(uid: string, data: Partial<UserProfile>) {
   const userRef = doc(firestore, 'users', uid);
-  await updateDoc(userRef, { ...data, updatedAt: serverTimestamp() });
+  await updateDoc(userRef, {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
 
-export async function toggleMuteUser(uid: string, isMuted: boolean): Promise<void> {
-    const { firestore } = initializeFirebase();
-    const userRef = doc(firestore, 'users', uid);
-    await updateDoc(userRef, { isMuted });
+/**
+ * Creates a new forum.
+ */
+export async function createForum(
+  name: string,
+  description: string,
+  creatorId: string
+): Promise<Forum> {
+  const forumsRef = collection(firestore, 'forums');
+  const newForumDoc = await addDoc(forumsRef, {
+    name,
+    description,
+    createdBy: creatorId,
+    visibility: 'public',
+    status: 'active',
+    createdAt: serverTimestamp(),
+  });
+  return {
+    id: newForumDoc.id,
+    name,
+    description,
+    createdBy: creatorId,
+    visibility: 'public',
+    status: 'active',
+    createdAt: new Date(),
+  };
 }
 
-export async function toggleBanUser(uid: string, isBanned: boolean): Promise<void> {
-    const { firestore } = initializeFirebase();
-    const userRef = doc(firestore, 'users', uid);
-    await updateDoc(userRef, { isBanned });
+/**
+ * Gets or creates a category.
+ */
+export async function getOrCreateCategory(categoryName: string): Promise<Category> {
+  const categoriesRef = collection(firestore, 'categories');
+  const q = query(categoriesRef, where('name', '==', categoryName));
+  const snapshot = await getDocs(q);
+
+  if (!snapshot.empty) {
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() } as Category;
+  } else {
+    const slug = categoryName.toLowerCase().replace(/\s+/g, '-');
+    const newCategoryData = {
+      name: categoryName,
+      slug: slug,
+      description: `Discussions related to ${categoryName}`,
+      threadCount: 0,
+    };
+    const newCategoryRef = await addDoc(categoriesRef, newCategoryData);
+    return { id: newCategoryRef.id, ...newCategoryData } as Category;
+  }
 }
 
-export async function updateUserRole(uid: string, role: 'admin' | 'member'): Promise<void> {
-    const { firestore } = initializeFirebase();
+/**
+ * Creates a new discussion thread.
+ */
+export async function createThread(threadData: Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'latestReplyAt' | 'author'>): Promise<Thread> {
+    const threadRef = collection(firestore, "threads");
+    const newThreadRef = doc(threadRef);
+
+    const finalThreadData = {
+        ...threadData,
+        replyCount: 0,
+        latestReplyAt: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+
+    await setDoc(newThreadRef, finalThreadData);
+    
+    // Also update category thread count
+    const categoryRef = doc(firestore, 'categories', threadData.categoryId);
+    await updateDoc(categoryRef, {
+        threadCount: increment(1)
+    });
+
+    return {
+        id: newThreadRef.id,
+        ...finalThreadData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    } as Thread;
+}
+
+/**
+ * Retrieves a single thread by its ID.
+ */
+export async function getThread(threadId: string): Promise<Thread | null> {
+    const threadRef = doc(firestore, 'threads', threadId);
+    const docSnap = await getDoc(threadRef);
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        return { 
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt.toDate(),
+            updatedAt: data.updatedAt.toDate(),
+         } as Thread;
+    }
+    return null;
+}
+
+/**
+ * Retrieves all replies for a given thread.
+ */
+export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+    const q = query(repliesRef, orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt.toDate(),
+    } as Reply));
+}
+
+
+/**
+ * Creates a new reply in a thread.
+ */
+export async function createReply(replyData: {
+  threadId: string;
+  authorId: string;
+  body: string;
+  parentReplyId: string | null;
+}) {
+  const { threadId, ...rest } = replyData;
+  const replyRef = collection(firestore, 'threads', threadId, 'replies');
+  
+  const finalReplyData = {
+    ...rest,
+    status: 'published' as const,
+    createdAt: serverTimestamp(),
+  };
+
+  const batch = writeBatch(firestore);
+
+  // Add new reply
+  const newReplyRef = doc(replyRef);
+  batch.set(newReplyRef, finalReplyData);
+  
+  // Update thread metadata
+  const threadRef = doc(firestore, 'threads', threadId);
+  batch.update(threadRef, {
+      replyCount: increment(1),
+      latestReplyAt: serverTimestamp()
+  });
+
+  await batch.commit();
+
+  return { id: newReplyRef.id, ...finalReplyData, createdAt: new Date() } as Reply;
+}
+
+export async function createChatMessage(threadId: string, messageData: Partial<ChatMessage>) {
+    const messagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
+    const senderProfile = await getUserProfile(messageData.senderId!);
+    await addDoc(messagesRef, {
+      ...messageData,
+      status: 'visible',
+      createdAt: serverTimestamp(),
+      senderProfile: senderProfile ? {
+        displayName: senderProfile.displayName,
+        avatarUrl: senderProfile.avatarUrl,
+      } : {
+        displayName: "Unknown User",
+        avatarUrl: null,
+      }
+    });
+}
+
+// User moderation functions
+export async function toggleMuteUser(uid: string, isMuted: boolean) {
+  const userRef = doc(firestore, 'users', uid);
+  await updateDoc(userRef, { isMuted });
+}
+
+export async function toggleBanUser(uid: string, isBanned: boolean) {
+  const userRef = doc(firestore, 'users', uid);
+  await updateDoc(userRef, { isBanned });
+}
+
+export async function updateUserRole(uid: string, role: 'admin' | 'member') {
     const userRef = doc(firestore, 'users', uid);
     await updateDoc(userRef, { role });
 }
 
-// GROUP & CHAT related functions
 
-export async function createChatGroup(name: string, type: 'public' | 'private', createdBy: string): Promise<Group> {
-  const { firestore } = initializeFirebase();
-  const groupsRef = collection(firestore, 'groups');
-  
-  const newGroupData = {
-    name,
-    type,
-    createdBy,
-    createdAt: serverTimestamp(),
-    memberCount: 1,
-    members: {
-      [createdBy]: 'owner'
-    }
-  };
-
-  const docRef = await addDoc(groupsRef, newGroupData);
-  
-  return { id: docRef.id, ...newGroupData, createdAt: new Date() } as Group;
+// Thread moderation functions
+export async function toggleThreadLock(threadId: string, isLocked: boolean) {
+    const threadRef = doc(firestore, 'threads', threadId);
+    await updateDoc(threadRef, { isLocked });
 }
 
-export const joinChatGroup = async (groupId: string, userId: string) => {
-  const { firestore } = initializeFirebase();
-  const groupRef = doc(firestore, 'groups', groupId);
+export async function toggleThreadPin(threadId: string, isPinned: boolean) {
+    const threadRef = doc(firestore, 'threads', threadId);
+    await updateDoc(threadRef, { isPinned });
+}
 
-  await runTransaction(firestore, async (transaction) => {
-    const groupDoc = await transaction.get(groupRef);
-    if (!groupDoc.exists()) {
-      throw new Error("Group does not exist!");
-    }
-
-    const groupData = groupDoc.data();
-    if (groupData.members && groupData.members[userId]) {
-      throw new Error("You are already a member of this group.");
-    }
-    
-    transaction.update(groupRef, {
-      [`members.${userId}`]: 'member',
-      memberCount: increment(1)
-    });
-  });
-};
-
-export async function sendChatMessage(groupId: string, senderId: string, message: { type: 'text', text: string } | { type: 'image', imageUrl: string }) {
-    const { firestore } = initializeFirebase();
-    const messagesRef = collection(firestore, `groups/${groupId}/messages`);
-    const senderProfile = await getUserProfile(senderId);
-
-    const messageData: Partial<ChatMessage> = {
-        senderId,
+// Group chat functions
+export async function createChatGroup(name: string, type: 'public' | 'private', creatorId: string) {
+    const groupRef = doc(collection(firestore, 'groups'));
+    await setDoc(groupRef, {
+        name,
+        type,
+        createdBy: creatorId,
         createdAt: serverTimestamp(),
-        status: 'visible',
-        senderProfile: {
-            displayName: senderProfile?.displayName ?? 'User',
-            avatarUrl: senderProfile?.avatarUrl ?? null
-        },
-        ...message
-    };
-
-    await addDoc(messagesRef, messageData);
-}
-
-export async function removeUserFromGroup(groupId: string, userId: string): Promise<void> {
-    const { firestore } = initializeFirebase();
-    const groupRef = doc(firestore, 'groups', groupId);
-    await updateDoc(groupRef, {
-        [`members.${userId}`]: deleteDoc,
-        memberCount: increment(-1)
+        memberCount: 1,
+        members: {
+            [creatorId]: 'owner'
+        }
     });
 }
 
-export async function updateUserGroupRole(groupId: string, userId: string, role: 'admin' | 'member'): Promise<void> {
-    const { firestore } = initializeFirebase();
+export async function joinChatGroup(groupId: string, userId: string) {
+    const groupRef = doc(firestore, 'groups', groupId);
+    await runTransaction(firestore, async (transaction) => {
+        const groupDoc = await transaction.get(groupRef);
+        if (!groupDoc.exists()) {
+            throw new Error("Group does not exist!");
+        }
+        transaction.update(groupRef, {
+            memberCount: increment(1),
+            [`members.${userId}`]: 'member'
+        });
+    });
+}
+
+export async function removeUserFromGroup(groupId: string, userId: string) {
+    const groupRef = doc(firestore, 'groups', groupId);
+     await runTransaction(firestore, async (transaction) => {
+        const groupDoc = await transaction.get(groupRef);
+        if (!groupDoc.exists()) {
+            throw new Error("Group does not exist!");
+        }
+        const currentMembers = groupDoc.data().members;
+        delete currentMembers[userId];
+
+        transaction.update(groupRef, {
+            memberCount: increment(-1),
+            members: currentMembers
+        });
+    });
+}
+
+export async function updateUserGroupRole(groupId: string, userId: string, role: 'admin' | 'member') {
     const groupRef = doc(firestore, 'groups', groupId);
     await updateDoc(groupRef, {
         [`members.${userId}`]: role
@@ -198,191 +355,36 @@ export async function updateUserGroupRole(groupId: string, userId: string, role:
 }
 
 
-// FORUM & THREAD related functions
+// Feed related functions
 
-export async function createForum(name: string, description: string, createdBy: string): Promise<Forum> {
-    const { firestore } = initializeFirebase();
-    const forumsRef = collection(firestore, "forums");
-    const newForumData = {
-        name,
-        description,
-        createdBy,
-        visibility: 'public' as const,
-        status: 'active' as const,
-        createdAt: serverTimestamp(),
-    };
-    const docRef = await addDoc(forumsRef, newForumData);
-    return { id: docRef.id, ...newForumData, createdAt: new Date() } as Forum;
-}
-
-export async function getOrCreateCategory(name: string): Promise<Category> {
-  const { firestore } = initializeFirebase();
-  const categoriesRef = collection(firestore, 'categories');
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  
-  const q = query(categoriesRef, where('slug', '==', slug));
-  const snapshot = await getDocs(q);
-
-  if (!snapshot.empty) {
-    const doc = snapshot.docs[0];
-    return { id: doc.id, ...doc.data() } as Category;
-  } else {
-    const newCategoryData = {
-      name,
-      slug,
-      description: `Discussions related to ${name}`,
-      threadCount: 0,
-    };
-    const docRef = await addDoc(categoriesRef, newCategoryData);
-    return { id: docRef.id, ...newCategoryData };
-  }
-}
-
-type CreateThreadData = Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'latestReplyAt' >;
-
-export async function createThread(data: CreateThreadData): Promise<Thread> {
-  const { firestore } = initializeFirebase();
-  const threadsRef = collection(firestore, 'threads');
-  
-  const newThreadData = {
-    ...data,
-    replyCount: 0,
-    latestReplyAt: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-  
-  const docRef = await addDoc(threadsRef, newThreadData);
-
-  // Also increment thread count in category
-  const categoryRef = doc(firestore, 'categories', data.categoryId);
-  await updateDoc(categoryRef, { threadCount: increment(1) });
-  
-  return { id: docRef.id, ...newThreadData, createdAt: new Date(), updatedAt: new Date() } as Thread;
-}
-
-export async function getThread(id: string): Promise<Thread | null> {
-    const { firestore } = initializeFirebase();
-    const threadRef = doc(firestore, 'threads', id);
-    const docSnap = await getDoc(threadRef);
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        return {
-            id: docSnap.id,
-            ...data,
-            createdAt: (data.createdAt as Timestamp).toDate(),
-            updatedAt: (data.updatedAt as Timestamp).toDate(),
-        } as Thread;
-    }
-    return null;
-}
-
-export async function createChatMessage(threadId: string, message: { senderId: string, text: string }) {
-    const { firestore } = initializeFirebase();
-    const messagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
-    const senderProfile = await getUserProfile(message.senderId);
-
-    const messageData = {
-        ...message,
-        createdAt: serverTimestamp(),
-        senderProfile: {
-            displayName: senderProfile?.displayName ?? 'User',
-            avatarUrl: senderProfile?.avatarUrl ?? null
-        }
-    };
-    await addDoc(messagesRef, messageData);
-}
-
-export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
-    const { firestore } = initializeFirebase();
-    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
-    const q = query(repliesRef, orderBy('createdAt', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: (doc.data().createdAt as Timestamp).toDate(),
-    } as Reply));
-}
-
-type CreateReplyData = {
-  threadId: string;
-  authorId: string;
-  body: string;
-  parentReplyId: string | null;
-};
-
-export async function createReply(data: CreateReplyData) {
-  const { firestore } = initializeFirebase();
-  const threadRef = doc(firestore, 'threads', data.threadId);
-  const repliesRef = collection(firestore, 'threads', data.threadId, 'replies');
-  
-  await runTransaction(firestore, async (transaction) => {
-    const newReplyData: Omit<Reply, 'id'|'updatedAt'> = {
-        threadId: data.threadId,
-        authorId: data.authorId,
-        body: data.body,
-        parentReplyId: data.parentReplyId,
-        status: 'published',
-        createdAt: serverTimestamp() as Timestamp,
-    };
+export async function createPost(authorId: string, content: string, visibility: 'public' | 'group-only', media: string[] = []) {
+    const postRef = doc(collection(firestore, 'posts'));
     
-    // Add the new reply document. We don't have the ref yet, but it's fine.
-    transaction.set(doc(repliesRef), newReplyData);
-
-    // Update the reply count and latest reply timestamp on the thread.
-    transaction.update(threadRef, {
-      replyCount: increment(1),
-      latestReplyAt: serverTimestamp()
+    await setDoc(postRef, {
+        authorId,
+        content,
+        visibility,
+        media,
+        status: 'active',
+        likesCount: 0,
+        commentsCount: 0,
+        sharesCount: 0,
+        repostsCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
     });
-  });
+
+    // Also increment user's post count
+    const userRef = doc(firestore, 'users', authorId);
+    await updateDoc(userRef, { postCount: increment(1) });
 }
 
-export async function toggleThreadLock(threadId: string, isLocked: boolean): Promise<void> {
-    const { firestore } = initializeFirebase();
-    const threadRef = doc(firestore, 'threads', threadId);
-    await updateDoc(threadRef, { isLocked, updatedAt: serverTimestamp() });
-}
-
-export async function toggleThreadPin(threadId: string, isPinned: boolean): Promise<void> {
-    const { firestore } = initializeFirebase();
-    const threadRef = doc(firestore, 'threads', threadId);
-    await updateDoc(threadRef, { isPinned, updatedAt: serverTimestamp() });
-}
-
-// POSTS / FEED related functions
-
-export async function createPost(authorId: string, content: string, status: 'active' | 'draft', media: string[] = []): Promise<Post> {
-  const { firestore } = initializeFirebase();
-  const postsRef = collection(firestore, "posts");
-  
-  const newPostData = {
-    authorId,
-    content,
-    media,
-    status,
-    visibility: 'public' as const,
-    likesCount: 0,
-    commentsCount: 0,
-    sharesCount: 0,
-    repostsCount: 0,
-    isRepost: false,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-
-  const docRef = await addDoc(postsRef, newPostData);
-  return { id: docRef.id, ...newPostData, createdAt: new Date(), updatedAt: new Date() } as Post;
-}
-
-export async function toggleLikePost(postId: string, userId: string): Promise<void> {
-  const { firestore } = initializeFirebase();
+export async function toggleLikePost(postId: string, userId: string) {
   const postRef = doc(firestore, 'posts', postId);
-  const likeRef = doc(firestore, 'posts', postId, 'likes', userId);
+  const likeRef = doc(postRef, 'likes', userId);
 
   await runTransaction(firestore, async (transaction) => {
     const likeDoc = await transaction.get(likeRef);
-    
     if (likeDoc.exists()) {
       // User has liked the post, so unlike it
       transaction.delete(likeRef);
@@ -395,79 +397,53 @@ export async function toggleLikePost(postId: string, userId: string): Promise<vo
   });
 }
 
+export async function createComment(postId: string, authorId: string, content: string, parentCommentId: string | null = null) {
+  const commentRef = doc(collection(firestore, 'posts', postId, 'comments'));
+  
+  const batch = writeBatch(firestore);
 
-export async function createComment(postId: string, authorId: string, content: string): Promise<void> {
-  const { firestore } = initializeFirebase();
-  const postRef = doc(firestore, 'posts', postId);
-  const commentsRef = collection(firestore, 'posts', postId, 'comments');
-
-  await runTransaction(firestore, async (transaction) => {
-    // Add the new comment
-    const newCommentData = {
-      postId,
-      authorId,
-      content,
-      parentCommentId: null,
-      createdAt: serverTimestamp(),
-    };
-    transaction.set(doc(commentsRef), newCommentData);
-    
-    // Increment the commentsCount on the post
-    transaction.update(postRef, { commentsCount: increment(1) });
+  // 1. Add the new comment
+  batch.set(commentRef, {
+    postId,
+    authorId,
+    content,
+    parentCommentId,
+    createdAt: serverTimestamp(),
   });
+
+  // 2. Increment commentsCount on the post
+  const postRef = doc(firestore, 'posts', postId);
+  batch.update(postRef, { commentsCount: increment(1) });
+
+  // 3. Increment commentCount on the user's profile
+  const userRef = doc(firestore, 'users', authorId);
+  batch.update(userRef, { commentCount: increment(1) });
+
+  await batch.commit();
 }
 
-export async function sharePost(postId: string, userId: string): Promise<void> {
-    const { firestore } = initializeFirebase();
+export async function sendChatMessage(groupId: string, senderId: string, messageData: Partial<ChatMessage>) {
+    const messagesRef = collection(firestore, 'groups', groupId, 'messages');
+    const senderProfile = await getUserProfile(senderId);
+
+    const data = {
+        ...messageData,
+        senderId,
+        status: 'visible' as const,
+        createdAt: serverTimestamp(),
+        senderProfile: senderProfile ? {
+            displayName: senderProfile.displayName,
+            avatarUrl: senderProfile.avatarUrl,
+        } : {
+            displayName: "Unknown User",
+            avatarUrl: null,
+        }
+    };
+    await addDoc(messagesRef, data);
+}
+
+export async function sharePost(postId: string, userId: string) {
     const postRef = doc(firestore, 'posts', postId);
     await updateDoc(postRef, { sharesCount: increment(1) });
+    // In a real app, you might also create a notification for the post author.
 }
-
-export async function repostPost(originalPostId: string, repostingUserId: string): Promise<void> {
-  const { firestore } = initializeFirebase();
-  const originalPostRef = doc(firestore, 'posts', originalPostId);
-  const postsRef = collection(firestore, 'posts');
-
-  await runTransaction(firestore, async (transaction) => {
-    const originalPostSnap = await transaction.get(originalPostRef);
-    if (!originalPostSnap.exists()) {
-      throw new Error('Original post not found.');
-    }
-    const originalPostData = originalPostSnap.data() as Post;
-
-    // Denormalize original author's profile for the repost
-    let originalAuthorProfile: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'> = {
-        displayName: 'Unknown User',
-        avatarUrl: null,
-        username: 'unknown'
-    };
-    const userProfile = await getUserProfile(originalPostData.authorId);
-    if (userProfile) {
-        originalAuthorProfile = {
-            displayName: userProfile.displayName,
-            avatarUrl: userProfile.avatarUrl,
-            username: userProfile.username,
-        };
-    }
-
-    const newPostData = {
-      ...originalPostData,
-      authorId: repostingUserId, // The new author is the one reposting
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      isRepost: true,
-      originalPostId: originalPostId,
-      originalAuthor: originalAuthorProfile,
-      originalPostCreatedAt: originalPostData.createdAt,
-      likesCount: 0,
-      commentsCount: 0,
-      sharesCount: 0,
-      repostsCount: 0,
-    };
-
-    transaction.set(doc(postsRef), newPostData);
-    transaction.update(originalPostRef, { repostsCount: increment(1) });
-  });
-}
-
-    

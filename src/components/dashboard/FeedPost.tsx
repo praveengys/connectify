@@ -4,7 +4,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { MoreHorizontal, MessageSquare, Share2, Repeat2 } from "lucide-react";
+import { MoreHorizontal, MessageSquare, Share2 } from "lucide-react";
 import Image from "next/image";
 import type { Post } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
@@ -14,7 +14,7 @@ import { useState } from "react";
 import CommentSection from "./CommentSection";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import ShareDialog from "./ShareDialog";
-import { sharePost, repostPost } from "@/lib/firebase/firestore";
+import { sharePost } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 
@@ -30,7 +30,6 @@ export default function FeedPost({ post }: FeedPostProps) {
   const { user } = useAuth();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [isReposting, setIsReposting] = useState(false);
   const { toast } = useToast();
   
   if (!user) return null;
@@ -39,36 +38,14 @@ export default function FeedPost({ post }: FeedPostProps) {
     sharePost(post.id, user.uid);
   }
 
-  const handleRepost = async () => {
-    if (post.authorId === user.uid) {
-        toast({ title: "You cannot repost your own post.", variant: "destructive" });
-        return;
-    }
-    setIsReposting(true);
-    try {
-        await repostPost(post.id, user.uid);
-        toast({ title: "Success", description: "Post has been reposted to your feed." });
-    } catch (error: any) {
-        toast({ title: "Error", description: `Could not repost: ${error.message}`, variant: "destructive" });
-    } finally {
-        setIsReposting(false);
-    }
-  }
-
   const author = post.author;
-  const displayAuthor = post.isRepost ? post.originalAuthor : author;
-  const displayDate = post.isRepost ? post.originalPostCreatedAt : post.createdAt;
+  const displayAuthor = author;
+  const displayDate = post.createdAt;
 
 
   return (
     <>
     <Card>
-        {post.isRepost && author && (
-             <div className="flex items-center gap-2 px-6 pt-4 text-sm text-muted-foreground">
-                <Repeat2 size={16} />
-                <span><Link href="#" className="font-semibold text-foreground hover:underline">{author.displayName}</Link> reposted</span>
-            </div>
-        )}
       <CardHeader className="flex flex-row items-center gap-4">
         <Avatar>
           <AvatarImage src={displayAuthor?.avatarUrl ?? undefined} />
@@ -101,14 +78,11 @@ export default function FeedPost({ post }: FeedPostProps) {
         )}
       </CardContent>
        <Collapsible open={isCommentsOpen} onOpenChange={setIsCommentsOpen}>
-        <CardFooter className="flex justify-between border-t pt-4">
+        <CardFooter className="flex justify-around border-t pt-4">
               <LikeButton postId={post.id} initialLikes={post.likesCount} initialIsLiked={!!post.isLiked} />
               <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm"><MessageSquare className="mr-2"/> Comment ({post.commentsCount})</Button>
               </CollapsibleTrigger>
-              <Button variant="ghost" size="sm" onClick={handleRepost} disabled={isReposting || post.authorId === user.uid}>
-                <Repeat2 className="mr-2"/> Repost
-              </Button>
               <Button variant="ghost" size="sm" onClick={() => setIsShareOpen(true)}><Share2 className="mr-2"/> Share</Button>
         </CardFooter>
         <CollapsibleContent>

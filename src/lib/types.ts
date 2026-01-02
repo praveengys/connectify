@@ -165,11 +165,6 @@ export type Post = {
     author?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>;
     // For real-time updates on the client
     isLiked?: boolean;
-    // For reposts
-    isRepost?: boolean;
-    originalPostId?: string;
-    originalAuthor?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>;
-    originalPostCreatedAt?: Date | Timestamp;
 };
 
 export type PostComment = {

@@ -6,8 +6,7 @@ service cloud.firestore {
     // Helper function to check if a user is banned or muted
     function canWrite(userId) {
       let userDoc = get(/databases/$(database)/documents/users/$(userId));
-      // Deny write if user document doesn't exist or if they are banned/muted.
-      // Use nullish coalescing operator (??) for safety if fields don't exist.
+      // Safely check for isBanned and isMuted, defaulting to false if they don't exist.
       return userDoc.exists()
         && !(userDoc.data.isBanned ?? false)
         && !(userDoc.data.isMuted ?? false);
@@ -25,34 +24,32 @@ service cloud.firestore {
 
     // Rules for the 'posts' collection
     match /posts/{postId} {
-      // Allow reads for collection queries and for public individual documents.
+      // Allow reads for list queries. Visibility should be enforced client-side or in more specific rules if needed.
       allow read: if true;
 
       // Allow create for original posts and reposts with validation
       allow create: if request.auth != null && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid
         && (
-          // Normal Post Validation
-          (request.resource.data.isRepost == false
-              && request.resource.data.content is string
-              && request.resource.data.likesCount == 0
-              && request.resource.data.commentsCount == 0
-              && request.resource.data.repostsCount == 0
-              && request.resource.data.sharesCount == 0
-          )
-          // Repost Validation
-          || (request.resource.data.isRepost == true
-              && request.resource.data.originalPostId is string
-              && get(/databases/$(database)/documents/posts/$(request.resource.data.originalPostId)).data.authorId != request.auth.uid // Can't repost own post
-              && request.resource.data.originalAuthor is map
-              && request.resource.data.originalPostCreatedAt is timestamp
+            // Normal Post Validation
+            (request.resource.data.isRepost == false
+                && request.resource.data.content is string
+                && request.resource.data.likesCount == 0
+                && request.resource.data.commentsCount == 0
+                && request.resource.data.repostsCount == 0
+                && request.resource.data.sharesCount == 0
             )
+            // Repost Validation
+            || (request.resource.data.isRepost == true
+                && request.resource.data.originalPostId is string
+                && get(/databases/$(database)/documents/posts/$(request.resource.data.originalPostId)).data.authorId != request.auth.uid // Can't repost own post
+                && request.resource.data.originalAuthor is map
+                && request.resource.data.originalPostCreatedAt is timestamp
+               )
         );
 
       // Allow users to update their own posts, or admins to update any
       allow update: if request.auth != null && (
-          (request.auth.uid == resource.data.authorId) 
-          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount', 'sharesCount', 'repostsCount']))
+          (request.auth.uid == resource.data.authorId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
       );
 
       // Allow users to delete their own posts, or admins to delete any

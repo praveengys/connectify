@@ -1,16 +1,13 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is not banned or muted.
+    // Helper function to check if a user is banned or muted
     function canWrite(userId) {
       let userDoc = get(/databases/$(database)/documents/users/$(userId));
-      // Use the get() function with a default value of false if the fields do not exist.
-      let isBanned = get(userDoc.data, 'isBanned', false);
-      let isMuted = get(userDoc.data, 'isMuted', false);
-      return userDoc.exists() == true && isBanned == false && isMuted == false;
+      // Use .get() with a default value to safely check for potentially non-existent fields.
+      return userDoc != null && userDoc.data.get('isBanned', false) == false && userDoc.data.get('isMuted', false) == false;
     }
 
     // Rules for the 'users' collection
@@ -25,35 +22,24 @@ service cloud.firestore {
 
     // Rules for the 'posts' collection
     match /posts/{postId} {
-      // Allow reads for any document. List queries will also work.
       allow read: if true;
 
       // Allow create for original posts and reposts with validation
-      allow create: if request.auth != null && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid
-        && (
-            // Normal Post Validation
-            (request.resource.data.isRepost == false
-                && request.resource.data.content is string
-                && request.resource.data.likesCount == 0
-                && request.resource.data.commentsCount == 0
-                && request.resource.data.repostsCount == 0
-                && request.resource.data.sharesCount == 0
-            )
-            // Repost Validation
-            || (request.resource.data.isRepost == true
-                && request.resource.data.originalPostId is string
-                && get(/databases/$(database)/documents/posts/$(request.resource.data.originalPostId)).data.authorId != request.auth.uid // Can't repost own post
-                && request.resource.data.originalAuthor is map
-                && request.resource.data.originalPostCreatedAt is timestamp
-            )
+      allow create: if request.auth != null && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid && (
+          (request.resource.data.isRepost == false
+              && request.resource.data.content is string
+              && request.resource.data.likesCount == 0
+              && request.resource.data.commentsCount == 0
+              && request.resource.data.repostsCount == 0
+              && request.resource.data.sharesCount == 0
+          )
         );
 
-      // Allow users to update their own posts, or admins to update any.
-      // Also allow any authenticated user to increment repostsCount.
+      // Allow users to update their own posts, admins to update any, or any user to update ONLY the likesCount.
       allow update: if request.auth != null && (
           (request.auth.uid == resource.data.authorId)
-          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostsCount']) && request.resource.data.repostsCount == resource.data.repostsCount + 1)
+          || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']))
       );
 
       // Allow users to delete their own posts, or admins to delete any

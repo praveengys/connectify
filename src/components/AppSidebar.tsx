@@ -38,6 +38,7 @@ function HorizontalNav() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -62,6 +63,14 @@ function HorizontalNav() {
   const handleSignOut = async () => {
     await signOutUser();
     router.push('/');
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false);
+    }
   };
 
   const menuItems = [
@@ -164,13 +173,17 @@ function HorizontalNav() {
                 </div>
                 <div className="flex items-center gap-2">
                     <div ref={searchContainerRef} className={cn("relative w-full transition-all duration-300 ease-in-out", isSearchOpen ? "max-w-xs" : "max-w-[2.5rem]")}>
-                        <Button variant="ghost" size="icon" className={cn("absolute right-0 top-1/2 -translate-y-1/2", isSearchOpen ? 'hidden' : 'inline-flex')} onClick={() => setIsSearchOpen(true)}>
+                        <Button variant="ghost" size="icon" className={cn("absolute right-0 top-1/2 -translate-y-1/2 z-10", isSearchOpen ? 'hidden' : 'inline-flex')} onClick={() => setIsSearchOpen(true)}>
                             <Search className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                        <Input 
-                            placeholder="Search..." 
-                            className={cn("pl-8 transition-all", isSearchOpen ? 'opacity-100' : 'opacity-0')}
-                         />
+                        <form onSubmit={handleSearchSubmit}>
+                            <Input 
+                                placeholder="Search..." 
+                                className={cn("pl-8 transition-all", isSearchOpen ? 'opacity-100' : 'opacity-0')}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </form>
                     </div>
                     {loading ? (
                         <div className="h-10 w-10 animate-pulse rounded-full bg-muted"></div>
@@ -223,7 +236,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const publicPages = ['/', '/login', '/signup', '/forgot-password'];
     const isAdminPage = pathname.startsWith('/admin');
-    const isPublicPage = publicPages.includes(pathname);
+    const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/search');
   
     if (isPublicPage || isAdminPage) {
       return <>{children}</>;

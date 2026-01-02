@@ -48,6 +48,8 @@ export default function BookDemoClient() {
     return slots;
   }, []);
 
+  const today = useMemo(() => startOfDay(new Date()), []);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       await bookDemo({
@@ -106,7 +108,7 @@ export default function BookDemoClient() {
                           onSelect={field.onChange}
                           fromDate={new Date()}
                           toDate={add(new Date(), { months: 2 })}
-                          disabled={(date) => date < startOfDay(new Date())}
+                          disabled={(date) => date < today}
                           initialFocus
                       />
                     </FormControl>

@@ -1,144 +1,124 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
     // Helper Functions
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
     function isAdmin() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
     function canWrite(uid) {
-      let user = get(/databases/$(database)/documents/users/$(uid));
-      // Use get() with a default value of false for safe checking
-      return user.exists()
-        && user.data.get('isBanned', false) == false
-        && user.data.get('isMuted', false) == false;
+      let userDoc = get(/databases/$(database)/documents/users/$(uid)).data;
+      return !(userDoc.isBanned ?? false) && !(userDoc.isMuted ?? false);
     }
-
+    
     function isThreadLocked(threadId) {
-        let thread = get(/databases/$(database)/documents/threads/$(threadId));
-        return thread.exists() && thread.data.get('isLocked', false) == true;
+      return get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked ?? false;
     }
 
-    // User Profiles
+    // USER PROFILES
     match /users/{userId} {
-      allow read: if request.auth != null && (isOwner(userId) || resource.data.profileVisibility == 'public');
-      allow list: if request.auth != null;
-      allow create: if isOwner(userId)
-                    && request.resource.data.username is string
-                    && request.resource.data.displayName is string
-                    && request.resource.data.email is string
-                    && request.resource.data.role == 'member'
-                    && request.resource.data.profileVisibility == 'public'
-                    && request.resource.data.emailVerified == request.auth.token.email_verified;
-      allow update: if request.auth != null && (isOwner(userId) || isAdmin());
-      allow delete: if false;
+      allow read: if request.auth != null; // Any authenticated user can read profiles
+      allow create: if isOwner(userId); // Users can create their own profile
+      allow update: if isOwner(userId) || isAdmin(); // Users can update their own profile, or an admin can
+      allow delete: if isAdmin(); // Only admins can delete user profiles
     }
 
-    // Posts, Likes, Comments
-    match /posts/{postId} {
-      allow read: if true; // Allow all reads for public feed
-      allow create: if request.auth != null
-                    && canWrite(request.auth.uid)
-                    && request.resource.data.authorId == request.auth.uid;
-      allow update: if request.auth != null
-                    && (
-                      // Case 1: Author or Admin can edit main content
-                      (isOwner(resource.data.authorId) || isAdmin())
-                      ||
-                      // Case 2: Any authenticated user can update interaction counts
-                      (
-                        request.resource.data.diff(resource.data).affectedKeys()
-                          .hasAny(['likesCount', 'commentsCount', 'sharesCount', 'repostsCount'])
-                      )
-                    );
-      allow delete: if request.auth != null && (isOwner(resource.data.authorId) || isAdmin());
-
-      match /likes/{userId} {
-        allow read: if true;
-        allow create, delete: if isOwner(userId);
-        allow list, update: if false;
-      }
-
-      match /comments/{commentId} {
-        allow read: if true;
-        allow create: if request.auth != null
-                      && canWrite(request.auth.uid)
-                      && request.resource.data.authorId == request.auth.uid
-                      && exists(/databases/$(database)/documents/posts/$(postId));
-        allow delete: if request.auth != null && (isOwner(resource.data.authorId) || isAdmin());
-        allow update: if false;
-      }
-    }
-
-    // Forums
+    // FORUMS & CATEGORIES
     match /forums/{forumId} {
-      allow read, list: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if request.auth != null && (isAdmin() || isOwner(resource.data.createdBy));
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && canWrite(request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Categories
     match /categories/{categoryId} {
-        allow read, list: if request.auth != null;
-        allow create: if request.auth != null; // Allow any authenticated user to create a category
-        allow update, delete: if isAdmin();
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && canWrite(request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
-
-    // Threads and Replies
+    
+    // THREADS & REPLIES
     match /threads/{threadId} {
-      allow read, list: if request.auth != null;
-      allow create: if request.auth != null
-                    && canWrite(request.auth.uid)
-                    && request.resource.data.authorId == request.auth.uid;
-      allow update: if request.auth != null
-                    && (
-                        (isOwner(resource.data.authorId) || isAdmin()) ||
-                        (
-                            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount']) &&
-                            !isThreadLocked(threadId)
-                        )
-                    );
-      allow delete: if isAdmin() || isOwner(resource.data.authorId);
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && canWrite(request.auth.uid);
+      allow update: if request.auth != null && (
+        (isOwner(resource.data.authorId) || isAdmin()) ||
+        (
+            // Allow any user to increment replyCount
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount', 'updatedAt', 'latestReplyAt']) &&
+            request.resource.data.replyCount == resource.data.replyCount + 1
+        )
+      );
+      allow delete: if isOwner(resource.data.authorId) || isAdmin();
 
+      // Replies Subcollection
       match /replies/{replyId} {
-        allow read: if true;
-        allow create: if request.auth != null
-                      && canWrite(request.auth.uid)
-                      && request.resource.data.authorId == request.auth.uid
-                      && !isThreadLocked(threadId);
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && canWrite(request.auth.uid) && !isThreadLocked(threadId);
         allow update: if isOwner(resource.data.authorId) || isAdmin();
         allow delete: if isOwner(resource.data.authorId) || isAdmin();
       }
     }
-    
-    // Groups and Chat
+
+    // POSTS (Feed)
+    match /posts/{postId} {
+      allow read: if request.auth != null; // Simplified for queries
+      allow create: if request.auth != null && canWrite(request.auth.uid);
+      allow update: if request.auth != null && (
+        (isOwner(resource.data.authorId) || isAdmin()) ||
+        (
+            // Allow any user to increment specific counter fields
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount', 'sharesCount'])
+        )
+      );
+      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+
+      // Likes Subcollection
+      match /likes/{userId} {
+        allow read: if request.auth != null;
+        allow create, delete: if isOwner(userId) && canWrite(userId);
+      }
+
+      // Comments Subcollection
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && canWrite(request.auth.uid);
+        allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
+      }
+    }
+
+    // GROUPS & CHAT
     match /groups/{groupId} {
       allow read: if request.auth != null;
-      allow list: if request.auth != null; // For listing public groups
-      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
-      allow update: if request.auth != null && (request.auth.uid in resource.data.members && resource.data.members[request.auth.uid] in ['owner', 'admin']);
-      allow delete: if request.auth != null && request.auth.uid in resource.data.members && resource.data.members[request.auth.uid] == 'owner';
+      allow create: if request.auth != null && canWrite(request.auth.uid);
+      allow update: if request.auth != null && (
+        (get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] in ['owner', 'admin']) ||
+        isAdmin() ||
+        (
+            // Allow joining a public group
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberCount']) &&
+            resource.data.type == 'public'
+        )
+      );
+      allow delete: if isAdmin();
 
+      // Chat Messages Subcollection
       match /messages/{messageId} {
-        allow read: if request.auth != null
-                    && (
-                      get(/databases/$(database)/documents/groups/$(groupId)).data.type == 'public'
-                      || request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
-                    );
-        allow create: if request.auth != null
-                      && canWrite(request.auth.uid)
-                      && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-        allow update, delete: if false;
+        allow read, create: if request.auth != null 
+          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+        allow update, delete: if isOwner(resource.data.senderId) || isAdmin();
       }
+
+       // Typing indicators
       match /typing/{userId} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
     }
   }

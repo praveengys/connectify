@@ -65,57 +65,15 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
     }
   }, [authors]);
 
-  // Initial data load
+  // Initial data load and real-time listeners
   useEffect(() => {
-    const loadInitialData = async () => {
-      setPageLoading(true);
-      const threadData = await getThread(threadId);
-
-      if (!threadData) {
-        notFound();
-        return;
-      }
-      setThread(threadData);
-
-      const [initialReplies, threadAuthor] = await Promise.all([
-        getRepliesForThread(threadId),
-        getUserProfile(threadData.authorId),
-      ]);
-      setReplies(initialReplies);
-      
-      const authorIds = new Set<string>([threadData.authorId]);
-      initialReplies.forEach(reply => authorIds.add(reply.authorId));
-
-      const initialAuthors: Record<string, UserProfile> = {};
-      if (threadAuthor) {
-        initialAuthors[threadData.authorId] = threadAuthor;
-      }
-
-      const authorPromises = Array.from(authorIds)
-        .filter(id => !initialAuthors[id])
-        .map(id => getUserProfile(id));
-      
-      const authorResults = await Promise.all(authorPromises);
-      authorResults.forEach((author) => {
-        if (author) {
-          initialAuthors[author.uid] = author;
-        }
-      });
-      setAuthors(initialAuthors);
-      setPageLoading(false);
-    };
-
-    loadInitialData();
-  }, [threadId]);
-
-
-  // Real-time listeners
-  useEffect(() => {
-    if (!threadId || authLoading) return;
-
-    const { firestore } = initializeFirebase();
-    const threadRef = doc(firestore, 'threads', threadId);
+    if (authLoading) return;
     
+    setPageLoading(true);
+    const { firestore } = initializeFirebase();
+
+    // Listener for the main thread document
+    const threadRef = doc(firestore, 'threads', threadId);
     const unsubscribeThread = onSnapshot(threadRef, (docSnap) => {
       if (docSnap.exists()) {
         const threadData = {
@@ -126,14 +84,21 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
         } as Thread;
         setThread(threadData);
         if (threadData.authorId && !authors[threadData.authorId]) {
-            fetchAndCacheAuthors([threadData.authorId]);
+          getUserProfile(threadData.authorId).then(author => {
+            if (author) setAuthors(prev => ({...prev, [author.uid]: author}));
+          });
         }
+      } else {
+        notFound();
       }
+      setPageLoading(false);
+    }, () => {
+      notFound();
     });
 
+    // Listener for replies
     const repliesRef = collection(firestore, 'threads', threadId, 'replies');
     const q = query(repliesRef, orderBy('createdAt', 'asc'));
-
     const unsubscribeReplies = onSnapshot(q, (snapshot) => {
       const newReplies = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -147,14 +112,28 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
       setReplies(newReplies);
 
       const authorIds = newReplies.flatMap(r => [r.authorId, r.replyToAuthorId]).filter(Boolean) as string[];
-      fetchAndCacheAuthors(authorIds);
+      const uniqueAuthorIds = [...new Set(authorIds)];
+      
+      // Fetch any authors not already in state
+      const missingAuthorIds = uniqueAuthorIds.filter(id => !authors[id]);
+      if (missingAuthorIds.length > 0) {
+        Promise.all(missingAuthorIds.map(id => getUserProfile(id))).then(fetchedAuthors => {
+            setAuthors(prev => {
+                const updatedAuthors = {...prev};
+                fetchedAuthors.forEach(author => {
+                    if (author) updatedAuthors[author.uid] = author;
+                });
+                return updatedAuthors;
+            });
+        });
+      }
     });
 
     return () => {
       unsubscribeThread();
       unsubscribeReplies();
     };
-  }, [threadId, toast, authLoading, fetchAndCacheAuthors, authors]);
+  }, [threadId, authLoading]);
 
   const threadAuthor = useMemo(() => thread ? authors[thread.authorId] : undefined, [authors, thread]);
   
@@ -376,7 +355,3 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
     </div>
   );
 }
-
-    
-
-    

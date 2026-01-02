@@ -4,13 +4,13 @@
 import {
   LayoutDashboard,
   Users,
-  MessageSquare,
   BookOpen,
   LogOut,
   User as UserIcon,
   Menu,
   Search,
   Shield,
+  MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
@@ -124,8 +124,10 @@ function HorizontalNav() {
                 </Sheet>
             </div>
             
-            <div className="flex flex-1 items-center justify-between space-x-2">
-                <NavLinks />
+            <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+                <div className="hidden md:flex flex-1 items-center gap-1">
+                    <NavLinks />
+                </div>
                 <div className="flex items-center gap-2">
                     <div className="relative w-full max-w-xs ml-auto">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

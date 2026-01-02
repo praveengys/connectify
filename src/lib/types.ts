@@ -1,4 +1,5 @@
 
+
 import { type Timestamp } from 'firebase/firestore';
 
 export type Forum = {
@@ -188,7 +189,7 @@ export type DemoBooking = {
     email: string;
     date: string; // YYYY-MM-DD
     startTime: string; // HH:mm
-    duration: number;
+    slotId: string;
     notes?: string;
     status: 'pending' | 'scheduled' | 'denied';
     createdAt: Date | Timestamp;

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -75,15 +76,10 @@ export default function BookDemoClient() {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const selectedSlot = availableSlots.find(slot => slot.id === values.slotId);
-    if (!selectedSlot) {
-      toast({ title: 'Selected slot not found.', variant: 'destructive' });
-      return;
-    }
     
     try {
       await bookDemo({
-        slotId: selectedSlot.id,
+        slotId: values.slotId,
         name: values.name,
         email: values.email,
         notes: values.notes || '',
@@ -103,9 +99,9 @@ export default function BookDemoClient() {
         <Card className="w-full max-w-lg mx-auto">
             <CardContent className="p-10 text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Demo Scheduled Successfully!</h2>
+                <h2 className="text-2xl font-bold mb-2">Demo Request Sent!</h2>
                 <p className="text-muted-foreground">
-                    Your demo has been booked. A calendar invite will be sent to your email shortly.
+                    Your request has been submitted. Our team will review it and send a calendar invite to your email upon approval.
                 </p>
             </CardContent>
         </Card>

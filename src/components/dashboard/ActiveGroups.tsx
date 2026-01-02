@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Group } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,12 @@ export default function ActiveGroups() {
     useEffect(() => {
         const { firestore } = initializeFirebase();
         const groupsRef = collection(firestore, 'groups');
-        const q = query(groupsRef, orderBy('memberCount', 'desc'), limit(5));
+        const q = query(
+            groupsRef, 
+            where('type', '==', 'public'),
+            orderBy('memberCount', 'desc'), 
+            limit(5)
+        );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const groupsData = snapshot.docs.map(doc => ({

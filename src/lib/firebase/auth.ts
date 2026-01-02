@@ -2,99 +2,148 @@
 'use client';
 
 import {
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut,
+  onAuthStateChanged,
   updateProfile,
-  onAuthStateChanged as onFirebaseAuthStateChanged,
   GoogleAuthProvider,
+  signInWithPopup,
   sendPasswordResetEmail,
-  type User,
 } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
-import { createUserProfile, getUserProfile } from './firestore';
+import { doc, setDoc, getDoc, getCountFromServer, collection } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/types';
+import { FirebaseError } from 'firebase/app';
 
-const { auth } = initializeFirebase();
+// Helper to check if this is the first user
+async function isFirstUser() {
+  const { firestore } = initializeFirebase();
+  const usersCollection = collection(firestore, 'users');
+  const snapshot = await getCountFromServer(usersCollection);
+  return snapshot.data().count === 0;
+}
 
-// Sign up with email and password
-export async function signUpWithEmail(email: string, password: string, displayName: string) {
+export async function signUpWithEmail(email: string, password: string, name: string) {
+  const { auth, firestore } = initializeFirebase();
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    await updateProfile(user, { displayName });
-    
-    // Create user profile in Firestore if it doesn't exist.
-    // This is important for both new sign-ups and first-time Google sign-ins.
-    const existingProfile = await getUserProfile(user.uid);
-    if (!existingProfile) {
-        await createUserProfile(user.uid, {
-            displayName,
-            email,
-            avatarUrl: user.photoURL,
-        });
-    }
 
-    return { user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
+    // Update Firebase Auth profile
+    await updateProfile(user, { displayName: name });
+
+    const firstUser = await isFirstUser();
+
+    // Create user profile in Firestore
+    const userProfile: UserProfile = {
+      uid: user.uid,
+      displayName: name,
+      username: name.toLowerCase().replace(/\s+/g, ''), // simple username
+      email: user.email,
+      avatarUrl: user.photoURL,
+      bio: '',
+      role: firstUser ? 'admin' : 'member',
+      profileVisibility: 'public',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastActiveAt: new Date(),
+      emailVerified: user.emailVerified,
+      interests: [],
+      skills: [],
+      languages: [],
+      location: '',
+      currentlyExploring: '',
+      profileScore: 0,
+      postCount: 0,
+      commentCount: 0,
+    };
+    await setDoc(doc(firestore, 'users', user.uid), userProfile);
+
+    return { user: userCredential, error: null };
+  } catch (e) {
+    return { user: null, error: e as FirebaseError };
   }
 }
 
-// Sign in with email and password
 export async function signInWithEmail(email: string, password: string) {
+  const { auth } = initializeFirebase();
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
+    // On sign-in, update last active time
+    const user = userCredential.user;
+    const { firestore } = initializeFirebase();
+    await setDoc(doc(firestore, 'users', user.uid), { lastActiveAt: new Date() }, { merge: true });
+    return { userCredential, error: null };
+  } catch (e) {
+    return { userCredential: null, error: e as FirebaseError };
   }
 }
 
-// Sign in with Google
 export async function signInWithGoogle() {
+  const { auth, firestore } = initializeFirebase();
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
     
-    // Create user profile in Firestore if it doesn't exist.
-    const existingProfile = await getUserProfile(user.uid);
-    if (!existingProfile) {
-        await createUserProfile(user.uid, {
-            displayName: user.displayName,
-            email: user.email,
-            avatarUrl: user.photoURL,
-        });
+    const userDocRef = doc(firestore, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+      // New user via Google
+      const firstUser = await isFirstUser();
+      const userProfile: UserProfile = {
+        uid: user.uid,
+        displayName: user.displayName || 'Google User',
+        username: user.email?.split('@')[0] || user.uid,
+        email: user.email,
+        avatarUrl: user.photoURL,
+        bio: '',
+        role: firstUser ? 'admin' : 'member',
+        profileVisibility: 'public',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastActiveAt: new Date(),
+        emailVerified: user.emailVerified,
+        interests: [],
+        skills: [],
+        languages: [],
+        location: '',
+        currentlyExploring: '',
+        profileScore: 0,
+        postCount: 0,
+        commentCount: 0,
+      };
+      await setDoc(userDocRef, userProfile);
+    } else {
+        // Existing user
+         await setDoc(userDocRef, { lastActiveAt: new Date(), avatarUrl: user.photoURL }, { merge: true });
     }
 
-    return { user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
+    return { result, error: null };
+  } catch (e) {
+    return { result: null, error: e as FirebaseError };
   }
 }
 
-// Sign out
 export async function signOutUser() {
+  const { auth } = initializeFirebase();
   try {
     await signOut(auth);
     return { error: null };
-  } catch (error: any) {
-    return { error };
+  } catch (e) {
+    return { error: e as FirebaseError };
   }
 }
 
-// Password Reset
 export async function sendPasswordReset(email: string) {
+    const { auth } = initializeFirebase();
     try {
         await sendPasswordResetEmail(auth, email);
         return { error: null };
-    } catch (error: any) {
-        return { error };
+    } catch (e) {
+        return { error: e as FirebaseError };
     }
-}
-
-// Auth state observer
-export function onAuthStateChanged(callback: (user: User | null) => void) {
-  return onFirebaseAuthStateChanged(auth, callback);
 }

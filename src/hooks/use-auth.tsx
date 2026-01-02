@@ -1,104 +1,97 @@
 
-
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { onSnapshot, doc } from 'firebase/firestore';
-import { createUserProfile, getUserProfile } from '@/lib/firebase/firestore';
-import { useFirebaseUser } from '@/firebase/provider';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import type { User } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { UserProfile as UserProfileType } from '@/lib/types';
-import { getAuth, getIdTokenResult } from 'firebase/auth';
+import type { UserProfile } from '@/lib/types';
 
+export type UserProfileWithUser = UserProfile & {
+  user: User; // The original Firebase Auth User object
+};
 
-// Re-export the type from lib/types to avoid circular dependencies
-export type UserProfile = UserProfileType;
-
-interface AuthContextType {
+type AuthContextType = {
   user: UserProfile | null;
-  loading: boolean; // A single loading state for the entire auth flow.
-}
+  loading: boolean;
+};
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+});
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const { user: firebaseUser, isUserLoading } = useFirebaseUser();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isProfileLoading, setProfileLoading] = useState(true);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isUserLoading) {
-      // Still waiting for Firebase to confirm auth state
-      return;
-    }
+    const { auth, firestore } = initializeFirebase();
 
-    if (!firebaseUser) {
-      // User is logged out
-      setUserProfile(null);
-      setProfileLoading(false);
-      return;
-    }
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in
+        const userRef = doc(firestore, 'users', firebaseUser.uid);
+        const unsubscribeProfile = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const userProfile = {
+              uid: docSnap.id,
+              ...docSnap.data(),
+              createdAt: docSnap.data().createdAt?.toDate() ?? new Date(),
+            } as UserProfile;
 
-    // User is logged in, fetch or create profile and listen for updates.
-    const { firestore } = initializeFirebase();
-    const profileRef = doc(firestore, 'users', firebaseUser.uid);
-
-    const unsubscribe = onSnapshot(profileRef, async (docSnap) => {
-      let finalProfile: UserProfile | null = null;
-      if (docSnap.exists()) {
-        const profileData = docSnap.data();
-        finalProfile = {
-          ...profileData,
-          uid: docSnap.id,
-          createdAt: profileData.createdAt?.toDate(),
-          updatedAt: profileData.updatedAt?.toDate(),
-          email: firebaseUser.email,
-        } as UserProfile;
-      } else {
-        // First-time user, create a profile.
-        console.log(`Creating profile for new user: ${firebaseUser.uid}`);
-        const newProfile = await createUserProfile(firebaseUser.uid, {
-          displayName: firebaseUser.displayName || 'New Member',
-          email: firebaseUser.email,
-          emailVerified: firebaseUser.emailVerified,
-          avatarUrl: firebaseUser.photoURL,
-        });
-        // The onSnapshot listener will automatically pick up the newly created profile.
-        // But we can set it here to speed up the UI update.
-        if (newProfile) {
-            finalProfile = newProfile;
-        }
-      }
-
-      // Sync custom claims to the profile state
-      if (finalProfile) {
-          try {
-              const auth = getAuth();
-              const tokenResult = await getIdTokenResult(auth.currentUser!, true); // Force refresh
-              const claims = tokenResult.claims;
-              finalProfile.role = (claims.role as 'admin' | 'member') || 'member';
-              finalProfile.isBanned = claims.banned === true;
-              finalProfile.isMuted = claims.muted === true;
-          } catch (e) {
-              console.error("Error fetching custom claims:", e);
+            // --- ADMIN UPGRADE LOGIC ---
+            // If the user is 'tnbit@gmail.com' and their role is not 'admin', upgrade them.
+            if (userProfile.email === 'tnbit@gmail.com' && userProfile.role !== 'admin') {
+              updateDoc(doc(firestore, 'users', userProfile.uid), { role: 'admin' })
+                .then(() => {
+                  // The onSnapshot listener will automatically update the local state
+                  console.log('User tnbit@gmail.com has been upgraded to admin.');
+                })
+                .catch(error => {
+                  console.error('Error upgrading user to admin:', error);
+                });
+            } else {
+               setUser(userProfile);
+            }
+            // --- END ADMIN UPGRADE LOGIC ---
+          } else {
+            // This case might happen if the user profile is not created yet
+            // or if there's a delay. For now, we assume it exists if logged in.
+            setUser(null);
           }
-      }
+          setLoading(false);
+        }, (error) => {
+           console.error("Error fetching user profile:", error);
+           setUser(null);
+           setLoading(false);
+        });
 
-      setUserProfile(finalProfile);
-      setProfileLoading(false);
-    }, (error) => {
-        console.error("Error listening to user profile:", error);
-        setProfileLoading(false);
+        return () => unsubscribeProfile();
+      } else {
+        // User is signed out
+        setUser(null);
+        setLoading(false);
+      }
     });
 
-    return () => unsubscribe(); // Cleanup listener on unmount
-  }, [firebaseUser, isUserLoading]);
+    return () => unsubscribe();
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user: userProfile, loading: isUserLoading || isProfileLoading }}>
+    <AuthContext.Provider value={{ user, loading }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  return useContext(AuthContext);
+};

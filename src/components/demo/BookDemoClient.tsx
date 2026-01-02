@@ -52,19 +52,28 @@ export default function BookDemoClient() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await bookDemo({
+      const isBooked = await bookDemo({
         name: values.name,
         email: values.email,
         notes: values.notes || '',
         date: format(values.date, 'yyyy-MM-dd'),
         startTime: values.time,
-        status: 'pending', // Set status to pending for admin approval
+        status: 'scheduled',
       });
-      setIsSuccess(true);
+
+      if (isBooked) {
+         toast({
+            title: 'Unable to Book Demo',
+            description: 'This slot has just been taken. Please try another time.',
+            variant: 'destructive',
+         });
+      } else {
+        setIsSuccess(true);
+      }
     } catch (error: any) {
       toast({
         title: 'Unable to Book Demo',
-        description: error.message || 'This slot may have just been taken. Please try another time.',
+        description: error.message || 'An unknown error occurred.',
         variant: 'destructive',
       });
     }
@@ -75,9 +84,9 @@ export default function BookDemoClient() {
         <Card className="w-full max-w-lg mx-auto">
             <CardContent className="p-10 text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Demo Request Sent!</h2>
+                <h2 className="text-2xl font-bold mb-2">Demo Booked!</h2>
                 <p className="text-muted-foreground">
-                    Your request has been submitted for approval. You will receive a confirmation email once it's scheduled.
+                    Your demo is confirmed. You will receive a confirmation email with a calendar invite shortly.
                 </p>
             </CardContent>
         </Card>
@@ -90,73 +99,74 @@ export default function BookDemoClient() {
 
   return (
     <Form {...form}>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card>
           <CardHeader>
-            <CardTitle>1. Select a Date</CardTitle>
+            <CardTitle>1. Select a Date & Time</CardTitle>
+            <CardDescription>Choose a day and time that works for you.</CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center">
-            <FormField
+          <CardContent className="space-y-6">
+            <div className="flex justify-center">
+                <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              fromDate={new Date()}
+                              toDate={add(new Date(), { months: 2 })}
+                              disabled={(date) => date < today}
+                              initialFocus
+                          />
+                        </FormControl>
+                        <FormMessage className="text-center pt-2" />
+                      </FormItem>
+                    )}
+                  />
+            </div>
+             <FormField
                 control={form.control}
-                name="date"
+                name="time"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          fromDate={new Date()}
-                          toDate={add(new Date(), { months: 2 })}
-                          disabled={(date) => date < today}
-                          initialFocus
-                      />
-                    </FormControl>
-                    <FormMessage className="text-center pt-2" />
-                  </FormItem>
+                    <FormItem>
+                    <FormLabel>Time</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder={selectedDate ? "Select a time slot" : "Select a date first"} />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {availableTimeSlots.map(time => (
+                            <SelectItem key={time} value={time}>
+                            {format(new Date(`1970-01-01T${time}`), 'p')}
+                            </SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
                 )}
-              />
+            />
+
+            {selectedTime && (
+                <div className="p-3 text-sm rounded-md bg-muted text-center text-muted-foreground">
+                    Your demo will run from {format(new Date(`1970-01-01T${selectedTime}`), 'p')} to {endTime}.
+                </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardHeader>
-              <CardTitle>2. Schedule Your Demo</CardTitle>
-              <CardDescription>Fill in your details and we'll send you a calendar invite upon approval.</CardDescription>
+              <CardTitle>2. Your Details</CardTitle>
+              <CardDescription>Fill in your details so we can send you the calendar invite.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <FormField
-                    control={form.control}
-                    name="time"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Time</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder={selectedDate ? "Select a time slot" : "Select a date first"} />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {availableTimeSlots.map(time => (
-                                <SelectItem key={time} value={time}>
-                                {format(new Date(`1970-01-01T${time}`), 'p')}
-                                </SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-
-                {selectedTime && (
-                    <div className="p-3 text-sm rounded-md bg-muted text-center text-muted-foreground">
-                        Your demo will run from {format(new Date(`1970-01-01T${selectedTime}`), 'p')} to {endTime}.
-                    </div>
-                )}
-
                 <FormField
                     control={form.control}
                     name="name"
@@ -193,12 +203,11 @@ export default function BookDemoClient() {
 
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !selectedTime || !selectedDate}>
                     {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Request Demo
+                    Book Your Demo
                 </Button>
             </CardContent>
-          </form>
         </Card>
-      </div>
+      </form>
     </Form>
   );
 }

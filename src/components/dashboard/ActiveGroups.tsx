@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { Group } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ export default function ActiveGroups() {
         const groupsRef = collection(firestore, 'groups');
         const q = query(
             groupsRef, 
+            where('type', '==', 'public'),
             orderBy('memberCount', 'desc'), 
             limit(5)
         );
@@ -27,7 +28,7 @@ export default function ActiveGroups() {
             const groupsData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-            } as Group)).filter(group => group.type === 'public'); // Filter on the client
+            } as Group));
             setGroups(groupsData);
             setLoading(false);
         }, (err) => {

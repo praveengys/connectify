@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { UserProfile } from '@/hooks/use-auth';
@@ -15,14 +14,7 @@ type DashboardClientProps = {
 export default function DashboardClient({ user }: DashboardClientProps) {
   return (
     <div className="container mx-auto py-8">
-       <Card className="mb-8">
-        <CardContent className="p-6">
-            <h2 className="text-2xl font-semibold">You're using the BuddyBoss Online Community Demo</h2>
-            <p className="text-muted-foreground">Launch your community today with BuddyBoss; get it now!</p>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <aside className="hidden lg:block lg:col-span-3">
           <LeftSidebar />
         </aside>

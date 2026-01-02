@@ -54,7 +54,7 @@ function HorizontalNav() {
   const NavLinks = ({ isMobile = false }: { isMobile?: boolean }) => (
     <nav className={cn(
         "items-center gap-1",
-        isMobile ? "flex flex-col p-4" : "hidden md:flex"
+        isMobile ? "flex flex-col p-4" : "flex"
     )}>
       {menuItems.map((item) => (
         <Button 
@@ -90,11 +90,14 @@ function HorizontalNav() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center">
-            <div className="mr-4 hidden md:flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <div className="mr-4 flex items-center gap-2 md:flex">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground md:hidden">
                     <MessageSquare size={18} />
                 </div>
-                <span className="font-bold text-lg">Connectify</span>
+                 <div className="hidden h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground md:flex">
+                    <MessageSquare size={18} />
+                </div>
+                <span className="font-bold text-lg hidden md:inline-block">Connectify</span>
             </div>
 
             {/* Mobile Menu */}
@@ -125,18 +128,16 @@ function HorizontalNav() {
                 </Sheet>
             </div>
             
-            <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+            <div className="flex flex-1 items-center justify-end space-x-2">
                 <div className="hidden md:flex flex-1 items-center gap-1">
                     <NavLinks />
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className={cn("relative w-full transition-all duration-300 ease-in-out", isSearchOpen ? "max-w-xs" : "max-w-[2.5rem]")}>
+                    <div className="relative w-full max-w-xs ml-auto">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Search..." 
-                            className="pl-8" 
-                            onFocus={() => setIsSearchOpen(true)}
-                            onBlur={() => setIsSearchOpen(false)}
+                            className="pl-8"
                          />
                     </div>
                     {loading ? (

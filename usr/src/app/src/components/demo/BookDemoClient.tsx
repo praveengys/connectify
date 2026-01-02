@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -15,19 +16,23 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { bookDemo } from '@/lib/firebase/firestore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { bookDemo, getAvailableTimeSlots } from '@/lib/firebase/firestore';
+import type { DemoSlot } from '@/lib/types';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Label } from '../ui/label';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Please enter your name.'),
   email: z.string().email('Please enter a valid email address.'),
   notes: z.string().max(500, 'Notes cannot exceed 500 characters.').optional(),
-  timeSlot: z.string({ required_error: 'Please select a time slot.' }),
+  slotId: z.string({ required_error: 'Please select a time slot.' }),
 });
 
 export default function BookDemoClient() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [availableSlots, setAvailableSlots] = useState<DemoSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -39,15 +44,6 @@ export default function BookDemoClient() {
     },
   });
 
-  const timeSlots = useMemo(() => {
-    const slots = [];
-    for (let hour = 9; hour < 17; hour++) {
-      slots.push(`${String(hour).padStart(2, '0')}:00`);
-      slots.push(`${String(hour).padStart(2, '0')}:30`);
-    }
-    return slots;
-  }, []);
-
   const handleDateSelect = async (date: Date | undefined) => {
     if (!date) return;
     
@@ -58,33 +54,41 @@ export default function BookDemoClient() {
             variant: 'destructive',
         });
         setSelectedDate(undefined);
+        setAvailableSlots([]);
         return;
     }
 
     setSelectedDate(date);
-    form.resetField('timeSlot');
+    setLoadingSlots(true);
+    form.resetField('slotId');
+    try {
+      const slots = await getAvailableTimeSlots(date);
+      setAvailableSlots(slots);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Could not fetch available time slots.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingSlots(false);
+    }
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!selectedDate) {
-      toast({ title: 'Please select a date.', variant: 'destructive' });
-      return;
-    }
+    
     try {
-      const bookingDetails = {
-        date: selectedDate,
-        startTime: values.timeSlot,
-        duration: 30,
+      await bookDemo({
+        slotId: values.slotId,
         name: values.name,
         email: values.email,
         notes: values.notes || '',
-      };
-      await bookDemo(bookingDetails);
+      });
       setIsSuccess(true);
     } catch (error: any) {
       toast({
         title: 'Unable to Book Demo',
-        description: error.message || 'Please try again or contact support.',
+        description: error.message || 'This slot may have just been taken. Please refresh and try again.',
         variant: 'destructive',
       });
     }
@@ -104,9 +108,9 @@ export default function BookDemoClient() {
     );
   }
 
-
-  const selectedTime = form.watch('timeSlot');
-  const endTime = selectedTime && selectedDate ? format(add(new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}`), { minutes: 30 }), 'p') : '';
+  const selectedSlotId = form.watch('slotId');
+  const selectedSlot = availableSlots.find(slot => slot.id === selectedSlotId);
+  const endTime = selectedSlot && selectedDate ? format(add(new Date(`${selectedSlot.date}T${selectedSlot.startTime}`), { minutes: 30 }), 'p') : '';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -131,8 +135,8 @@ export default function BookDemoClient() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardHeader>
-              <CardTitle>2. Request Your Demo</CardTitle>
-              <CardDescription>Fill in your details and we'll confirm your booking via email.</CardDescription>
+              <CardTitle>2. Schedule Your Demo</CardTitle>
+              <CardDescription>Fill in your details and we'll send you a calendar invite.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="p-4 border rounded-lg bg-secondary/30">
@@ -142,36 +146,40 @@ export default function BookDemoClient() {
                     </p>
                 </div>
               
-                {selectedDate && (
+                {loadingSlots && <div className="flex justify-center py-4"><Loader2 className="animate-spin"/></div>}
+
+                {!loadingSlots && selectedDate && (
                     <FormField
                     control={form.control}
-                    name="timeSlot"
+                    name="slotId"
                     render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Preferred Time</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a time slot" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {timeSlots.map(slot => (
-                                    <SelectItem key={slot} value={slot}>
-                                        {format(new Date(`1970-01-01T${slot}`), 'p')}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
+                        <FormLabel>Available Times</FormLabel>
+                        <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="grid grid-cols-3 gap-2"
+                        >
+                            {availableSlots.length > 0 ? availableSlots.map(slot => (
+                            <FormItem key={slot.id}>
+                                <FormControl>
+                                <RadioGroupItem value={slot.id} className="sr-only" id={slot.id} />
+                                </FormControl>
+                                <Label htmlFor={slot.id} className="block border rounded-md p-3 text-center cursor-pointer has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary transition-colors">
+                                {format(new Date(`1970-01-01T${slot.startTime}`), 'p')}
+                                </Label>
+                            </FormItem>
+                            )) : <p className="text-sm text-muted-foreground col-span-3">No available slots for this day.</p>}
+                        </RadioGroup>
+                        <FormMessage />
                         </FormItem>
                     )}
                     />
                 )}
 
-                {selectedTime && (
+                {selectedSlot && (
                     <div className="p-3 text-sm rounded-md bg-muted text-center text-muted-foreground">
-                        You are requesting a demo from {format(new Date(`1970-01-01T${selectedTime}`), 'p')} to {endTime}.
+                        Your demo will run from {format(new Date(`1970-01-01T${selectedSlot.startTime}`), 'p')} to {endTime}.
                     </div>
                 )}
 
@@ -210,9 +218,9 @@ export default function BookDemoClient() {
                     )}
                 />
 
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !selectedTime}>
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !selectedSlot}>
                     {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Request Demo
+                    Book Demo
                 </Button>
             </CardContent>
           </form>

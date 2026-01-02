@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import AboutSection from '@/components/landing/AboutSection';
 
 export default function LandingPage() {
     const { user, loading } = useAuth();
@@ -92,6 +93,9 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* About Section */}
+        <AboutSection />
 
         {/* Call to Action Section */}
         <section className="container mx-auto px-4 py-20 text-center">

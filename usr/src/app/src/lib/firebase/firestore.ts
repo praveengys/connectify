@@ -16,10 +16,13 @@ import {
   increment,
   writeBatch,
   runTransaction,
+  orderBy,
+  deleteDoc,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { format } from 'date-fns';
 
 // Helper to get Firestore instance
 function getFirestoreInstance() {
@@ -454,13 +457,14 @@ export async function createDemoSlot(slotData: { date: string, startTime: string
     const slotsRef = collection(firestore, 'demoSlots');
     await addDoc(slotsRef, {
         ...slotData,
+        isBooked: false, // For backward compatibility with old UI if any
         updatedAt: serverTimestamp(),
     });
 }
 
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = format(date, 'yyyy-MM-dd');
   const slotsRef = collection(firestore, 'demoSlots');
   
   const q = query(
@@ -532,10 +536,51 @@ export async function updateBookingStatus(bookingId: string, newStatus: 'schedul
             transaction.update(slotRef, { status: 'booked' });
         } else { // 'denied'
             // Make the slot available again
-            transaction.update(slotRef, { 
-                status: 'available',
-                lockedByRequestId: null,
-            });
+            const slotDoc = await transaction.get(slotRef);
+            // Only unlock if this booking was the one that locked it
+            if (slotDoc.exists() && slotDoc.data().lockedByRequestId === bookingId) {
+                transaction.update(slotRef, { 
+                    status: 'available',
+                    lockedByRequestId: null,
+                });
+            }
         }
     });
+}
+
+export async function deleteThread(threadId: string): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const batch = writeBatch(firestore);
+
+    // Delete replies and chat messages (subcollections)
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+    const chatRef = collection(firestore, 'threads', threadId, 'chatMessages');
+    const repliesSnap = await getDocs(repliesRef);
+    const chatSnap = await getDocs(chatRef);
+    repliesSnap.forEach(doc => batch.delete(doc.ref));
+    chatSnap.forEach(doc => batch.delete(doc.ref));
+
+    // Delete the main thread doc
+    const threadRef = doc(firestore, 'threads', threadId);
+    batch.delete(threadRef);
+
+    await batch.commit();
+}
+
+
+export async function deleteGroup(groupId: string): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const batch = writeBatch(firestore);
+
+    const messagesRef = collection(firestore, 'groups', groupId, 'messages');
+    const typingRef = collection(firestore, 'groups', groupId, 'typing');
+    const messagesSnap = await getDocs(messagesRef);
+    const typingSnap = await getDocs(typingRef);
+    messagesSnap.forEach(doc => batch.delete(doc.ref));
+    typingSnap.forEach(doc => batch.delete(doc.ref));
+
+    const groupRef = doc(firestore, 'groups', groupId);
+    batch.delete(groupRef);
+
+    await batch.commit();
 }

@@ -6,8 +6,9 @@ service cloud.firestore {
     // Helper function to check if a user is banned or muted
     function canWrite(userId) {
       let userDoc = get(/databases/$(database)/documents/users/$(userId));
-      // Use .get() with a default value to safely check for potentially non-existent fields.
-      return userDoc != null && userDoc.data.get('isBanned', false) == false && userDoc.data.get('isMuted', false) == false;
+      return userDoc.exists()
+        && userDoc.data.get('isBanned', false) == false
+        && userDoc.data.get('isMuted', false) == false;
     }
 
     // Rules for the 'users' collection
@@ -25,21 +26,20 @@ service cloud.firestore {
       allow read: if true;
 
       // Allow create for original posts and reposts with validation
-      allow create: if request.auth != null && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid && (
-          (request.resource.data.isRepost == false
-              && request.resource.data.content is string
-              && request.resource.data.likesCount == 0
-              && request.resource.data.commentsCount == 0
-              && request.resource.data.repostsCount == 0
-              && request.resource.data.sharesCount == 0
-          )
-        );
+      allow create: if request.auth != null && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.content is string
+        && request.resource.data.likesCount == 0
+        && request.resource.data.commentsCount == 0
+        && request.resource.data.repostsCount == 0
+        && request.resource.data.sharesCount == 0;
 
-      // Allow users to update their own posts, admins to update any, or any user to update ONLY the likesCount.
+      // A user can update their own post.
+      // An admin can update any post.
+      // Any authenticated user can update the likesCount or commentsCount.
       allow update: if request.auth != null && (
-          (request.auth.uid == resource.data.authorId)
-          || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']))
+          (request.auth.uid == resource.data.authorId) || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasAny(['likesCount', 'commentsCount']))
       );
 
       // Allow users to delete their own posts, or admins to delete any

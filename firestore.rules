@@ -1,188 +1,102 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper Functions
     function isSignedIn() {
       return request.auth != null;
     }
-
-    function isOwner(uid) {
-      return isSignedIn() && request.auth.uid == uid;
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.role == 'admin';
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    
-    function isModeratorOrAdmin() {
-        return request.auth.token.role == 'admin' || request.auth.token.role == 'moderator';
-    }
-    
+
     function canWrite() {
-      return request.auth != null
-        && (
-          !('isMuted' in request.auth.token)
-          || request.auth.token.isMuted == false
-        )
-        && (
-          !('isBanned' in request.auth.token)
-          || request.auth.token.isBanned == false
-        );
-    }
-
-    /* Users */
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin() || resource.data.profileVisibility == 'public';
-      allow list: if isSignedIn();
-
-      allow create: if isOwner(userId)
-                    && request.resource.data.uid == userId
-                    && request.resource.data.role == 'member'
-                    && !('isMuted' in request.resource.data)
-                    && !('isBanned' in request.resource.data);
-      
-      allow update: if 
-        (isOwner(userId) && 
-            (
-                (!('username' in request.resource.data.diff(resource.data).affectedKeys())) ||
-                ('username' in request.resource.data.diff(resource.data).affectedKeys() && resource.data.username == null)
-            ) &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'bio', 'avatarUrl', 'interests', 'skills', 'languages', 'location', 'currentlyExploring', 'company', 'profileVisibility', 'updatedAt', 'username'])
-        ) || isAdmin();
-
-
-      allow delete: if false;
+      return isSignedIn() &&
+             (
+                !('isMuted' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isMuted == false
+             ) &&
+             (
+                !('isBanned' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned == false
+             );
     }
     
-    /* Posts */
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+    }
+
+    // Groups & Messages
+    match /groups/{groupId} {
+      allow read: if isSignedIn();
+      allow create: if canWrite();
+      allow update: if isAdmin() || isOwner(get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy);
+      allow delete: if isAdmin() || isOwner(get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy);
+
+      // Group Messages
+      match /messages/{messageId} {
+         allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+      }
+    }
+
+    // Forum Categories & Threads
+    match /categories/{categoryId} {
+        allow read, write: if isSignedIn();
+    }
+    
+    match /forums/{forumId} {
+        allow read, write: if isSignedIn();
+    }
+
+    match /threads/{threadId} {
+      allow read: if isSignedIn();
+      allow create, update: if canWrite();
+      allow delete: if isAdmin() || isOwner(get(/databases/$(database)/documents/threads/$(threadId)).data.authorId);
+
+      // Thread Replies
+      match /replies/{replyId} {
+        allow read: if isSignedIn();
+        allow create: if canWrite() && !get(/databases/$(database)/documents/threads/$(threadId)).data.isLocked;
+        allow update: if isAdmin() || isOwner(resource.data.authorId);
+        allow delete: if isAdmin() || isOwner(resource.data.authorId);
+      }
+    }
+    
+    // Activity Feed Posts, Comments, Likes
     match /posts/{postId} {
-      allow read: if isSignedIn() && resource.data.visibility == 'public';
-      allow list: if isSignedIn();
+      allow read: if isSignedIn();
       
       allow create: if canWrite()
-                    && request.resource.data.authorId == request.auth.uid;
-                      
-      allow update: if (isOwner(request.resource.data.authorId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'media', 'visibility', 'updatedAt']))
-                      || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']))
-                      || isAdmin();
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.visibility in ['public', 'group-only']
+                    && request.resource.data.media is list;
 
-      allow delete: if isOwner(request.resource.data.authorId) || isAdmin();
+      allow update: if (isAdmin() || isOwner(resource.data.authorId))
+                    // Allow any authenticated user to increment/decrement likes
+                    || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']));
       
+      allow delete: if isAdmin() || isOwner(resource.data.authorId);
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if canWrite();
+        allow update, delete: if isAdmin() || isOwner(resource.data.authorId);
+      }
+
       match /likes/{userId} {
         allow read: if isSignedIn();
-        allow create, delete: if canWrite() && request.auth.uid == userId;
+        allow create, delete: if isOwner(userId);
       }
-      
-      match /comments/{commentId} {
-        allow read, list: if isSignedIn();
-        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-        allow update: if isOwner(request.resource.data.authorId) || isAdmin();
-        allow delete: if isOwner(request.resource.data.authorId) || isAdmin();
-      }
-    }
-
-
-    /* Groups + messages */
-    match /groups/{groupId} {
-      allow get: if resource.data.type == 'public'
-                    || (isSignedIn() && request.auth.uid in resource.data.members);
-      allow list: if isSignedIn();
-
-      allow create: if canWrite()
-                    && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.members[request.auth.uid] == 'owner'
-                    && request.resource.data.members.size() == 1
-                    && request.resource.data.memberCount == 1;
-
-      allow update: if 
-        // Group owner/admin can manage members and settings
-        (resource.data.members[request.auth.uid] in ['owner', 'admin']) || isAdmin() ||
-        // A user can join a public group
-        (
-          canWrite() &&
-          resource.data.type == 'public' &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberCount']) &&
-          // Ensure they are only adding themselves and not already a member
-          !(request.auth.uid in resource.data.members) &&
-          request.resource.data.members[request.auth.uid] == 'member' &&
-          request.resource.data.memberCount == resource.data.memberCount + 1
-        );
-
-
-      allow delete: if isOwner(resource.data.createdBy) || isAdmin();
-
-      match /messages/{messageId} {
-        allow read, list: if isSignedIn()
-                          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-        
-        allow create: if request.auth != null
-          && request.resource.data.senderId == request.auth.uid
-          && exists(/databases/$(database)/documents/groups/$(groupId))
-          && (
-            !('members' in get(/databases/$(database)/documents/groups/$(groupId)).data)
-            ? false
-            : request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
-          )
-          && (
-            !('muted' in get(/databases/$(database)/documents/groups/$(groupId)).data)
-            || !(request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.muted)
-          );
-      }
-
-      match /typing/{userId} {
-        allow write: if isOwner(userId);
-        allow read: if isSignedIn()
-                    && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-      }
-    }
-
-    /* Forums */
-    match /forums/{forumId} {
-      allow get, list: if isSignedIn();
-
-      allow create: if canWrite()
-                    && request.resource.data.createdBy == request.auth.uid;
-
-      allow update, delete: if isOwner(resource.data.createdBy) || isModeratorOrAdmin();
-    }
-
-    /* Threads + replies */
-    match /threads/{threadId} {
-      allow get, list: if isSignedIn();
-
-      allow create: if canWrite()
-                    && request.resource.data.authorId == request.auth.uid;
-
-      allow update, delete: if isOwner(resource.data.authorId) || isModeratorOrAdmin();
-
-      match /replies/{replyId} {
-        allow read, list: if isSignedIn();
-        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-      }
-
-      match /chatMessages/{messageId} {
-        allow read, list: if isSignedIn();
-        allow create: if canWrite() && request.resource.data.senderId == request.auth.uid;
-      }
-    }
-
-    /* Categories / tags / reports – optional */
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if isModeratorOrAdmin();
-    }
-
-    match /tags/{tagId} {
-      allow read: if true;
-      allow write: if isModeratorOrAdmin();
-    }
-
-    match /reports/{reportId} {
-      allow create: if isSignedIn()
-                    && request.resource.data.reporterId == request.auth.uid;
-      allow get, list, update: if isModeratorOrAdmin();
-      allow delete: if false;
     }
   }
 }

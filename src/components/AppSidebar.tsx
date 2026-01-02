@@ -27,7 +27,7 @@ import {
   } from './ui/dropdown-menu';
 import ProfileCard from './auth/ProfileCard';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from './ui/sheet';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Input } from './ui/input';
 import FloatingAssistant from './assistant/FloatingAssistant';
 import { cn } from '@/lib/utils';
@@ -38,6 +38,26 @@ function HorizontalNav() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
 
   const handleSignOut = async () => {
     await signOutUser();
@@ -86,15 +106,25 @@ function HorizontalNav() {
     </nav>
   );
 
+  if (!mounted) {
+    // Render a skeleton or null on the server and initial client render
+    return (
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="container flex h-14 items-center">
+                <div className="h-8 w-8 bg-muted rounded-lg animate-pulse md:mr-2"></div>
+                <div className="h-6 w-24 bg-muted rounded-md animate-pulse hidden md:inline-block"></div>
+                <div className="flex-1"></div>
+                <div className="h-10 w-10 bg-muted rounded-full animate-pulse"></div>
+            </div>
+        </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center">
-            <div className="mr-4 flex items-center gap-2 md:flex">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground md:hidden">
-                    <MessageSquare size={18} />
-                </div>
-                 <div className="hidden h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground md:flex">
+            <div className="mr-4 flex items-center gap-2">
+                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                     <MessageSquare size={18} />
                 </div>
                 <span className="font-bold text-lg hidden md:inline-block">Connectify</span>
@@ -129,15 +159,17 @@ function HorizontalNav() {
             </div>
             
             <div className="flex flex-1 items-center justify-end space-x-2">
-                <div className="hidden md:flex flex-1 items-center gap-1">
+                <div className="hidden md:flex items-center gap-1">
                     <NavLinks />
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="relative w-full max-w-xs ml-auto">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div ref={searchContainerRef} className={cn("relative w-full transition-all duration-300 ease-in-out", isSearchOpen ? "max-w-xs" : "max-w-[2.5rem]")}>
+                        <Button variant="ghost" size="icon" className={cn("absolute right-0 top-1/2 -translate-y-1/2", isSearchOpen ? 'hidden' : 'inline-flex')} onClick={() => setIsSearchOpen(true)}>
+                            <Search className="h-4 w-4 text-muted-foreground" />
+                        </Button>
                         <Input 
                             placeholder="Search..." 
-                            className="pl-8"
+                            className={cn("pl-8 transition-all", isSearchOpen ? 'opacity-100' : 'opacity-0')}
                          />
                     </div>
                     {loading ? (
@@ -205,3 +237,5 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
   }
+    
+    

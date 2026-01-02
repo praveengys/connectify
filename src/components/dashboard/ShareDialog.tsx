@@ -1,0 +1,76 @@
+'use client';
+
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Check, Copy } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+type ShareDialogProps = {
+  postId: string;
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  onShare: () => void;
+};
+
+export default function ShareDialog({ postId, isOpen, setIsOpen, onShare }: ShareDialogProps) {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  if (!isOpen) return null;
+
+  const postUrl = `${window.location.origin}/post/${postId}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(postUrl).then(
+      () => {
+        setCopied(true);
+        toast({ title: 'Success', description: 'Link copied to clipboard!' });
+        onShare();
+        setTimeout(() => {
+          setCopied(false);
+          setIsOpen(false);
+        }, 2000);
+      },
+      (err) => {
+        toast({
+          title: 'Error',
+          description: 'Could not copy link to clipboard.',
+          variant: 'destructive',
+        });
+      }
+    );
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Share Post</DialogTitle>
+          <DialogDescription>
+            Copy the link below to share this post with others.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center space-x-2">
+          <div className="grid flex-1 gap-2">
+            <Input id="link" defaultValue={postUrl} readOnly />
+          </div>
+        </div>
+        <DialogFooter className="sm:justify-start">
+          <Button type="button" onClick={handleCopy}>
+            {copied ? <Check className="mr-2" /> : <Copy className="mr-2" />}
+            {copied ? 'Copied!' : 'Copy Link'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

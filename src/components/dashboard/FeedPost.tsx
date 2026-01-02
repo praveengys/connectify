@@ -13,6 +13,8 @@ import LikeButton from "./LikeButton";
 import { useState } from "react";
 import CommentSection from "./CommentSection";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import ShareDialog from "./ShareDialog";
+import { sharePost } from "@/lib/firebase/firestore";
 
 type FeedPostProps = {
     post: Post;
@@ -25,10 +27,16 @@ const isVideo = (url: string) => {
 export default function FeedPost({ post }: FeedPostProps) {
   const { user } = useAuth();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   
   if (!user) return null;
 
+  const handleShare = () => {
+    sharePost(post.id, user.uid);
+  }
+
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center gap-4">
         <Avatar>
@@ -67,12 +75,19 @@ export default function FeedPost({ post }: FeedPostProps) {
               <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm"><MessageSquare className="mr-2"/> Comment ({post.commentsCount})</Button>
               </CollapsibleTrigger>
-              <Button variant="ghost" size="sm"><Share2 className="mr-2"/> Share</Button>
+              <Button variant="ghost" size="sm" onClick={() => setIsShareOpen(true)}><Share2 className="mr-2"/> Share</Button>
         </CardFooter>
         <CollapsibleContent>
             <CommentSection postId={post.id} />
         </CollapsibleContent>
       </Collapsible>
     </Card>
+     <ShareDialog 
+        postId={post.id}
+        isOpen={isShareOpen}
+        setIsOpen={setIsShareOpen}
+        onShare={handleShare}
+      />
+    </>
   );
 }

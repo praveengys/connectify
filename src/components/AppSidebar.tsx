@@ -32,6 +32,7 @@ import { Input } from './ui/input';
 import FloatingAssistant from './assistant/FloatingAssistant';
 import { cn } from '@/lib/utils';
 import Header from './Header';
+import NotificationBell from './notifications/NotificationBell';
 
 function HorizontalNav() {
   const pathname = usePathname();
@@ -189,6 +190,8 @@ function HorizontalNav() {
                     {loading ? (
                         <div className="h-10 w-10 animate-pulse rounded-full bg-muted"></div>
                     ) : user ? (
+                        <>
+                        <NotificationBell />
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -216,6 +219,7 @@ function HorizontalNav() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          </>
                     ) : (
                         <div className="flex items-center gap-2">
                             <Button asChild variant="ghost">

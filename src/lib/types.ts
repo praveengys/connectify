@@ -189,6 +189,8 @@ export type DemoBooking = {
     email: string;
     date: string; // YYYY-MM-DD
     startTime: string; // HH:mm
+    slotId: string;
+    uid?: string;
     notes?: string;
     status: 'pending' | 'scheduled' | 'denied';
     createdAt: Date | Timestamp;
@@ -198,5 +200,31 @@ export type DemoSlot = {
     id: string;
     date: string; // YYYY-MM-DD
     startTime: string; // HH:mm
-    isBooked: boolean;
+    status: 'available' | 'pending' | 'booked';
+    lockedByRequestId?: string | null;
+};
+
+export type Notification = {
+    id: string;
+    recipientId: string;
+    senderId: string | null;
+    type: string;
+    title: string;
+    message: string;
+    entityType: 'post' | 'group' | 'discussion' | 'chat' | 'demo';
+    entityId: string;
+    actionUrl: string;
+    isRead: boolean;
+    createdAt: Timestamp | Date;
+    priority: 'low' | 'normal' | 'high';
+    sender?: Pick<UserProfile, 'displayName' | 'avatarUrl'>;
+};
+
+export type NotificationPreferences = {
+    userId: string;
+    postNotifications: boolean;
+    groupNotifications: boolean;
+    chatNotifications: boolean;
+    emailNotifications: boolean;
+    pushNotifications: boolean;
 };

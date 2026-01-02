@@ -21,7 +21,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking } from '@/lib/types';
+import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking, Notification } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { format } from 'date-fns';
 
@@ -491,29 +491,30 @@ export async function bookDemo(request: BookingRequest): Promise<void> {
     const firestore = getFirestoreInstance();
     const { slotId, ...bookingData } = request;
     
-    const slotRef = doc(firestore, 'demoSlots', slotId);
-    const slotDoc = await getDoc(slotRef);
+    await runTransaction(firestore, async (transaction) => {
+        const slotRef = doc(firestore, 'demoSlots', slotId);
+        const slotDoc = await transaction.get(slotRef);
 
-    if (!slotDoc.exists() || slotDoc.data().status !== 'available') {
-      throw new Error("This time slot has just been taken. Please select another one.");
-    }
-    
-    // Create the booking request.
-    // The server-side logic (ideally a Cloud Function) would then lock the slot.
-    await addDoc(collection(firestore, 'demoBookings'), {
-      ...bookingData,
-      slotId: slotId,
-      date: slotDoc.data().date,
-      startTime: slotDoc.data().startTime,
-      status: 'pending',
-      createdAt: serverTimestamp(),
-    });
+        if (!slotDoc.exists() || slotDoc.data().status !== 'available') {
+          throw new Error("This time slot is no longer available. Please select another one.");
+        }
 
-    // In a real app, you would trigger a cloud function here to atomically lock the slot.
-    // For this project, we'll optimistically update the slot on the client,
-    // though it's not transactionally safe.
-    await updateDoc(slotRef, {
-      status: 'pending',
+        // Create the booking request document
+        const bookingRef = doc(collection(firestore, 'demoBookings'));
+        transaction.set(bookingRef, {
+            ...bookingData,
+            slotId: slotId,
+            date: slotDoc.data().date,
+            startTime: slotDoc.data().startTime,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+        });
+
+        // Mark the slot as pending
+        transaction.update(slotRef, {
+            status: 'pending',
+            lockedByRequestId: bookingRef.id,
+        });
     });
 }
 
@@ -530,7 +531,6 @@ export async function updateBookingStatus(bookingId: string, newStatus: 'schedul
         
         const bookingData = bookingDoc.data() as DemoBooking;
         if (!bookingData.slotId) {
-            // Handle legacy bookings without a slotId
             transaction.update(bookingRef, { status: newStatus, reviewedAt: serverTimestamp() });
             return;
         }
@@ -552,6 +552,36 @@ export async function updateBookingStatus(bookingId: string, newStatus: 'schedul
         }
     });
 }
+
+// Notification functions
+export async function markNotificationAsRead(notificationId: string): Promise<void> {
+  const { auth, firestore } = initializeFirebase();
+  const userId = auth.currentUser?.uid;
+  if (!userId) return;
+
+  const notifRef = doc(firestore, 'users', userId, 'notifications', notificationId);
+  await updateDoc(notifRef, { isRead: true });
+}
+
+export async function markAllNotificationsAsRead(): Promise<void> {
+  const { auth, firestore } = initializeFirebase();
+  const userId = auth.currentUser?.uid;
+  if (!userId) return;
+
+  const notifsRef = collection(firestore, 'users', userId, 'notifications');
+  const q = query(notifsRef, where('isRead', '==', false));
+  
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return;
+
+  const batch = writeBatch(firestore);
+  snapshot.docs.forEach(doc => {
+    batch.update(doc.ref, { isRead: true });
+  });
+
+  await batch.commit();
+}
+
 
 export async function deleteThread(threadId: string): Promise<void> {
     const firestore = getFirestoreInstance();

@@ -1,152 +1,127 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
+
     // Helper Functions
     function isAdmin() {
       return request.auth.token.role == 'admin';
     }
-    
+
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
     
-    function isPublic() {
-      return resource.data.profileVisibility == 'public';
-    }
-
     function canWrite() {
-      return request.auth != null && (resource.data.authorId == request.auth.uid || isAdmin());
+        return request.auth != null && !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isMuted;
     }
 
-    // Collection Rules
-
+    // User profiles
     match /users/{userId} {
-      // Anyone can read a user's profile if it's public.
-      // Admins and the owner can always read it.
-      allow get: if isOwner(userId) || isAdmin() || isPublic();
-      
-      // Any authenticated user can see the list of users (e.g., for @mentions or member lists)
-      allow list: if request.auth != null;
-
-      // Only the user themselves or an admin can create/update their profile.
-      allow create, update: if isOwner(userId) || isAdmin();
-      
-      // Nobody can delete user profiles directly.
-      allow delete: if false;
+      allow read: if request.auth != null;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
     }
 
+    // Forums
     match /forums/{forumId} {
-      // Anyone can read public forums.
-      allow read: if resource.data.visibility == 'public';
-      
-      // Only admins can create, update, or delete forums.
-      allow write: if isAdmin();
+      allow read: if request.auth != null;
+      allow create: if canWrite() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Categories
+    match /categories/{categoryId} {
+      allow read: if request.auth != null;
+      allow create: if canWrite() || isAdmin();
+      allow update, delete: if isAdmin();
     }
     
-    match /categories/{categoryId} {
-        // Anyone can read categories
-        allow read: if true;
-        // Only admins can create/write categories
-        allow write: if isAdmin();
-    }
-
+    // Threads and subcollections
     match /threads/{threadId} {
-      // Anyone can read threads.
-      allow read: if true;
-      
-      // Authenticated users can create threads. Admins or owners can update.
-      allow create: if request.auth != null;
-      allow update: if canWrite();
-      
-      // Only admins can delete threads.
+      allow read: if request.auth != null;
+      allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+      allow update: if (canWrite() && isOwner(resource.data.authorId)) || isAdmin();
       allow delete: if isAdmin();
-
+      
+      // Replies
       match /replies/{replyId} {
-        // Anyone can read replies.
-        allow read: if true;
-        // Authenticated users can create replies.
-        allow create: if request.auth != null;
-        // Admins or owners can update their own replies.
-        allow update: if canWrite();
-        // Only admins can delete.
+        allow read: if request.auth != null;
+        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+        allow update: if (canWrite() && isOwner(resource.data.authorId)) || isAdmin();
         allow delete: if isAdmin();
       }
 
+      // Real-time chat messages within a thread
       match /chatMessages/{messageId} {
-          allow read: if true;
-          allow create: if request.auth != null;
-          allow update, delete: if canWrite();
+        allow read: if request.auth != null;
+        allow create: if canWrite() && request.resource.data.senderId == request.auth.uid;
       }
     }
     
+    // Group Chats and subcollections
     match /groups/{groupId} {
-        // Allow read if public or if the user is a member.
-        allow get: if resource.data.type == 'public' || request.auth.uid in resource.data.members;
-        allow list: if request.auth != null; // Allow listing groups for all auth users
-        
-        // Only authenticated users can create groups.
-        allow create: if request.auth != null;
-        
-        // Only owners or admins of the group can update group info.
-        allow update: if request.auth.uid in resource.data.members && (resource.data.members[request.auth.uid] == 'owner' || resource.data.members[request.auth.uid] == 'admin' || isAdmin());
-        
-        // Only the group owner or a global admin can delete.
-        allow delete: if isAdmin() || (request.auth.uid in resource.data.members && resource.data.members[request.auth.uid] == 'owner');
+        allow read: if request.auth != null;
+        allow create: if canWrite() && request.resource.data.createdBy == request.auth.uid;
+        allow update: if (canWrite() && request.auth.uid in resource.data.members && (resource.data.members[request.auth.uid] == 'owner' || resource.data.members[request.auth.uid] == 'admin')) || isAdmin();
+        allow delete: if isAdmin();
 
         match /messages/{messageId} {
-            // Must be a member of the group to read/write messages.
-            allow read, list: if request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-            allow create: if request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-            allow update, delete: if isAdmin() || (request.auth.uid == resource.data.senderId);
+            allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+            allow create: if canWrite() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
         }
 
         match /typing/{userId} {
-            allow read: if request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+            allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
             allow write: if isOwner(userId);
         }
     }
     
+    // Social Feed Posts and subcollections
     match /posts/{postId} {
-        // Anyone can read posts for now. This could be tightened later.
-        allow read: if true;
-        // Only authenticated users can create posts.
-        allow create: if request.auth != null;
-        // Only post author or admin can update/delete.
-        allow update, delete: if canWrite();
+        allow read: if request.auth != null;
+        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+        allow update: if (canWrite() && isOwner(resource.data.authorId)) || isAdmin();
+        allow delete: if isOwner(resource.data.authorId) || isAdmin();
 
         match /likes/{userId} {
-            // Any authenticated user can read who liked a post.
             allow read: if request.auth != null;
-            // A user can only write to their own like document.
             allow write: if isOwner(userId);
         }
-        
+
         match /comments/{commentId} {
-             allow read: if true;
-             allow create: if request.auth != null;
-             allow update, delete: if canWrite();
+            allow read: if request.auth != null;
+            allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+            allow update: if (canWrite() && isOwner(resource.data.authorId)) || isAdmin();
+            allow delete: if isOwner(resource.data.authorId) || isAdmin();
         }
     }
 
+    // Demo Booking Slots
     match /demoSlots/{slotId} {
-        // Slots are public to view for booking.
-        allow get, list: if true;
-        // Only admins can create, update, or delete slots.
-        allow write: if isAdmin();
+      allow get: if true;
+      allow list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Demo Booking Requests
+    match /demoBookings/{bookingId} {
+      allow list: if isAdmin();
+      allow get: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.uid);
+      allow create: if true; // Anyone can create a booking request
+      allow update, delete: if isAdmin();
     }
 
-    match /demoBookings/{bookingId} {
-      // Allow anyone to create a booking request.
-      allow create: if true;
-      
-      // Admins can see all bookings, users can only see their own.
-      allow get: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.uid);
-      allow list: if isAdmin();
-      
-      // Only admins can update (approve/deny) or delete bookings.
-      allow update, delete: if isAdmin();
+    // Notifications
+    match /notifications/{notificationId} {
+      // Only the recipient can read their notifications
+      allow get, list: if isOwner(resource.data.recipientId);
+      // Only the recipient can mark their own notification as read
+      allow update: if isOwner(resource.data.recipientId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      // Notifications should only be created by the backend (Cloud Functions)
+      allow create: if false; 
+      allow delete: if false;
     }
   }
 }

@@ -51,13 +51,16 @@ function HorizontalNav() {
   ];
 
   const NavLinks = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <nav className={isMobile ? "flex flex-col gap-2 p-4" : "hidden md:flex items-center gap-4"}>
+    <nav className={cn(
+        "items-center gap-1",
+        isMobile ? "flex flex-col p-4" : "hidden md:flex"
+    )}>
       {menuItems.map((item) => (
         <Button 
           asChild 
           key={item.href} 
           variant={pathname.startsWith(item.href) ? "secondary" : "ghost"}
-          className={cn("justify-start", isMobile ? "" : "w-full")}
+          className={cn("justify-start", isMobile ? "w-full" : "")}
           onClick={() => isMobile && setMobileMenuOpen(false)}
         >
           <Link href={item.href}>
@@ -70,7 +73,7 @@ function HorizontalNav() {
          <Button 
           asChild 
           variant={pathname.startsWith('/admin') ? "secondary" : "ghost"}
-          className={isMobile ? "justify-start" : ""}
+          className={cn("justify-start", isMobile ? "w-full" : "")}
           onClick={() => isMobile && setMobileMenuOpen(false)}
         >
           <Link href="/admin">
@@ -121,17 +124,15 @@ function HorizontalNav() {
                 </Sheet>
             </div>
             
-            <div className="flex flex-1 items-center justify-end space-x-2">
-                <div className="hidden md:flex flex-1 items-center gap-4">
-                  <NavLinks />
-                </div>
-                <div className="relative w-full max-w-sm ml-auto">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search..." className="pl-8" />
-                </div>
+            <div className="flex flex-1 items-center justify-between space-x-2">
+                <NavLinks />
                 <div className="flex items-center gap-2">
+                    <div className="relative w-full max-w-xs ml-auto">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Search..." className="pl-8" />
+                    </div>
                     {loading ? (
-                        <div className="h-10 w-24 animate-pulse rounded-md bg-muted"></div>
+                        <div className="h-10 w-10 animate-pulse rounded-full bg-muted"></div>
                     ) : user ? (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

@@ -10,6 +10,8 @@ import {
   Shield,
   LogOut,
   Settings,
+  CalendarCheck,
+  Clock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +83,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                <NavLink href="/admin/discussions">
                 <MessageSquare className="h-4 w-4" />
                 Discussions
+              </NavLink>
+              <NavLink href="/admin/bookings">
+                <CalendarCheck className="h-4 w-4" />
+                Bookings
+              </NavLink>
+              <NavLink href="/admin/slots">
+                <Clock className="h-4 w-4" />
+                Demo Slots
               </NavLink>
             </nav>
           </div>

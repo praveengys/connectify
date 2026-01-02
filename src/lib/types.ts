@@ -181,3 +181,22 @@ export type PostLike = {
     userId: string;
     createdAt: Date | Timestamp;
 };
+
+export type DemoBooking = {
+    id: string;
+    name: string;
+    email: string;
+    date: string; // YYYY-MM-DD
+    startTime: string; // HH:mm
+    duration: number;
+    notes?: string;
+    status: 'pending' | 'scheduled' | 'denied';
+    createdAt: Date | Timestamp;
+};
+
+export type DemoSlot = {
+    id: string;
+    date: string; // YYYY-MM-DD
+    startTime: string; // HH:mm
+    isBooked: boolean;
+};

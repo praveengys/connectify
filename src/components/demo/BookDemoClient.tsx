@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { add, format, startOfDay } from 'date-fns';
@@ -14,21 +14,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { getAvailableTimeSlots, bookDemo } from '@/lib/firebase/firestore';
+import { bookDemo, getAvailableTimeSlots } from '@/lib/firebase/firestore';
+import type { DemoSlot } from '@/lib/types';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Label } from '../ui/label';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Please enter your name.'),
   email: z.string().email('Please enter a valid email address.'),
   notes: z.string().max(500, 'Notes cannot exceed 500 characters.').optional(),
-  timeSlot: z.string({ required_error: 'Please select a time slot.' }),
+  slotId: z.string({ required_error: 'Please select a time slot.' }),
 });
 
 export default function BookDemoClient() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<DemoSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -44,7 +46,6 @@ export default function BookDemoClient() {
   const handleDateSelect = async (date: Date | undefined) => {
     if (!date) return;
     
-    // Prevent selecting past dates
     if (startOfDay(date) < startOfDay(new Date())) {
         toast({
             title: 'Invalid Date',
@@ -52,16 +53,16 @@ export default function BookDemoClient() {
             variant: 'destructive',
         });
         setSelectedDate(undefined);
-        setTimeSlots([]);
+        setAvailableSlots([]);
         return;
     }
 
     setSelectedDate(date);
     setLoadingSlots(true);
-    form.resetField('timeSlot');
+    form.resetField('slotId');
     try {
       const slots = await getAvailableTimeSlots(date);
-      setTimeSlots(slots);
+      setAvailableSlots(slots);
     } catch (error) {
       toast({
         title: 'Error',
@@ -74,25 +75,24 @@ export default function BookDemoClient() {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!selectedDate) {
-      toast({ title: 'Please select a date.', variant: 'destructive' });
+    const selectedSlot = availableSlots.find(slot => slot.id === values.slotId);
+    if (!selectedSlot) {
+      toast({ title: 'Selected slot not found.', variant: 'destructive' });
       return;
     }
+    
     try {
-      const bookingDetails = {
-        date: selectedDate,
-        startTime: values.timeSlot,
-        duration: 30,
+      await bookDemo({
+        slotId: selectedSlot.id,
         name: values.name,
         email: values.email,
         notes: values.notes || '',
-      };
-      await bookDemo(bookingDetails);
+      });
       setIsSuccess(true);
     } catch (error: any) {
       toast({
         title: 'Unable to Book Demo',
-        description: error.message || 'Please try again or contact support.',
+        description: error.message || 'This slot may have just been taken. Please refresh and try again.',
         variant: 'destructive',
       });
     }
@@ -105,16 +105,16 @@ export default function BookDemoClient() {
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Demo Scheduled Successfully!</h2>
                 <p className="text-muted-foreground">
-                    Your demo has been booked. A calendar invite has been sent to your email.
+                    Your demo has been booked. A calendar invite will be sent to your email shortly.
                 </p>
             </CardContent>
         </Card>
     );
   }
 
-
-  const selectedTime = form.watch('timeSlot');
-  const endTime = selectedTime && selectedDate ? format(add(new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}`), { minutes: 30 }), 'p') : '';
+  const selectedSlotId = form.watch('slotId');
+  const selectedSlot = availableSlots.find(slot => slot.id === selectedSlotId);
+  const endTime = selectedSlot && selectedDate ? format(add(new Date(`${selectedSlot.date}T${selectedSlot.startTime}`), { minutes: 30 }), 'p') : '';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -155,7 +155,7 @@ export default function BookDemoClient() {
                 {!loadingSlots && selectedDate && (
                     <FormField
                     control={form.control}
-                    name="timeSlot"
+                    name="slotId"
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Available Times</FormLabel>
@@ -164,13 +164,13 @@ export default function BookDemoClient() {
                             defaultValue={field.value}
                             className="grid grid-cols-3 gap-2"
                         >
-                            {timeSlots.length > 0 ? timeSlots.map(slot => (
-                            <FormItem key={slot}>
+                            {availableSlots.length > 0 ? availableSlots.map(slot => (
+                            <FormItem key={slot.id}>
                                 <FormControl>
-                                <RadioGroupItem value={slot} className="sr-only" id={slot} />
+                                <RadioGroupItem value={slot.id} className="sr-only" id={slot.id} />
                                 </FormControl>
-                                <Label htmlFor={slot} className="block border rounded-md p-3 text-center cursor-pointer has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary transition-colors">
-                                {format(new Date(`1970-01-01T${slot}`), 'p')}
+                                <Label htmlFor={slot.id} className="block border rounded-md p-3 text-center cursor-pointer has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary transition-colors">
+                                {format(new Date(`1970-01-01T${slot.startTime}`), 'p')}
                                 </Label>
                             </FormItem>
                             )) : <p className="text-sm text-muted-foreground col-span-3">No available slots for this day.</p>}
@@ -181,9 +181,9 @@ export default function BookDemoClient() {
                     />
                 )}
 
-                {selectedTime && (
+                {selectedSlot && (
                     <div className="p-3 text-sm rounded-md bg-muted text-center text-muted-foreground">
-                        Your demo will run from {format(new Date(`1970-01-01T${selectedTime}`), 'p')} to {endTime}.
+                        Your demo will run from {format(new Date(`1970-01-01T${selectedSlot.startTime}`), 'p')} to {endTime}.
                     </div>
                 )}
 
@@ -222,7 +222,7 @@ export default function BookDemoClient() {
                     )}
                 />
 
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !selectedTime}>
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !selectedSlot}>
                     {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Book Demo
                 </Button>

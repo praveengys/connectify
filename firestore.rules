@@ -3,196 +3,143 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // =====================================================================
+
     // Helper Functions
-    // =====================================================================
-    
-    // Checks if a user is authenticated.
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    // Checks if a user is an administrator.
-    function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    // Checks if the requesting user is the owner of a document.
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
     }
 
-    // Checks if the parent thread is locked.
-    function isThreadLocked(threadId) {
-      let thread = get(/databases/$(database)/documents/threads/$(threadId));
-      return thread.data.isLocked == true;
+    function getUserData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
     }
 
-    // Securely checks if a user is allowed to write content.
-    // This version safely handles cases where isBanned or isMuted might be null.
     function canWrite(uid) {
-      let userDoc = get(/databases/$(database)/documents/users/$(uid)).data;
-      // Default to false if fields are not present
-      let isBanned = userDoc.get('isBanned', false); 
-      let isMuted = userDoc.get('isMuted', false);
-      return !isBanned && !isMuted;
+      let userData = getUserData(uid);
+      // Use .get() to provide default values for potentially missing fields
+      return userData.get('isBanned', false) == false && userData.get('isMuted', false) == false;
     }
 
-    // =====================================================================
+    function isAdmin() {
+      return isSignedIn() && getUserData(request.auth.uid).get('role', 'member') == 'admin';
+    }
+
+    function isThreadLocked(threadId) {
+      return get(/databases/$(database)/documents/threads/$(threadId)).data.get('isLocked', false) == true;
+    }
+    
+    function isOnlyField(fieldName) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([fieldName]);
+    }
+    
+    function isIncrementing(fieldName, amount) {
+       return request.resource.data[fieldName] == resource.data[fieldName] + amount;
+    }
+
     // User Profiles
-    // =====================================================================
     match /users/{userId} {
-      // Any signed-in user can read a public profile.
-      // An owner or admin can read a private profile.
-      allow read: if isSignedIn() && (resource.data.profileVisibility == 'public' || isOwner(userId) || isAdmin());
-      
-      // An owner or admin can update a profile.
-      // Non-admin users cannot change their role.
-      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
-      
-      // Users cannot be created directly this way; it's handled by Firebase Auth Cloud Functions.
-      // But we'll add a rule for completeness.
-      allow create: if isOwner(userId) || isAdmin();
-    }
-
-    // =====================================================================
-    // Forums and Categories
-    // =====================================================================
-    match /forums/{forumId} {
-      // Anyone can read forums.
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if isSignedIn() || resource.data.profileVisibility == 'public';
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if (isOwner(userId) || isAdmin()) && !('role' in request.resource.data.diff(resource.data));
     }
     
-    match /categories/{categoryId} {
-      // Anyone can read categories.
-      allow read: if true;
-      allow write: if isAdmin() || isSignedIn(); // Allow create for users
-    }
-    
-    // =====================================================================
-    // Threads
-    // =====================================================================
-    match /threads/{threadId} {
-      // Any signed-in user can read any thread.
-      allow read: if isSignedIn();
-      
-      // Users can create threads if they are signed in and not banned/muted.
-      allow create: if isSignedIn() && canWrite(request.auth.uid)
-                    && request.resource.data.authorId == request.auth.uid;
-      
-      // Update rule is more complex.
-      allow update: if isSignedIn() && (
-        // Case 1: An admin can update anything.
-        isAdmin() ||
-        // Case 2: The author can update their own thread if it's not locked.
-        (isOwner(resource.data.authorId) && !resource.data.isLocked) ||
-        // Case 3: Any signed-in user can increment replyCount if thread is not locked.
-        (
-          !isThreadLocked(threadId) &&
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['replyCount', 'updatedAt', 'latestReplyAt']) &&
-          request.resource.data.replyCount == resource.data.replyCount + 1
-        )
-      );
-
-      allow delete: if isAdmin() || isOwner(resource.data.authorId);
-
-      // Replies are a subcollection of threads
-      match /replies/{replyId} {
-        // Any signed-in user can read replies.
-        allow read: if isSignedIn();
-        
-        // Users can create replies if signed in, able to write, and the thread isn't locked.
-        allow create: if isSignedIn() && canWrite(request.auth.uid) 
-                      && !isThreadLocked(threadId)
-                      && request.resource.data.authorId == request.auth.uid;
-                      
-        allow update: if isAdmin() || (isOwner(resource.data.authorId) && !isThreadLocked(threadId));
-        allow delete: if isAdmin() || isOwner(resource.data.authorId);
-      }
-    }
-
-    // =====================================================================
-    // Groups & Chat
-    // =====================================================================
-    match /groups/{groupId} {
-      // Public groups are readable by any signed-in user.
-      // Private groups are readable only by members or admins.
-      allow read: if isSignedIn() && (
-                    resource.data.type == 'public' || 
-                    request.auth.uid in resource.data.members ||
-                    isAdmin()
-                  );
-                  
-      // Users can create groups.
-      allow create: if isSignedIn() && canWrite(request.auth.uid)
-                    && request.resource.data.createdBy == request.auth.uid;
-
-      // Only owners or admins of the group can modify group details.
-      // Users can join/leave (which modifies the members map).
-      allow update: if isSignedIn() && (
-        // Admin or group owner can update anything.
-        (request.auth.uid in resource.data.members && (resource.data.members[request.auth.uid] == 'owner' || resource.data.members[request.auth.uid] == 'admin')) || isAdmin() ||
-        // A user can add themselves to a public group.
-        (resource.data.type == 'public' && request.resource.data.members.size() == resource.data.members.size() + 1 && request.auth.uid in request.resource.data.members)
-      );
-
-      allow delete: if isAdmin() || (isSignedIn() && resource.data.members[request.auth.uid] == 'owner');
-      
-      // Messages are a subcollection of groups.
-      match /messages/{messageId} {
-        // Only group members can read messages.
-        allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members || isAdmin());
-
-        // Only group members can write messages.
-        allow write: if isSignedIn() && canWrite(request.auth.uid) && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members || isAdmin());
-      }
-      
-      // Typing indicators subcollection.
-      match /typing/{userId} {
-        allow read, write: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members || isAdmin());
-      }
-    }
-    
-    // =====================================================================
-    // Posts (Feed) & Interactions
-    // =====================================================================
+    // Posts
     match /posts/{postId} {
-      // Allow general read for queries, client will filter.
-      allow read: if isSignedIn(); 
+      allow list: if isSignedIn(); // Allow querying the collection
+      allow get: if isSignedIn() && (resource.data.visibility == 'public' || isAdmin()); // Allow reading a single document
       
-      // Allow create if user is signed in and not banned/muted.
       allow create: if isSignedIn() && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid;
       
-      // Complex update logic
-      allow update: if isSignedIn() && (
-        // Case 1: An admin can update anything.
-        isAdmin() ||
-        // Case 2: The author can update their own post.
-        isOwner(resource.data.authorId) ||
-        // Case 3: Any signed-in user can update only the likesCount or sharesCount.
-        (
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['likesCount', 'commentsCount', 'sharesCount'])
-        )
+      allow update: if isSignedIn() && canWrite(request.auth.uid) && (
+        (isOwner(resource.data.authorId) || isAdmin()) ||
+        (isOnlyField('likesCount') && isIncrementing('likesCount', 1) || isIncrementing('likesCount', -1)) ||
+        (isOnlyField('commentsCount') && isIncrementing('commentsCount', 1)) ||
+        (isOnlyField('sharesCount') && isIncrementing('sharesCount', 1))
       );
-
-      allow delete: if isAdmin() || isOwner(resource.data.authorId);
-
-      // Comments subcollection
-      match /comments/{commentId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn() && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid;
-        allow update, delete: if isAdmin() || isOwner(resource.data.authorId);
-      }
       
-      // Likes subcollection
+      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+
+      // Comments on posts
+      match /comments/{commentId} {
+        allow read, list: if isSignedIn();
+        allow create: if isSignedIn() && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid
+                         && exists(/databases/$(database)/documents/posts/$(postId));
+        allow delete: if isAdmin() || isOwner(request.resource.data.authorId) || isOwner(get(/databases/$(database)/documents/posts/$(postId)).data.authorId);
+      }
+
+      // Likes on posts
       match /likes/{userId} {
         allow read: if isSignedIn();
-        allow create: if isOwner(userId) && canWrite(userId);
+        allow create: if isOwner(userId) && canWrite(userId) && exists(/databases/$(database)/documents/posts/$(postId));
         allow delete: if isOwner(userId);
+      }
+    }
+    
+    // Categories
+    match /categories/{categoryId} {
+        allow read: if true;
+        allow list: if true;
+        allow create: if isAdmin();
+        allow update, delete: if isAdmin();
+    }
+    
+    // Forums
+    match /forums/{forumId} {
+        allow read, list: if isSignedIn();
+        allow create: if isSignedIn() && canWrite(request.auth.uid);
+        allow update, delete: if isAdmin();
+    }
+
+    // Forum Threads
+    match /threads/{threadId} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn() && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (isOwner(resource.data.authorId) || isAdmin()) ||
+        (canWrite(request.auth.uid) && isOnlyField('replyCount') && isIncrementing('replyCount', 1) && !isThreadLocked(threadId))
+      );
+      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+
+      // Replies to threads
+      match /replies/{replyId} {
+        allow read, list: if isSignedIn();
+        allow create: if isSignedIn() && canWrite(request.auth.uid) && request.resource.data.authorId == request.auth.uid && !isThreadLocked(threadId);
+        allow update: if isOwner(request.resource.data.authorId) || isAdmin();
+        allow delete: if isOwner(request.resource.data.authorId) || isAdmin();
+      }
+      
+      // Chat messages within a thread
+      match /chatMessages/{messageId} {
+          allow read, list: if isSignedIn();
+          allow create: if isSignedIn() && canWrite(request.auth.uid) && !isThreadLocked(threadId);
+          allow update, delete: if isOwner(resource.data.senderId) || isAdmin();
+      }
+    }
+    
+    // Chat Groups
+    match /groups/{groupId} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn() && canWrite(request.auth.uid);
+      allow update: if isSignedIn() && (
+          (request.auth.uid in resource.data.members && resource.data.members[request.auth.uid] in ['owner', 'admin']) || isAdmin()
+      );
+      allow delete: if isAdmin() || isOwner(get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy);
+
+      // Messages in groups
+      match /messages/{messageId} {
+        allow read, list: if request.auth.uid in resource.data.members;
+        allow create: if canWrite(request.auth.uid) && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+        allow update: if isOwner(resource.data.senderId);
+        allow delete: if isOwner(resource.data.senderId) || isAdmin() || (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members && get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] in ['owner', 'admin']);
+      }
+      
+      // Typing indicators
+      match /typing/{userId} {
+        allow read: if request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+        allow write: if isOwner(userId) && canWrite(userId);
       }
     }
   }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,6 +11,7 @@ import { createPost } from "@/lib/firebase/firestore";
 import { Card, CardContent } from "../ui/card";
 import { uploadPhoto } from "@/lib/actions";
 import Image from "next/image";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 export default function PostCreator({ user }: { user: UserProfile }) {
   const [content, setContent] = useState('');
@@ -21,6 +21,7 @@ export default function PostCreator({ user }: { user: UserProfile }) {
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
@@ -43,6 +44,16 @@ export default function PostCreator({ user }: { user: UserProfile }) {
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (videoInputRef.current) videoInputRef.current.value = "";
   };
+  
+  const handleMicClick = () => {
+    setIsRecording(true);
+    toast({ title: "Listening...", description: "Your voice is being recorded." });
+    setTimeout(() => {
+      setContent(prev => prev + (prev ? " " : "") + "This is a sample transcribed text.");
+      setIsRecording(false)
+      toast({ title: "Finished recording", description: "Text has been added." });
+    }, 3000);
+  }
 
   const handleCreatePost = async () => {
     if (!content.trim() && !mediaFile) {
@@ -126,15 +137,40 @@ export default function PostCreator({ user }: { user: UserProfile }) {
             <div className="flex gap-1 text-muted-foreground">
                 <input type="file" ref={imageInputRef} onChange={(e) => handleFileChange(e, 'image')} accept="image/*" className="hidden" />
                 <input type="file" ref={videoInputRef} onChange={(e) => handleFileChange(e, 'video')} accept="video/*" className="hidden" />
-
-                <Button variant="ghost" size="icon" onClick={() => imageInputRef.current?.click()} disabled={isPosting}>
-                    <ImageIcon />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => videoInputRef.current?.click()} disabled={isPosting}>
-                    <Video />
-                </Button>
-                <Button variant="ghost" size="icon"><Mic /></Button>
-                <Button variant="ghost" size="icon"><MapPin /></Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={() => imageInputRef.current?.click()} disabled={isPosting}>
+                          <ImageIcon />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Add Image</p></TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={() => videoInputRef.current?.click()} disabled={isPosting}>
+                          <Video />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Add Video</p></TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={handleMicClick} disabled={isRecording || isPosting}>
+                          {isRecording ? <Loader2 className="animate-spin text-red-500" /> : <Mic />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Use Voice</p></TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" disabled>
+                        <MapPin />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Add Location (coming soon)</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
             </div>
             <div className="flex gap-2">
                 <Button onClick={handleCreatePost} disabled={isPosting || (!content.trim() && !mediaFile)}>

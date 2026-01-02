@@ -234,7 +234,7 @@ function HorizontalNav() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const publicPages = ['/', '/login', '/signup', '/forgot-password'];
+    const publicPages = ['/', '/login', '/signup', '/forgot-password', '/book-demo'];
     const isAdminPage = pathname.startsWith('/admin');
     const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/search');
   

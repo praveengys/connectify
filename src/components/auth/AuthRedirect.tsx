@@ -12,7 +12,11 @@ export default function AuthRedirect({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Wait until the loading is complete before checking for a user.
     if (!loading && user) {
-      router.replace('/dashboard');
+      if (user.role === 'admin') {
+        router.replace('/admin');
+      } else {
+        router.replace('/dashboard');
+      }
     }
   }, [user, loading, router]);
 

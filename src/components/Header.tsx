@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { MessageSquare, Shield } from 'lucide-react';
+import { MessageSquare, Shield, CalendarCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function Header() {
@@ -17,7 +17,13 @@ export default function Header() {
                 </div>
                 <span>Connectify Hub</span>
             </Link>
-            <nav className="flex items-center gap-4">
+            <nav className="flex items-center gap-2">
+                <Button variant="ghost" asChild>
+                    <Link href="/book-demo">
+                        <CalendarCheck className="mr-2 h-4 w-4" />
+                        Book a Demo
+                    </Link>
+                </Button>
                 {loading && (
                     <div className="h-10 w-24 animate-pulse rounded-md bg-muted"></div>
                 )}

@@ -88,10 +88,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <CalendarCheck className="h-4 w-4" />
                 Bookings
               </NavLink>
-              <NavLink href="/admin/slots">
-                <Clock className="h-4 w-4" />
-                Demo Slots
-              </NavLink>
             </nav>
           </div>
           <div className="mt-auto p-4">

@@ -189,9 +189,8 @@ export type DemoBooking = {
     email: string;
     date: string; // YYYY-MM-DD
     startTime: string; // HH:mm
-    slotId: string;
     notes?: string;
-    status: 'pending' | 'scheduled' | 'denied';
+    status: 'scheduled' | 'cancelled';
     createdAt: Date | Timestamp;
 };
 

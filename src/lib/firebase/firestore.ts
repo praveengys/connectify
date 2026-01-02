@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -18,10 +17,13 @@ import {
   writeBatch,
   runTransaction,
   orderBy,
+  deleteDoc,
+  limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { format } from 'date-fns';
 
 // Helper to get Firestore instance
 function getFirestoreInstance() {
@@ -450,93 +452,73 @@ export async function sharePost(postId: string, userId: string): Promise<void> {
 
 
 // Demo Booking
+
 type BookingRequest = {
-    slotId: string;
-    name: string;
-    email: string;
-    notes?: string;
+  name: string;
+  email: string;
+  notes: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
 };
 
 export async function bookDemo(request: BookingRequest): Promise<void> {
     const firestore = getFirestoreInstance();
-    const slotRef = doc(firestore, 'demoSlots', request.slotId);
+    const bookingsRef = collection(firestore, 'demoBookings');
 
-    await runTransaction(firestore, async (transaction) => {
-        const slotDoc = await transaction.get(slotRef);
-        if (!slotDoc.exists()) {
-            throw new Error('This time slot does not exist.');
-        }
+    // Check if a booking already exists for this date and time
+    const q = query(
+        bookingsRef,
+        where('date', '==', request.date),
+        where('startTime', '==', request.startTime),
+        where('status', '==', 'scheduled')
+    );
 
-        const slotData = slotDoc.data() as DemoSlot;
-        if (slotData.isBooked) {
-            throw new Error('This time slot has just been booked. Please select another time.');
-        }
-
-        // Create a new booking request with a 'pending' status
-        const bookingsCollection = collection(firestore, 'demoBookings');
-        transaction.set(doc(bookingsCollection), {
-            name: request.name,
-            email: request.email,
-            notes: request.notes || '',
-            date: slotData.date,
-            startTime: slotData.startTime,
-            slotId: request.slotId,
-            status: 'pending',
-            createdAt: serverTimestamp(),
-        });
-        
-        // Mark the slot as booked to prevent double booking
-        transaction.update(slotRef, { isBooked: true });
+    const existingBookingsSnap = await getDocs(q);
+    if (!existingBookingsSnap.empty) {
+        throw new Error("This time slot is already booked. Please choose another time.");
+    }
+    
+    // Create a new booking with 'scheduled' status
+    await addDoc(bookingsRef, {
+        ...request,
+        status: 'scheduled',
+        createdAt: serverTimestamp(),
     });
 }
 
-export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
+export async function deleteThread(threadId: string): Promise<void> {
     const firestore = getFirestoreInstance();
-    const dateStr = date.toISOString().split('T')[0];
-    const slotsRef = collection(firestore, 'demoSlots');
-    
-    const q = query(
-        slotsRef, 
-        where('date', '==', dateStr),
-        where('isBooked', '==', false),
-        orderBy('startTime', 'asc')
-    );
-
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-        return [];
-    }
-    
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
-}
-
-export async function updateBookingStatus(bookingId: string, status: 'scheduled' | 'denied'): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const bookingRef = doc(firestore, 'demoBookings', bookingId);
-    const bookingDoc = await getDoc(bookingRef);
-
-    if (!bookingDoc.exists()) {
-        throw new Error("Booking not found.");
-    }
-
-    const bookingData = bookingDoc.data() as DemoBooking;
-    const slotRef = doc(firestore, 'demoSlots', bookingData.slotId);
-    
     const batch = writeBatch(firestore);
 
-    batch.update(bookingRef, { status });
+    // Delete replies and chat messages (subcollections)
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+    const chatRef = collection(firestore, 'threads', threadId, 'chatMessages');
+    const repliesSnap = await getDocs(repliesRef);
+    const chatSnap = await getDocs(chatRef);
+    repliesSnap.forEach(doc => batch.delete(doc.ref));
+    chatSnap.forEach(doc => batch.delete(doc.ref));
 
-    // If denying, make the slot available again
-    if (status === 'denied') {
-        batch.update(slotRef, { isBooked: false });
-    }
+    // Delete the main thread doc
+    const threadRef = doc(firestore, 'threads', threadId);
+    batch.delete(threadRef);
 
     await batch.commit();
 }
 
 
-export async function createDemoSlot(data: Omit<DemoSlot, 'id'>): Promise<void> {
+export async function deleteGroup(groupId: string): Promise<void> {
     const firestore = getFirestoreInstance();
-    const slotsCollection = collection(firestore, 'demoSlots');
-    await addDoc(slotsCollection, data);
+    const batch = writeBatch(firestore);
+
+    const messagesRef = collection(firestore, 'groups', groupId, 'messages');
+    const typingRef = collection(firestore, 'groups', groupId, 'typing');
+    const messagesSnap = await getDocs(messagesRef);
+    const typingSnap = await getDocs(typingRef);
+    messagesSnap.forEach(doc => batch.delete(doc.ref));
+    typingSnap.forEach(doc => batch.delete(doc.ref));
+
+    const groupRef = doc(firestore, 'groups', groupId);
+    batch.delete(groupRef);
+
+    await batch.commit();
 }

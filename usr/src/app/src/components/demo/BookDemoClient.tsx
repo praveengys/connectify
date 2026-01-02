@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -8,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { add, format, startOfDay } from 'date-fns';
 import { Calendar as CalendarIcon, CheckCircle, Loader2 } from 'lucide-react';
-
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
@@ -29,6 +28,7 @@ const formSchema = z.object({
 });
 
 export default function BookDemoClient() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [availableSlots, setAvailableSlots] = useState<DemoSlot[]>([]);
@@ -83,6 +83,7 @@ export default function BookDemoClient() {
         name: values.name,
         email: values.email,
         notes: values.notes || '',
+        uid: user?.uid
       });
       setIsSuccess(true);
     } catch (error: any) {

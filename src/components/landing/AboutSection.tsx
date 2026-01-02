@@ -36,7 +36,7 @@ export default function AboutSection() {
                         <CardContent className="p-8">
                             <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
                                 <Avatar className="h-24 w-24 border-4 border-primary/20">
-                                    <AvatarImage src="https://picsum.photos/seed/santhosh/200/200" data-ai-hint="man portrait" />
+                                    <AvatarImage src="https://www.gtmaxis.ai/SanthoshSrikant.jpg" />
                                     <AvatarFallback>S</AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1">

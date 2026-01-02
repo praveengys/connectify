@@ -6,13 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { MoreHorizontal, MessageSquare, ThumbsUp, Share2 } from "lucide-react";
 import Image from "next/image";
-import type { Post, UserProfile } from "@/lib/types";
+import type { Post } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from "@/hooks/use-auth";
 import LikeButton from "./LikeButton";
 
 type FeedPostProps = {
     post: Post;
+}
+
+const isVideo = (url: string) => {
+    return /\.(mp4|webm|ogg)$/i.test(new URL(url).pathname);
 }
 
 export default function FeedPost({ post }: FeedPostProps) {
@@ -43,9 +47,13 @@ export default function FeedPost({ post }: FeedPostProps) {
             </p>
         )}
         {post.media && post.media.length > 0 && (
-            <div className="relative aspect-video rounded-lg overflow-hidden">
-                <Image src={post.media[0]} alt="Post media" layout="fill" objectFit="cover" />
-            </div>
+          <div className="relative aspect-video rounded-lg overflow-hidden border">
+            {isVideo(post.media[0]) ? (
+              <video src={post.media[0]} controls className="w-full h-full bg-black" />
+            ) : (
+              <Image src={post.media[0]} alt="Post media" layout="fill" objectFit="cover" />
+            )}
+          </div>
         )}
       </CardContent>
       <CardFooter className="flex justify-between border-t pt-4">
@@ -56,5 +64,3 @@ export default function FeedPost({ post }: FeedPostProps) {
     </Card>
   );
 }
-
-    

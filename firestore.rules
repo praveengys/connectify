@@ -1,15 +1,16 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is banned or muted
+    // Helper function to check if a user is not banned or muted.
     function canWrite(userId) {
       let userDoc = get(/databases/$(database)/documents/users/$(userId));
-      // Safely check for isBanned and isMuted, defaulting to false if they don't exist.
-      return userDoc.exists()
-        && !(userDoc.data.isBanned ?? false)
-        && !(userDoc.data.isMuted ?? false);
+      // Use the get() function with a default value of false if the fields do not exist.
+      let isBanned = get(userDoc.data, 'isBanned', false);
+      let isMuted = get(userDoc.data, 'isMuted', false);
+      return userDoc.exists() == true && isBanned == false && isMuted == false;
     }
 
     // Rules for the 'users' collection
@@ -24,7 +25,7 @@ service cloud.firestore {
 
     // Rules for the 'posts' collection
     match /posts/{postId} {
-      // Allow reads for list queries. Visibility should be enforced client-side or in more specific rules if needed.
+      // Allow reads for any document. List queries will also work.
       allow read: if true;
 
       // Allow create for original posts and reposts with validation
@@ -44,12 +45,15 @@ service cloud.firestore {
                 && get(/databases/$(database)/documents/posts/$(request.resource.data.originalPostId)).data.authorId != request.auth.uid // Can't repost own post
                 && request.resource.data.originalAuthor is map
                 && request.resource.data.originalPostCreatedAt is timestamp
-               )
+            )
         );
 
-      // Allow users to update their own posts, or admins to update any
+      // Allow users to update their own posts, or admins to update any.
+      // Also allow any authenticated user to increment repostsCount.
       allow update: if request.auth != null && (
-          (request.auth.uid == resource.data.authorId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          (request.auth.uid == resource.data.authorId)
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostsCount']) && request.resource.data.repostsCount == resource.data.repostsCount + 1)
       );
 
       // Allow users to delete their own posts, or admins to delete any

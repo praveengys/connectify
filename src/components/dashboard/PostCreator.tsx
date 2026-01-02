@@ -154,22 +154,6 @@ export default function PostCreator({ user }: { user: UserProfile }) {
                     </TooltipTrigger>
                     <TooltipContent><p>Add Video</p></TooltipContent>
                   </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={handleMicClick} disabled={isRecording || isPosting}>
-                          {isRecording ? <Loader2 className="animate-spin text-red-500" /> : <Mic />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Use Voice</p></TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" disabled>
-                        <MapPin />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Add Location (coming soon)</p></TooltipContent>
-                  </Tooltip>
                 </TooltipProvider>
             </div>
             <div className="flex gap-2">

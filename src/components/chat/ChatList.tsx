@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -16,7 +17,7 @@ import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 
 export default function ChatList() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const pathname = usePathname();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,11 +25,12 @@ export default function ChatList() {
   const [isCreateGroupOpen, setCreateGroupOpen] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
+    if (authLoading || !user) {
+      if(!authLoading) setLoading(false);
       return;
     }
 
+    setLoading(true);
     const { firestore } = initializeFirebase();
     const groupsRef = collection(firestore, 'groups');
     // For now, we list all public groups. A more advanced implementation might list groups the user is a member of.
@@ -57,7 +59,7 @@ export default function ChatList() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleGroupCreated = () => {
     setCreateGroupOpen(false);
@@ -112,9 +114,9 @@ export default function ChatList() {
                   </Link>
                 )
               })}
-              {groups.length === 0 && (
+              {groups.length === 0 && !authLoading && (
                 <div className="text-center py-12 text-muted-foreground">
-                  <p className="text-sm">No public groups found.</p>
+                  <p className="text-sm">{user ? "No public groups found." : "Please log in to see groups."}</p>
                 </div>
               )}
             </>
@@ -124,7 +126,7 @@ export default function ChatList() {
       <div className="p-4 border-t mt-auto">
         <Dialog open={isCreateGroupOpen} onOpenChange={setCreateGroupOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full">
+            <Button className="w-full" disabled={!user}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Create Group
             </Button>

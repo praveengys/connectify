@@ -158,12 +158,18 @@ export type Post = {
     likesCount: number;
     commentsCount: number;
     sharesCount: number;
+    repostsCount: number;
     createdAt: Date | Timestamp;
     updatedAt: Date | Timestamp;
     // Denormalized author data for easy display
     author?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>;
     // For real-time updates on the client
     isLiked?: boolean;
+    // For reposts
+    isRepost?: boolean;
+    originalPostId?: string;
+    originalAuthor?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>;
+    originalPostCreatedAt?: Date | Timestamp;
 };
 
 export type PostComment = {

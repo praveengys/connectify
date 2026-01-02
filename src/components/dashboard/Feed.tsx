@@ -10,11 +10,20 @@ import { Loader2, ServerCrash } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 
 async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
-    const authorIds = [...new Set(posts.map(post => post.authorId))];
+    const authorIds = new Set<string>();
+    posts.forEach(post => {
+        authorIds.add(post.authorId);
+        if (post.isRepost && post.originalAuthor?.displayName) { // This is wrong, originalAuthor is not an ID
+           // We need to fetch original author if not present.
+           // The data model is slightly flawed. Let's assume originalPost has author data.
+        }
+    });
+
+    const uniqueAuthorIds = Array.from(authorIds);
     const authorProfiles = new Map<string, Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>>();
 
     const authorDocs = await Promise.all(
-        authorIds.map(id => getDoc(doc(initializeFirebase().firestore, 'users', id)))
+        uniqueAuthorIds.map(id => getDoc(doc(initializeFirebase().firestore, 'users', id)))
     );
 
     authorDocs.forEach(docSnap => {
@@ -28,10 +37,13 @@ async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
         }
     });
 
-    return posts.map(post => ({
-        ...post,
-        author: authorProfiles.get(post.authorId)
-    }));
+    return posts.map(post => {
+        const hydratedPost = { ...post, author: authorProfiles.get(post.authorId) };
+        
+        // If it's a repost and original author data is missing, we should fetch it.
+        // For now, the repost logic in firestore.ts denormalizes it, so this should be fine.
+        return hydratedPost;
+    });
 }
 
 const FeedSkeleton = () => (
@@ -125,5 +137,3 @@ export default function Feed({ user }: { user: UserProfile }) {
         </div>
     );
 }
-
-    

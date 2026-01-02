@@ -4,7 +4,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { MoreHorizontal, MessageSquare, Share2 } from "lucide-react";
+import { MoreHorizontal, MessageSquare, Share2, Repeat2 } from "lucide-react";
 import Image from "next/image";
 import type { Post } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
@@ -14,7 +14,9 @@ import { useState } from "react";
 import CommentSection from "./CommentSection";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import ShareDialog from "./ShareDialog";
-import { sharePost } from "@/lib/firebase/firestore";
+import { sharePost, repostPost } from "@/lib/firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 type FeedPostProps = {
     post: Post;
@@ -28,6 +30,8 @@ export default function FeedPost({ post }: FeedPostProps) {
   const { user } = useAuth();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isReposting, setIsReposting] = useState(false);
+  const { toast } = useToast();
   
   if (!user) return null;
 
@@ -35,18 +39,45 @@ export default function FeedPost({ post }: FeedPostProps) {
     sharePost(post.id, user.uid);
   }
 
+  const handleRepost = async () => {
+    if (post.authorId === user.uid) {
+        toast({ title: "You cannot repost your own post.", variant: "destructive" });
+        return;
+    }
+    setIsReposting(true);
+    try {
+        await repostPost(post.id, user.uid);
+        toast({ title: "Success", description: "Post has been reposted to your feed." });
+    } catch (error: any) {
+        toast({ title: "Error", description: `Could not repost: ${error.message}`, variant: "destructive" });
+    } finally {
+        setIsReposting(false);
+    }
+  }
+
+  const author = post.author;
+  const displayAuthor = post.isRepost ? post.originalAuthor : author;
+  const displayDate = post.isRepost ? post.originalPostCreatedAt : post.createdAt;
+
+
   return (
     <>
     <Card>
+        {post.isRepost && author && (
+             <div className="flex items-center gap-2 px-6 pt-4 text-sm text-muted-foreground">
+                <Repeat2 size={16} />
+                <span><Link href="#" className="font-semibold text-foreground hover:underline">{author.displayName}</Link> reposted</span>
+            </div>
+        )}
       <CardHeader className="flex flex-row items-center gap-4">
         <Avatar>
-          <AvatarImage src={post.author?.avatarUrl ?? undefined} />
-          <AvatarFallback>{post.author?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
+          <AvatarImage src={displayAuthor?.avatarUrl ?? undefined} />
+          <AvatarFallback>{displayAuthor?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
         </Avatar>
         <div className="flex-grow">
-          <p className="font-semibold">{post.author?.displayName ?? 'Community Member'}</p>
+          <p className="font-semibold">{displayAuthor?.displayName ?? 'Community Member'}</p>
           <p className="text-sm text-muted-foreground">
-            {formatDistanceToNow(new Date(post.createdAt as Date), { addSuffix: true })}
+            {formatDistanceToNow(new Date(displayDate as Date), { addSuffix: true })}
           </p>
         </div>
         <Button variant="ghost" size="icon">
@@ -75,6 +106,9 @@ export default function FeedPost({ post }: FeedPostProps) {
               <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm"><MessageSquare className="mr-2"/> Comment ({post.commentsCount})</Button>
               </CollapsibleTrigger>
+              <Button variant="ghost" size="sm" onClick={handleRepost} disabled={isReposting || post.authorId === user.uid}>
+                <Repeat2 className="mr-2"/> Repost
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => setIsShareOpen(true)}><Share2 className="mr-2"/> Share</Button>
         </CardFooter>
         <CollapsibleContent>

@@ -57,9 +57,6 @@ export default function FeedPost({ post }: FeedPostProps) {
             {formatDistanceToNow(new Date(displayDate as Date), { addSuffix: true })}
           </p>
         </div>
-        <Button variant="ghost" size="icon">
-          <MoreHorizontal />
-        </Button>
       </CardHeader>
       <CardContent>
         {post.content && (

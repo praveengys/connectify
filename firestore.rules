@@ -3,7 +3,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
+    // Helper Functions
     function isAdmin() {
       return request.auth.token.role == 'admin';
     }
@@ -13,92 +14,93 @@ service cloud.firestore {
     }
     
     function canWrite() {
-      return request.auth != null && request.auth.token.isMuted != true;
+      return request.auth.uid != null && !exists(/databases/$(database)/documents/users/$(request.auth.uid)) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned != true;
     }
 
+    // User Profiles
     match /users/{userId} {
-      allow get: if true;
+      allow get: if request.auth != null;
       allow list: if request.auth != null;
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || isAdmin();
     }
 
-    match /groups/{groupId} {
-      allow read: if request.auth != null;
-      allow create: if canWrite() && request.resource.data.createdBy == request.auth.uid;
-      allow update: if isAdmin() || (request.auth.uid in resource.data.members && resource.data.members[request.auth.uid] in ['owner', 'admin']);
-      allow delete: if isAdmin() || (resource.data.createdBy == request.auth.uid);
-    }
-    
-    match /groups/{groupId}/messages/{messageId} {
-      allow get, list: if request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-      allow create: if canWrite() && request.resource.data.senderId == request.auth.uid && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+    // Demo Bookings
+    match /demoBookings/{bookingId} {
+      // Allow anyone to query the collection to check for conflicts.
+      allow list: if true;
+      // Allow a user to read their own booking, and admins to read any.
+      allow get: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.uid);
+      // Allow anyone to create a booking request.
+      allow create: if true;
+      // Only admins can update (approve/deny) or delete bookings.
       allow update, delete: if isAdmin();
     }
-    
-    match /groups/{groupId}/typing/{userId} {
-      allow read, write: if request.auth.uid == userId && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+
+    // Groups
+    match /groups/{groupId} {
+      allow read: if request.auth.uid in resource.data.members;
+      allow create: if request.auth.uid != null;
+      allow update: if request.auth.uid in resource.data.members && (resource.data.members[request.auth.uid] == 'owner' || resource.data.members[request.auth.uid] == 'admin');
+
+      // Messages Subcollection
+      match /messages/{messageId} {
+        allow get, list: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+        allow create: if canWrite() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members && request.resource.data.senderId == request.auth.uid;
+      }
+      
+      // Typing Indicators Subcollection
+      match /typing/{userId} {
+          allow read, write: if request.auth.uid == userId;
+      }
     }
 
-    match /posts/{postId} {
-      allow read: if true;
-      allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-      allow update: if canWrite() && request.auth.uid == resource.data.authorId;
-      allow delete: if request.auth.uid == resource.data.authorId || isAdmin();
-    }
-    
-    match /posts/{postId}/likes/{userId} {
-        allow read: if true;
-        allow create, delete: if canWrite() && request.auth.uid == userId;
-    }
-    
-    match /posts/{postId}/comments/{commentId} {
-        allow read: if true;
-        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-        allow update, delete: if request.auth.uid == resource.data.authorId || isAdmin();
-    }
-    
-    match /forums/{forumId} {
-        allow read: if true;
-        allow create: if canWrite() && isAdmin();
-        allow update, delete: if isAdmin();
-    }
-    
-    match /categories/{categoryId} {
-        allow read: if true;
-        allow create, update, delete: if isAdmin();
-    }
-
+    // Forum Threads
     match /threads/{threadId} {
       allow read: if true;
-      allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-      allow update: if canWrite() && (request.auth.uid == resource.data.authorId || isAdmin());
-      allow delete: if isAdmin();
-    }
+      allow create: if canWrite();
+      allow update: if (canWrite() && request.auth.uid == resource.data.authorId) || isAdmin();
 
-    match /threads/{threadId}/replies/{replyId} {
-      allow get, list: if true;
-      allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-      allow update, delete: if request.auth.uid == resource.data.authorId || isAdmin();
+      // Replies Subcollection
+      match /replies/{replyId} {
+        allow get, list: if true;
+        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+      }
+      
+      // Chat Messages in Forum
+      match /chatMessages/{messageId} {
+         allow get, list: if true;
+         allow create: if canWrite() && request.resource.data.senderId == request.auth.uid;
+      }
     }
     
-    match /threads/{threadId}/chatMessages/{messageId} {
-        allow get, list: if true;
-        allow create: if canWrite() && request.resource.data.senderId == request.auth.uid;
-        allow update, delete: if isAdmin();
+    // Feed Posts
+    match /posts/{postId} {
+        allow read: if true;
+        allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+        allow update: if (canWrite() && request.auth.uid == resource.data.authorId) || isAdmin();
+        
+        // Likes Subcollection
+        match /likes/{userId} {
+            allow read, write: if isOwner(userId);
+        }
+        
+        // Comments Subcollection
+        match /comments/{commentId} {
+            allow read: if true;
+            allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+        }
     }
 
-    match /demoBookings/{bookingId} {
-      // Admins can list all bookings for their dashboard.
-      allow list: if isAdmin();
-      // An admin can get any booking, a user can only get their own.
-      allow get: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.uid);
-      
-      // Any user can create a booking request.
-      allow create: if true;
-      
-      // Only admins can update (e.g., to approve/deny) or delete bookings.
-      allow update, delete: if isAdmin();
+    // General Collections
+    match /forums/{forumId} {
+      allow read: if true;
+      allow create: if canWrite() && isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create: if canWrite() && isAdmin();
     }
   }
 }

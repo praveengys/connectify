@@ -448,27 +448,6 @@ export async function sharePost(postId: string, userId: string): Promise<void> {
 
 
 // Demo Booking
-export async function getAvailableTimeSlots(date: Date): Promise<string[]> {
-  const firestore = getFirestoreInstance();
-  const slotsCollection = collection(firestore, 'demoSlots');
-  
-  const selectedDate = date.toISOString().split('T')[0];
-
-  const q = query(
-    slotsCollection,
-    where('date', '==', selectedDate),
-    where('isBooked', '==', false)
-  );
-
-  const querySnapshot = await getDocs(q);
-  const availableSlots = querySnapshot.docs.map(doc => doc.data().startTime);
-
-  // Sort slots chronologically
-  availableSlots.sort((a, b) => a.localeCompare(b));
-
-  return availableSlots;
-}
-
 type BookingDetails = {
     date: Date;
     startTime: string;
@@ -477,39 +456,36 @@ type BookingDetails = {
     email: string;
     notes: string;
 }
+
 export async function bookDemo(details: BookingDetails): Promise<void> {
     const firestore = getFirestoreInstance();
     const dateStr = details.date.toISOString().split('T')[0];
+    const bookingsCollection = collection(firestore, 'demoBookings');
 
-    // Find the corresponding slot to update it
-    const slotsQuery = query(
-        collection(firestore, 'demoSlots'),
+    // Check if a booking already exists for this date and time
+    const q = query(
+        bookingsCollection,
         where('date', '==', dateStr),
-        where('startTime', '==', details.startTime)
+        where('startTime', '==', details.startTime),
+        where('status', '==', 'scheduled')
     );
-    
-    await runTransaction(firestore, async (transaction) => {
-        const slotSnapshot = await getDocs(slotsQuery);
-        if (slotSnapshot.empty) {
-            throw new Error('This time slot is no longer available. Please select another time.');
-        }
-        
-        const slotDoc = slotSnapshot.docs[0];
-        if (slotDoc.data().isBooked) {
-             throw new Error('This time slot has just been booked. Please select another time.');
-        }
 
-        // 1. Mark the slot as booked
-        transaction.update(slotDoc.ref, { isBooked: true });
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        throw new Error('This time slot is already booked. Please select another time.');
+    }
 
-        // 2. Create the booking document
-        const bookingsCollection = collection(firestore, 'demoBookings');
-        const newBookingRef = doc(bookingsCollection); // Auto-generate ID
-        transaction.set(newBookingRef, {
-            ...details,
-            date: dateStr,
-            status: 'scheduled',
-            createdAt: serverTimestamp(),
-        });
+    // Create a new booking request with a 'pending' status
+    await addDoc(bookingsCollection, {
+        ...details,
+        date: dateStr,
+        status: 'pending',
+        createdAt: serverTimestamp(),
     });
+}
+
+export async function updateBookingStatus(bookingId: string, status: 'scheduled' | 'denied'): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const bookingRef = doc(firestore, 'demoBookings', bookingId);
+    await updateDoc(bookingRef, { status });
 }

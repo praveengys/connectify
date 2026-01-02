@@ -31,6 +31,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Input } from './ui/input';
 import FloatingAssistant from './assistant/FloatingAssistant';
 import { cn } from '@/lib/utils';
+import Header from './Header';
 
 function HorizontalNav() {
   const pathname = usePathname();
@@ -232,14 +233,24 @@ function HorizontalNav() {
   );
 }
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default function AppSidebar({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const publicPages = ['/', '/login', '/signup', '/forgot-password', '/book-demo'];
     const isAdminPage = pathname.startsWith('/admin');
     const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/search');
-  
+
     if (isPublicPage || isAdminPage) {
-      return <>{children}</>;
+        if(pathname === '/book-demo' || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password') {
+            return (
+                <div className="flex flex-col min-h-screen bg-background">
+                    <Header />
+                    <main className="flex-grow flex items-center justify-center p-4">
+                        {children}
+                    </main>
+                </div>
+            );
+        }
+        return <>{children}</>;
     }
   
     return (
@@ -249,6 +260,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <FloatingAssistant />
         </div>
     );
-  }
-    
-    
+}

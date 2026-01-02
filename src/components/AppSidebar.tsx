@@ -37,6 +37,7 @@ function HorizontalNav() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOutUser();
@@ -129,9 +130,14 @@ function HorizontalNav() {
                     <NavLinks />
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="relative w-full max-w-xs ml-auto">
+                    <div className={cn("relative w-full transition-all duration-300 ease-in-out", isSearchOpen ? "max-w-xs" : "max-w-[2.5rem]")}>
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Search..." className="pl-8" />
+                        <Input 
+                            placeholder="Search..." 
+                            className="pl-8" 
+                            onFocus={() => setIsSearchOpen(true)}
+                            onBlur={() => setIsSearchOpen(false)}
+                         />
                     </div>
                     {loading ? (
                         <div className="h-10 w-10 animate-pulse rounded-full bg-muted"></div>

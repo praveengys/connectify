@@ -3,12 +3,7 @@
 # dependencies
 /node_modules
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
 
 # testing
 /coverage
@@ -30,6 +25,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
 # vercel
 .vercel
 
@@ -37,9 +38,20 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.genkit/*
-.env*
-
-# firebase
-firebase-debug.log
-firestore-debug.log
+# studio
+.firebase/
+apphosting.yaml
+components.json
+firestore.rules
+storage.rules
+database.rules
+.firebaserc
+firebase.json
+.env
+docs/
+src/docs/
+src/firebase/
+src/hooks/
+src/lib/firebase/
+src/ai/
+src/app/api/

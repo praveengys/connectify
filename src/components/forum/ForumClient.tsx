@@ -47,7 +47,7 @@ export default function ForumClient() {
     // Fetch Threads and Authors
     const threadsQuery = query(collection(firestore, 'threads'), orderBy('createdAt', 'desc'));
     const threadsUnsubscribe = onSnapshot(threadsQuery, async (snapshot) => {
-        const threadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt.toDate() } as Thread));
+        const threadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate() ?? new Date() } as Thread));
         setThreads(threadsData);
 
         const authorIds = [...new Set(threadsData.map(t => t.authorId).filter(Boolean))];
@@ -73,7 +73,7 @@ export default function ForumClient() {
     // Fetch Forums
     const forumsQuery = query(collection(firestore, 'forums'), orderBy('createdAt', 'desc'));
     const forumsUnsubscribe = onSnapshot(forumsQuery, (snapshot) => {
-        setForums(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt.toDate() } as Forum)));
+        setForums(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate() ?? new Date() } as Forum)));
     }, err => {
         console.error("Error fetching forums:", err);
         setError("Could not load forums.");

@@ -18,7 +18,6 @@ import {
   runTransaction,
   orderBy,
   deleteDoc,
-  limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking } from '@/lib/types';
@@ -452,38 +451,31 @@ export async function sharePost(postId: string, userId: string): Promise<void> {
 
 
 // Demo Booking
-
-type BookingRequest = {
-  name: string;
-  email: string;
-  notes: string;
-  date: string; // YYYY-MM-DD
-  startTime: string; // HH:mm
-};
-
-export async function bookDemo(request: BookingRequest): Promise<void> {
+export async function bookDemo(bookingData: Omit<DemoBooking, 'id' | 'createdAt' | 'status'> & { status: 'pending' }): Promise<void> {
     const firestore = getFirestoreInstance();
     const bookingsRef = collection(firestore, 'demoBookings');
 
     // Check if a booking already exists for this date and time
-    const q = query(
-        bookingsRef,
-        where('date', '==', request.date),
-        where('startTime', '==', request.startTime),
+    const q = query(bookingsRef, 
+        where('date', '==', bookingData.date), 
+        where('startTime', '==', bookingData.startTime),
         where('status', '==', 'scheduled')
     );
-
-    const existingBookingsSnap = await getDocs(q);
-    if (!existingBookingsSnap.empty) {
-        throw new Error("This time slot is already booked. Please choose another time.");
+    const existingBookingSnap = await getDocs(q);
+    if (!existingBookingSnap.empty) {
+        throw new Error("This time slot has already been booked. Please choose another time.");
     }
-    
-    // Create a new booking with 'scheduled' status
+
     await addDoc(bookingsRef, {
-        ...request,
-        status: 'scheduled',
+        ...bookingData,
         createdAt: serverTimestamp(),
     });
+}
+
+export async function updateBookingStatus(bookingId: string, status: 'scheduled' | 'denied'): Promise<void> {
+  const firestore = getFirestoreInstance();
+  const bookingRef = doc(firestore, 'demoBookings', bookingId);
+  await updateDoc(bookingRef, { status });
 }
 
 export async function deleteThread(threadId: string): Promise<void> {

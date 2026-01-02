@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -57,6 +56,7 @@ export default function BookDemoClient() {
         notes: values.notes || '',
         date: format(values.date, 'yyyy-MM-dd'),
         startTime: values.time,
+        status: 'pending', // Set status to pending for admin approval
       });
       setIsSuccess(true);
     } catch (error: any) {
@@ -73,9 +73,9 @@ export default function BookDemoClient() {
         <Card className="w-full max-w-lg mx-auto">
             <CardContent className="p-10 text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Demo Scheduled!</h2>
+                <h2 className="text-2xl font-bold mb-2">Demo Request Sent!</h2>
                 <p className="text-muted-foreground">
-                    Your demo has been booked. A calendar invite will be sent to your email shortly.
+                    Your request has been submitted for approval. You will receive a confirmation email once it's scheduled.
                 </p>
             </CardContent>
         </Card>
@@ -87,41 +87,41 @@ export default function BookDemoClient() {
   const endTime = selectedTime && selectedDate ? format(add(new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}`), { minutes: 30 }), 'p') : '';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>1. Select a Date</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-           <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        fromDate={new Date()}
-                        toDate={add(new Date(), { months: 2 })}
-                        disabled={(date) => date < startOfDay(new Date())}
-                        initialFocus
-                    />
-                  </FormControl>
-                  <FormMessage className="text-center pt-2" />
-                </FormItem>
-              )}
-            />
-        </CardContent>
-      </Card>
+    <Form {...form}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>1. Select a Date</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          fromDate={new Date()}
+                          toDate={add(new Date(), { months: 2 })}
+                          disabled={(date) => date < startOfDay(new Date())}
+                          initialFocus
+                      />
+                    </FormControl>
+                    <FormMessage className="text-center pt-2" />
+                  </FormItem>
+                )}
+              />
+          </CardContent>
+        </Card>
 
-      <Card>
-        <Form {...form}>
+        <Card>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardHeader>
               <CardTitle>2. Schedule Your Demo</CardTitle>
-              <CardDescription>Fill in your details and we'll send you a calendar invite.</CardDescription>
+              <CardDescription>Fill in your details and we'll send you a calendar invite upon approval.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <FormField
@@ -191,12 +191,12 @@ export default function BookDemoClient() {
 
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !selectedTime || !selectedDate}>
                     {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Book Demo
+                    Request Demo
                 </Button>
             </CardContent>
           </form>
-        </Form>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </Form>
   );
 }

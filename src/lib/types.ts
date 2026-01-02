@@ -190,7 +190,7 @@ export type DemoBooking = {
     date: string; // YYYY-MM-DD
     startTime: string; // HH:mm
     notes?: string;
-    status: 'scheduled' | 'cancelled';
+    status: 'pending' | 'scheduled' | 'denied';
     createdAt: Date | Timestamp;
 };
 

@@ -4,7 +4,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
+    // Helper functions
     function isAdmin() {
       return request.auth.token.role == 'admin';
     }
@@ -12,116 +12,107 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
+
     function canWrite() {
-        return request.auth != null && !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isMuted;
+      return request.auth != null && !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isMuted;
     }
 
-    // User profiles
+    // Users Collection
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if isOwner(userId);
+      allow get: if request.auth != null;
+      allow list: if request.auth != null;
+      allow create: if request.auth.uid == userId;
       allow update: if isOwner(userId) || isAdmin();
-    }
 
-    // Forums
-    match /forums/{forumId} {
-      allow read: if request.auth != null;
-      allow create: if canWrite() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if isAdmin();
-    }
-
-    // Categories
-    match /categories/{categoryId} {
-      allow read: if request.auth != null;
-      allow create: if canWrite() || isAdmin();
-      allow update, delete: if isAdmin();
+      // Notifications Subcollection
+      match /notifications/{notificationId} {
+        allow get, list: if isOwner(userId);
+        allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+        // Writes should be handled by server-side logic (Cloud Functions)
+        allow create: if isAdmin(); // Or a more specific server-side rule
+        allow delete: if false;
+      }
     }
     
-    // Threads and subcollections
-    match /threads/{threadId} {
-      allow read: if request.auth != null;
-      allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-      allow update: if (canWrite() && isOwner(resource.data.authorId)) || isAdmin();
-      allow delete: if isAdmin();
+    // Demo Bookings
+    match /demoBookings/{bookingId} {
+        allow create: if true;
+        allow list: if isAdmin();
+        allow get: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.uid);
+        allow update, delete: if isAdmin();
+    }
+    
+    // Demo Slots
+    match /demoSlots/{slotId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Groups Collection
+    match /groups/{groupId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if canWrite();
+      allow update: if canWrite() && (isAdmin() || request.auth.uid == resource.data.createdBy || request.auth.uid in resource.data.members);
+      allow delete: if isAdmin() || request.auth.uid == resource.data.createdBy;
+
+      match /messages/{messageId} {
+        allow get, list: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+        allow create: if canWrite() && request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if isAdmin() || request.auth.uid == resource.data.senderId;
+      }
       
-      // Replies
+      match /typing/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Forums, Threads, and Replies
+    match /forums/{forumId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+        allow get, list: if true;
+        allow create, update, delete: if isAdmin();
+    }
+
+    match /threads/{threadId} {
+      allow get, list: if true;
+      allow create: if canWrite();
+      allow update: if isAdmin() || (canWrite() && request.auth.uid == resource.data.authorId);
+      allow delete: if isAdmin();
+
       match /replies/{replyId} {
-        allow read: if request.auth != null;
+        allow get, list: if true;
         allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-        allow update: if (canWrite() && isOwner(resource.data.authorId)) || isAdmin();
+        allow update: if isAdmin() || (canWrite() && request.auth.uid == resource.data.authorId);
         allow delete: if isAdmin();
       }
-
-      // Real-time chat messages within a thread
-      match /chatMessages/{messageId} {
-        allow read: if request.auth != null;
+       match /chatMessages/{messageId} {
+        allow get, list: if true;
         allow create: if canWrite() && request.resource.data.senderId == request.auth.uid;
       }
     }
     
-    // Group Chats and subcollections
-    match /groups/{groupId} {
-        allow read: if request.auth != null;
-        allow create: if canWrite() && request.resource.data.createdBy == request.auth.uid;
-        allow update: if (canWrite() && request.auth.uid in resource.data.members && (resource.data.members[request.auth.uid] == 'owner' || resource.data.members[request.auth.uid] == 'admin')) || isAdmin();
-        allow delete: if isAdmin();
-
-        match /messages/{messageId} {
-            allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-            allow create: if canWrite() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-        }
-
-        match /typing/{userId} {
-            allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
-            allow write: if isOwner(userId);
-        }
-    }
-    
-    // Social Feed Posts and subcollections
+    // Posts, Likes, and Comments
     match /posts/{postId} {
-        allow read: if request.auth != null;
+      allow get, list: if true;
+      allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
+      allow update: if canWrite() && request.auth.uid == resource.data.authorId;
+      allow delete: if isAdmin() || request.auth.uid == resource.data.authorId;
+
+      match /likes/{userId} {
+        allow read, create, delete: if request.auth.uid == userId;
+      }
+
+      match /comments/{commentId} {
+        allow get, list: if true;
         allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-        allow update: if (canWrite() && isOwner(resource.data.authorId)) || isAdmin();
-        allow delete: if isOwner(resource.data.authorId) || isAdmin();
-
-        match /likes/{userId} {
-            allow read: if request.auth != null;
-            allow write: if isOwner(userId);
-        }
-
-        match /comments/{commentId} {
-            allow read: if request.auth != null;
-            allow create: if canWrite() && request.resource.data.authorId == request.auth.uid;
-            allow update: if (canWrite() && isOwner(resource.data.authorId)) || isAdmin();
-            allow delete: if isOwner(resource.data.authorId) || isAdmin();
-        }
-    }
-
-    // Demo Booking Slots
-    match /demoSlots/{slotId} {
-      allow get: if true;
-      allow list: if true;
-      allow create, update, delete: if isAdmin();
-    }
-    
-    // Demo Booking Requests
-    match /demoBookings/{bookingId} {
-      allow list: if isAdmin();
-      allow get: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.uid);
-      allow create: if true; // Anyone can create a booking request
-      allow update, delete: if isAdmin();
-    }
-
-    // Notifications
-    match /notifications/{notificationId} {
-      // Only the recipient can read their notifications
-      allow get, list: if isOwner(resource.data.recipientId);
-      // Only the recipient can mark their own notification as read
-      allow update: if isOwner(resource.data.recipientId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
-      // Notifications should only be created by the backend (Cloud Functions)
-      allow create: if false; 
-      allow delete: if false;
+        allow update: if canWrite() && request.auth.uid == resource.data.authorId;
+        allow delete: if isAdmin() || request.auth.uid == resource.data.authorId;
+      }
     }
   }
 }

@@ -4,89 +4,86 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
   signOut,
-  onAuthStateChanged,
+  onAuthStateChanged as onFirebaseAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
   sendPasswordResetEmail,
   updateProfile,
-  type User,
 } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
-import { createUserProfile } from './firestore';
+import { createUserProfile, updateUserProfile } from './firestore';
 
-// Sign up with email and password
+const { auth } = initializeFirebase();
+const googleProvider = new GoogleAuthProvider();
+
 export async function signUpWithEmail(email: string, password: string, displayName: string) {
-  const { auth } = initializeFirebase();
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
-    // Update Firebase Auth profile
     await updateProfile(user, { displayName });
 
-    // Create a user profile in Firestore
-    await createUserProfile(user.uid, {
+    const userProfileData: { displayName: string; email: string; role?: 'admin' | 'moderator' } = {
       displayName: displayName,
-      email: user.email,
-      avatarUrl: user.photoURL,
-    });
+      email: email,
+    };
 
-    return { user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
-  }
-}
+    if (email === 'tnbit@gmail.com') {
+      userProfileData.role = 'admin';
+    } else if (email === 'tnbit2@gmail.com') {
+      userProfileData.role = 'moderator';
+    }
+    
+    await createUserProfile(user.uid, userProfileData);
 
-// Sign in with email and password
-export async function signInWithEmail(email: string, password: string) {
-  const { auth } = initializeFirebase();
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
-  }
-}
-
-// Sign in with Google
-export async function signInWithGoogle() {
-  const { auth } = initializeFirebase();
-  const provider = new GoogleAuthProvider();
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    // You might want to check if the user is new and create a profile for them here
-    return { user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
-  }
-}
-
-// Sign out
-export async function signOutUser() {
-  const { auth } = initializeFirebase();
-  try {
-    await signOut(auth);
-    return { error: null };
-  } catch (error: any) {
+    return { user };
+  } catch (error) {
     return { error };
   }
 }
 
-// Password Reset
+export async function signInWithEmail(email: string, password: string) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return { user: userCredential.user };
+  } catch (error) {
+    return { error };
+  }
+}
+
+export async function signInWithGoogle() {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    return { user };
+  } catch (error: any) {
+    // Handle specific error codes if necessary
+    if (error.code === 'auth/popup-closed-by-user') {
+      return { error: new Error('The sign-in process was cancelled.') };
+    }
+    return { error };
+  }
+}
+
+export async function signOutUser() {
+  try {
+    await signOut(auth);
+    return {};
+  } catch (error) {
+    return { error };
+  }
+}
+
 export async function sendPasswordReset(email: string) {
-    const { auth } = initializeFirebase();
     try {
-        await sendPasswordResetEmail(auth, email);
-        return { error: null };
-    } catch (error: any) {
-        return { error };
+      await sendPasswordResetEmail(auth, email);
+      return {};
+    } catch (error) {
+      return { error };
     }
 }
 
-// Listen for auth state changes
-export function onAuthChanges(callback: (user: User | null) => void) {
-  const { auth } = initializeFirebase();
-  return onAuthStateChanged(auth, callback);
+export function onAuthStateChanged(callback: (user: any) => void) {
+  return onFirebaseAuthStateChanged(auth, callback);
 }

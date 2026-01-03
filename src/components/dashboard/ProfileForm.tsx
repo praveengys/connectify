@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadPhoto } from '@/lib/actions';
 import { Card, CardContent } from '../ui/card';
 import { useAuth } from '@/hooks/use-auth';
+import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
@@ -28,7 +29,16 @@ const formSchema = z.object({
   location: z.string().optional().default(''),
   currentlyExploring: z.string().max(60, 'Cannot be more than 60 characters.').optional().default(''),
   languages: z.string().optional().default(''),
+  // Add member fields for display, but they won't be part of the submitted data
+  memberFirstName: z.string().optional(),
+  memberLastName: z.string().optional(),
+  memberEmailAddress: z.string().optional(),
+  memberMobileNumber: z.string().optional(),
+  memberExperience: z.string().optional(),
+  memberType: z.string().optional(),
+  memberStatus: z.string().optional(),
 });
+
 
 type ProfileFormProps = {
   user: UserProfile;
@@ -63,6 +73,13 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       location: user.location ?? '',
       currentlyExploring: user.currentlyExploring ?? '',
       languages: user.languages?.join(', ') ?? '',
+      memberFirstName: user.memberFirstName ?? '',
+      memberLastName: user.memberLastName ?? '',
+      memberEmailAddress: user.memberEmailAddress ?? '',
+      memberMobileNumber: user.memberMobileNumber ?? '',
+      memberExperience: user.memberExperience ?? '',
+      memberType: user.memberType ?? '',
+      memberStatus: user.memberStatus ?? '',
     },
   });
 
@@ -77,6 +94,13 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       location: user.location ?? '',
       currentlyExploring: user.currentlyExploring ?? '',
       languages: user.languages?.join(', ') ?? '',
+      memberFirstName: user.memberFirstName ?? '',
+      memberLastName: user.memberLastName ?? '',
+      memberEmailAddress: user.memberEmailAddress ?? '',
+      memberMobileNumber: user.memberMobileNumber ?? '',
+      memberExperience: user.memberExperience ?? '',
+      memberType: user.memberType ?? '',
+      memberStatus: user.memberStatus ?? '',
     });
   }, [user, form]);
 
@@ -223,6 +247,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <h4 className="text-lg font-semibold">Editable Profile</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
@@ -348,6 +373,98 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                     )}
                 />
            </div>
+
+          <Separator className="my-8" />
+          
+          <h4 className="text-lg font-semibold">Imported Member Data (Read-Only)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <FormField
+                control={form.control}
+                name="memberFirstName"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>First Name (from import)</FormLabel>
+                    <FormControl>
+                    <Input {...field} disabled />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="memberLastName"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Last Name (from import)</FormLabel>
+                    <FormControl>
+                    <Input {...field} disabled />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="memberEmailAddress"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Email (from import)</FormLabel>
+                    <FormControl>
+                    <Input {...field} disabled />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="memberMobileNumber"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Mobile (from import)</FormLabel>
+                    <FormControl>
+                    <Input {...field} disabled />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="memberExperience"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Experience (from import)</FormLabel>
+                    <FormControl>
+                    <Input {...field} disabled />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="memberType"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Member Type (from import)</FormLabel>
+                    <FormControl>
+                    <Input {...field} disabled />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="memberStatus"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Member Status (from import)</FormLabel>
+                    <FormControl>
+                    <Input {...field} disabled />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+          </div>
+
+
           <div className="flex justify-end gap-2 pt-4 sticky bottom-0 bg-background pb-2">
             <Button type="button" variant="ghost" onClick={closeDialog}>Cancel</Button>
             <Button type="submit" disabled={loading}>
@@ -360,3 +477,5 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     </div>
   );
 }
+
+    

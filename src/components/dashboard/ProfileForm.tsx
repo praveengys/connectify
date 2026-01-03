@@ -23,7 +23,6 @@ import { Separator } from '../ui/separator';
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
   username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.'),
-  // Member fields are now part of the form
   memberFirstName: z.string().optional(),
   memberLastName: z.string().optional(),
   memberEmailAddress: z.string().optional(),
@@ -89,7 +88,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     try {
       const updatedData: Partial<UserProfile> = {
         displayName: values.displayName,
-        // Include member fields in the update
         memberFirstName: values.memberFirstName,
         memberLastName: values.memberLastName,
         memberEmailAddress: values.memberEmailAddress,

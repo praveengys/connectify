@@ -1,89 +1,87 @@
+
 'use client';
 
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  onAuthStateChanged,
   signOut,
-  updateProfile,
-  sendPasswordResetEmail,
+  onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
-  type User,
+  sendPasswordResetEmail,
+  updateProfile,
 } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 import { createUserProfile } from './client-actions';
 
+const { auth } = initializeFirebase();
+const googleProvider = new GoogleAuthProvider();
 
-export async function signUpWithEmail(email: string, password: string, displayName: string) {
-  const { auth } = initializeFirebase();
+export async function signUpWithEmail(email: string, password: string, firstName: string, lastName: string) {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
+    const fullName = `${firstName} ${lastName}`.trim();
     
     // Update Firebase Auth profile
-    await updateProfile(user, { displayName });
-
-    // Create or link Firestore user profile
-    await createUserProfile(user.uid, {
-        displayName: displayName,
-        email: user.email,
-        avatarUrl: user.photoURL
+    await updateProfile(user, { displayName: fullName });
+    
+    // Create or link Firestore profile
+    await createUserProfile({
+      uid: user.uid,
+      email: user.email,
+      displayName: fullName,
+      memberFirstName: firstName,
+      memberLastName: lastName
     });
 
     return { user };
-  } catch (error) {
+  } catch (error: any) {
     return { error };
   }
 }
 
 export async function signInWithEmail(email: string, password: string) {
-  const { auth } = initializeFirebase();
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return { user: userCredential.user };
-  } catch (error) {
+  } catch (error: any) {
     return { error };
   }
 }
 
 export async function signInWithGoogle() {
-  const { auth } = initializeFirebase();
-  const provider = new GoogleAuthProvider();
   try {
-    const userCredential = await signInWithPopup(auth, provider);
-    const user = userCredential.user;
-
-    // Create or link Firestore user profile
-    await createUserProfile(user.uid, {
-        displayName: user.displayName,
-        email: user.email,
-        avatarUrl: user.photoURL
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    
+    await createUserProfile({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      avatarUrl: user.photoURL
     });
 
     return { user };
-  } catch (error) {
+  } catch (error: any) {
     return { error };
   }
 }
 
 export async function signOutUser() {
-  const { auth } = initializeFirebase();
+  await signOut(auth);
+}
+
+export function onAuthObserver(callback: (user: import('firebase/auth').User | null) => void) {
+  return onAuthStateChanged(auth, callback);
+}
+
+export async function sendPasswordReset(email: string) {
   try {
-    await signOut(auth);
+    await sendPasswordResetEmail(auth, email);
     return {};
-  } catch (error) {
+  } catch (error: any) {
     return { error };
   }
 }
 
-export async function sendPasswordReset(email: string) {
-    const { auth } = initializeFirebase();
-    try {
-        await sendPasswordResetEmail(auth, email);
-        return {};
-    } catch (error) {
-        return { error };
-    }
-}

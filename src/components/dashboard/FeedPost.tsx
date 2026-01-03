@@ -13,7 +13,7 @@ import { useState } from "react";
 import CommentSection from "./CommentSection";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import ShareDialog from "./ShareDialog";
-import { sharePost } from "@/lib/firebase/firestore";
+import { sharePost } from "@/lib/firebase/client-actions";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 

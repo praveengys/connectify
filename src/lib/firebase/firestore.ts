@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -43,9 +44,6 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   const userRef = doc(firestore, 'users', uid);
   const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
   
-  // Assign 'moderator' role if the email matches
-  const userRole = data.email === 'tnbit2@gmail.com' ? 'moderator' : 'member';
-
   await setDoc(userRef, {
     uid: uid,
     username: username,
@@ -59,7 +57,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: userRole,
+    role: 'member',
     profileVisibility: 'public',
     emailVerified: false,
     profileScore: 0,
@@ -288,18 +286,24 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     members: {
       [ownerId]: true
     },
-    memberRoles: {
-        [ownerId]: 'owner'
+     memberRoles: {
+      [ownerId]: 'owner'
     }
   };
 
   const newGroupRef = await addDoc(groupsCollection, newGroupData);
 
+  // Add the group to the user's subcollection of groups
+  const userGroupsRef = collection(firestore, 'users', ownerId, 'groups');
+  await setDoc(doc(userGroupsRef, newGroupRef.id), { joinedAt: serverTimestamp() });
+
+
   return {
     id: newGroupRef.id,
     ...newGroupData,
     createdAt: new Date(),
-  } as Group;
+    memberRoles: { [ownerId]: 'owner' }
+  };
 }
 
 export async function joinChatGroup(groupId: string, userId: string): Promise<void> {
@@ -313,7 +317,7 @@ export async function joinChatGroup(groupId: string, userId: string): Promise<vo
         }
 
         const groupData = groupDoc.data();
-        if (groupData.members[userId]) {
+        if (groupData.members && groupData.members[userId]) {
             // User is already a member, do nothing.
             return;
         }
@@ -323,35 +327,36 @@ export async function joinChatGroup(groupId: string, userId: string): Promise<vo
             [`memberRoles.${userId}`]: 'member',
             memberCount: increment(1)
         });
+        
+        // Add group to user's subcollection
+        const userGroupRef = doc(firestore, 'users', userId, 'groups', groupId);
+        transaction.set(userGroupRef, { joinedAt: serverTimestamp() });
     });
 }
 
 export async function removeUserFromGroup(groupId: string, userId: string): Promise<void> {
     const firestore = getFirestoreInstance();
-    const groupRef = doc(firestore, 'groups', groupId);
+    const batch = writeBatch(firestore);
     
-    await runTransaction(firestore, async (transaction) => {
-        const groupDoc = await transaction.get(groupRef);
-        if (!groupDoc.exists()) {
-            throw new Error("Group does not exist.");
-        }
-        
-        const groupData = groupDoc.data();
-        if (!groupData.members[userId]) {
-            return; // User is not a member
-        }
-        
-        const newMembers = { ...groupData.members };
-        delete newMembers[userId];
-        const newMemberRoles = { ...groupData.memberRoles };
-        delete newMemberRoles[userId];
-        
-        transaction.update(groupRef, {
-            members: newMembers,
-            memberRoles: newMemberRoles,
-            memberCount: increment(-1)
-        });
+    const groupRef = doc(firestore, 'groups', groupId);
+    const userGroupRef = doc(firestore, 'users', userId, 'groups', groupId);
+
+    const groupDoc = await getDoc(groupRef);
+    const groupData = groupDoc.data();
+
+    const newMembers = { ...groupData?.members };
+    delete newMembers[userId];
+    const newMemberRoles = { ...groupData?.memberRoles };
+    delete newMemberRoles[userId];
+
+    batch.update(groupRef, {
+        members: newMembers,
+        memberRoles: newMemberRoles,
+        memberCount: increment(-1)
     });
+    batch.delete(userGroupRef);
+
+    await batch.commit();
 }
 
 export async function updateUserGroupRole(groupId: string, userId: string, role: 'admin' | 'member'): Promise<void> {
@@ -518,42 +523,4 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   });
 
   await batch.commit();
-}
-
-
-export async function deleteThread(threadId: string): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const batch = writeBatch(firestore);
-
-    // Delete replies and chat messages (subcollections)
-    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
-    const chatRef = collection(firestore, 'threads', threadId, 'chatMessages');
-    const repliesSnap = await getDocs(repliesRef);
-    const chatSnap = await getDocs(chatRef);
-    repliesSnap.forEach(doc => batch.delete(doc.ref));
-    chatSnap.forEach(doc => batch.delete(doc.ref));
-
-    // Delete the main thread doc
-    const threadRef = doc(firestore, 'threads', threadId);
-    batch.delete(threadRef);
-
-    await batch.commit();
-}
-
-
-export async function deleteGroup(groupId: string): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const batch = writeBatch(firestore);
-
-    const messagesRef = collection(firestore, 'groups', groupId, 'messages');
-    const typingRef = collection(firestore, 'groups', groupId, 'typing');
-    const messagesSnap = await getDocs(messagesRef);
-    const typingSnap = await getDocs(typingRef);
-    messagesSnap.forEach(doc => batch.delete(doc.ref));
-    typingSnap.forEach(doc => batch.delete(doc.ref));
-
-    const groupRef = doc(firestore, 'groups', groupId);
-    batch.delete(groupRef);
-
-    await batch.commit();
 }

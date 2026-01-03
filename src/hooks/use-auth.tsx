@@ -9,17 +9,37 @@ import {
   type ReactNode,
 } from 'react';
 import { onAuthStateChanged, onIdTokenChanged, type User } from 'firebase/auth';
+import { doc, onSnapshot, type DocumentData } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { Loader2 } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
-export type UserProfileWithUser = User & UserProfile;
+export interface UserProfile extends DocumentData {
+  uid: string;
+  email: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  username: string;
+  bio: string;
+  interests: string[];
+  skills: string[];
+  languages: string[];
+  location: string;
+  currentlyExploring: string;
+  company: string;
+  role: 'member' | 'admin' | 'moderator';
+  profileVisibility: 'public' | 'private';
+  isMuted?: boolean;
+  isBanned?: boolean;
+  createdAt: Date;
+}
 
-export interface AuthContextType {
-  user: UserProfileWithUser | null;
+type AuthContextType = {
+  user: UserProfile | null;
   loading: boolean;
   error: Error | null;
-}
+};
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -28,95 +48,59 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfileWithUser | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     const { auth, firestore } = initializeFirebase();
     
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser) {
-        // If we have a user, start listening to their profile document
-        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+        const tokenResult = await firebaseUser.getIdTokenResult();
+        const userRef = doc(firestore, 'users', firebaseUser.uid);
         
-        onSnapshot(userDocRef, (docSnap) => {
+        const userUnsubscribe = onSnapshot(userRef, 
+          (docSnap) => {
             if (docSnap.exists()) {
-                const userProfileData = docSnap.data() as UserProfile;
-
-                // Force refresh of custom claims when user data changes.
-                // This is important for role changes to take effect immediately.
-                firebaseUser.getIdToken(true);
-
-                // Combine Firebase User and UserProfile data
-                setUser({
-                    ...firebaseUser,
-                    ...userProfileData,
-                    uid: firebaseUser.uid // Ensure Firebase UID is authoritative
-                });
-            } else {
-                // This case might happen briefly if the user document hasn't been created yet.
-                // We can set a minimal user object and wait for creation.
-                 setUser({
-                    ...firebaseUser,
-                    // Provide default/fallback values for UserProfile fields
-                    username: firebaseUser.email?.split('@')[0] || '',
-                    displayName: firebaseUser.displayName || 'New User',
-                    bio: '',
-                    avatarUrl: firebaseUser.photoURL || null,
-                    interests: [],
-                    skills: [],
-                    languages: [],
-                    location: '',
-                    currentlyExploring: '',
-                    role: 'member', // Default role
-                    profileVisibility: 'public',
-                    emailVerified: firebaseUser.emailVerified,
-                    profileScore: 0,
-                    postCount: 0,
-                    commentCount: 0,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    lastActiveAt: new Date(),
-                });
+              const userData = docSnap.data();
+              setUser({
+                ...userData,
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                displayName: userData.displayName || firebaseUser.displayName,
+                avatarUrl: userData.avatarUrl || firebaseUser.photoURL,
+                emailVerified: firebaseUser.emailVerified,
+                role: tokenResult.claims.role || 'member',
+                createdAt: userData.createdAt?.toDate() ?? new Date(),
+              } as UserProfile);
             }
             setLoading(false);
-        }, (err) => {
+          }, 
+          (err) => {
             console.error("Error fetching user profile:", err);
             setError(err);
             setLoading(false);
-        });
-        
-         // Also listen for ID token changes to get updated custom claims (like role)
-        onIdTokenChanged(auth, async (refreshedUser) => {
-          if (refreshedUser) {
-            const tokenResult = await refreshedUser.getIdTokenResult();
-            const claims = (tokenResult.claims as { role?: 'admin' | 'moderator' | 'member' }) || {};
-            
-            setUser(currentUser => {
-              if (currentUser && currentUser.uid === refreshedUser.uid && currentUser.role !== claims.role) {
-                // If role has changed, update the user state
-                return { ...currentUser, role: claims.role || 'member' };
-              }
-              return currentUser;
-            });
           }
-        });
+        );
 
-
+        return () => userUnsubscribe();
       } else {
-        // No user is signed in
         setUser(null);
         setLoading(false);
       }
-    }, (err) => {
-        console.error("Auth state change error:", err);
-        setError(err);
-        setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ user, loading, error }}>
@@ -125,6 +109,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+    

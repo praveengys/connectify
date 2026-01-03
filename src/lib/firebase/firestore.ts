@@ -4,12 +4,20 @@
 import {
   collection,
   doc,
+  addDoc,
+  setDoc,
   getDoc,
   getDocs,
+  updateDoc,
   Timestamp,
+  serverTimestamp,
   query,
   where,
+  increment,
+  writeBatch,
+  runTransaction,
   orderBy,
+  deleteDoc,
   limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
@@ -49,6 +57,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
+
 // Forum & Thread Functions
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
@@ -61,14 +70,22 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
         const doc = querySnapshot.docs[0];
         return { id: doc.id, ...doc.data() } as Category;
     } else {
-        // This is a write operation, and should be in client-actions.
-        // For now, returning null to avoid server-side writes. A client action should handle this.
-        // A proper implementation would have a client-side `getOrCreateCategory`.
-        // This is a temporary measure to fix the build.
-        // We will assume for now the category exists for server-side fetches.
-        return null;
+        const newCategoryRef = await addDoc(categoriesCollection, {
+            name,
+            slug,
+            description: `Discussions related to ${name}`,
+            threadCount: 0,
+        });
+        return {
+            id: newCategoryRef.id,
+            name,
+            slug,
+            description: `Discussions related to ${name}`,
+            threadCount: 0,
+        };
     }
 }
+
 
 export async function getThread(threadId: string): Promise<Thread | null> {
     const firestore = getFirestoreInstance();
@@ -98,7 +115,27 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
     } as Reply));
 }
 
-// Demo Booking Server-side functions
+
+
+export async function createChatMessage(threadId: string, messageData: Partial<ChatMessage>): Promise<void> {
+  const firestore = getFirestoreInstance();
+  const user = await getUserProfile(messageData.senderId!);
+  if (!user) throw new Error("User not found");
+
+  const messagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
+  await addDoc(messagesRef, {
+      ...messageData,
+      senderProfile: {
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      },
+      createdAt: serverTimestamp(),
+      status: 'visible'
+  });
+}
+
+
+// Demo Booking
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
   const dateStr = format(date, 'yyyy-MM-dd');

@@ -9,7 +9,7 @@ import type { Group } from '@/lib/types';
 import { notFound, useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2, ServerCrash, UserPlus } from 'lucide-react';
-import { joinChatGroup } from '@/lib/firebase/firestore';
+import { joinChatGroup } from '@/lib/firebase/client-actions';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import ChatLayout from '@/components/chat/ChatLayout';

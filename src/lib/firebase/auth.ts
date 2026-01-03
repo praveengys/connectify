@@ -1,19 +1,18 @@
-
-'use server';
+'use client';
 
 import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  updateProfile,
   onAuthStateChanged,
+  sendPasswordResetEmail,
+  updateProfile as updateFirebaseProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
-import { createUserProfile, updateUserRole } from './firestore';
+import { createUserProfile } from './client-actions';
 
 // Sign up with email and password
 export async function signUpWithEmail(email: string, password: string, displayName: string) {
@@ -23,25 +22,26 @@ export async function signUpWithEmail(email: string, password: string, displayNa
     const user = userCredential.user;
     
     // Update Firebase Auth profile
-    await updateProfile(user, { displayName });
-    
+    await updateFirebaseProfile(user, { displayName });
+
     // Create user profile in Firestore
     await createUserProfile(user.uid, { displayName, email });
 
-    return { user };
+    return { user, error: null };
   } catch (error: any) {
-    return { error };
+    return { user: null, error: { code: error.code, message: error.message } };
   }
 }
+
 
 // Sign in with email and password
 export async function signInWithEmail(email: string, password: string) {
   const { auth } = initializeFirebase();
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user };
+    return { user: userCredential.user, error: null };
   } catch (error: any) {
-    return { error };
+    return { user: null, error: { code: error.code, message: error.message } };
   }
 }
 
@@ -52,39 +52,33 @@ export async function signInWithGoogle() {
     try {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-
-        // Check if user profile already exists, if not create one
-        await createUserProfile(user.uid, {
-            displayName: user.displayName,
-            email: user.email,
-            avatarUrl: user.photoURL,
-        });
-
-        return { user: result.user };
+        // You might want to check if the user document exists in Firestore
+        // and create it if it doesn't.
+        await createUserProfile(user.uid, { displayName: user.displayName, email: user.email, avatarUrl: user.photoURL });
+        return { user, error: null };
     } catch (error: any) {
-        return { error };
+        return { user: null, error: { code: error.code, message: error.message } };
     }
 }
-
 
 // Sign out
 export async function signOutUser() {
   const { auth } = initializeFirebase();
   try {
     await signOut(auth);
-    return { success: true };
+    return { error: null };
   } catch (error: any) {
-    return { error };
+    return { error: { code: error.code, message: error.message } };
   }
 }
 
-// Send password reset email
+// Password reset
 export async function sendPasswordReset(email: string) {
-  const { auth } = initializeFirebase();
-  try {
-    await sendPasswordResetEmail(auth, email);
-    return { success: true };
-  } catch (error: any) {
-    return { error };
-  }
+    const { auth } = initializeFirebase();
+    try {
+        await sendPasswordResetEmail(auth, email);
+        return { error: null };
+    } catch (error: any) {
+        return { error: { code: error.code, message: error.message } };
+    }
 }

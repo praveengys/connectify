@@ -1,24 +1,39 @@
-
 'use server';
 
 import {
   collection,
   doc,
+  addDoc,
+  setDoc,
   getDoc,
   getDocs,
+  updateDoc,
   Timestamp,
+  serverTimestamp,
   query,
   where,
+  increment,
+  writeBatch,
+  runTransaction,
   orderBy,
+  deleteDoc,
   limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { UserProfile, Thread, Reply, Category, DemoSlot } from '@/lib/types';
+import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking, Notification } from '@/lib/types';
+import { errorEmitter } from '@/firebase/error-emitter';
 import { format } from 'date-fns';
 
 // Helper to get Firestore instance
 function getFirestoreInstance() {
-  return initializeFirebase().firestore;
+  try {
+    return initializeFirebase().firestore;
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      errorEmitter.emit('permission-error', error);
+    }
+    throw error;
+  }
 }
 
 // User Profile Functions
@@ -41,6 +56,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
+
 // Forum & Thread Functions
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
@@ -53,9 +69,19 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
         const doc = querySnapshot.docs[0];
         return { id: doc.id, ...doc.data() } as Category;
     } else {
-        // In a server context, we can't create it, so we should indicate it's not found.
-        // The creation should be handled by a client action if needed.
-        return null;
+        const newCategoryRef = await addDoc(categoriesCollection, {
+            name,
+            slug,
+            description: `Discussions related to ${name}`,
+            threadCount: 0,
+        });
+        return {
+            id: newCategoryRef.id,
+            name,
+            slug,
+            description: `Discussions related to ${name}`,
+            threadCount: 0,
+        };
     }
 }
 
@@ -87,7 +113,57 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
     } as Reply));
 }
 
-// Demo Booking
+
+// Chat (Real-time) functions
+export async function createChatMessage(threadId: string, messageData: Partial<ChatMessage>): Promise<void> {
+  const firestore = getFirestoreInstance();
+  const user = await getUserProfile(messageData.senderId!);
+  if (!user) throw new Error("User not found");
+
+  const messagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
+  await addDoc(messagesRef, {
+      ...messageData,
+      senderProfile: {
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      },
+      createdAt: serverTimestamp(),
+      status: 'visible'
+  });
+}
+
+
+// Group Chat functions
+export async function createChatGroup(name: string, type: 'public' | 'private', ownerId: string): Promise<Group> {
+  const firestore = getFirestoreInstance();
+  const groupsCollection = collection(firestore, 'groups');
+
+  const newGroupRef = await addDoc(groupsCollection, {
+    name,
+    type,
+    createdBy: ownerId,
+    createdAt: serverTimestamp(),
+    memberCount: 1,
+    members: {
+      [ownerId]: true // Use boolean for security rules
+    },
+    memberRoles: {
+        [ownerId]: 'owner'
+    }
+  });
+
+  return {
+    id: newGroupRef.id,
+    name,
+    type,
+    createdBy: ownerId,
+    createdAt: new Date(),
+    memberCount: 1,
+    members: { [ownerId]: true },
+    memberRoles: { [ownerId]: 'owner' },
+  };
+}
+
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
   const dateStr = format(date, 'yyyy-MM-dd');

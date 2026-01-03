@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useNotifications } from '@/hooks/use-notifications';

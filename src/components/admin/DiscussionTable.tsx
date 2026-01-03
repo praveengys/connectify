@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
@@ -31,8 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { getUserProfile } from '@/lib/firebase/firestore';
-import { toggleThreadLock, toggleThreadPin } from '@/lib/firebase/client-actions';
-import { deleteThread } from '@/lib/firebase/admin';
+import { toggleThreadLock, toggleThreadPin, deleteThread } from '@/lib/firebase/client-actions';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import Link from 'next/link';
 import ViewThreadDialog from './ViewThreadDialog';

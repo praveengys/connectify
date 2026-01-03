@@ -70,7 +70,7 @@ export default function ModeratorDiscussionTable() {
         const newAuthorIds = authorIds.filter(id => id && !authors[id]);
         if (newAuthorIds.length > 0) {
             const fetchedAuthors = await Promise.all(
-                newAuthorIds.map(id => getUserProfile(id))
+                newAuthorIds.map(id => getUserProfile(firestore, id))
             );
             setAuthors(prev => {
                 const updatedAuthors = { ...prev };
@@ -100,19 +100,19 @@ export default function ModeratorDiscussionTable() {
       switch(action) {
           case 'lock':
               title = "Lock Thread?"; description = "This will prevent new replies.";
-              actionFn = () => performAction(thread.id, toggleThreadLock(thread.id, true), 'Thread locked.');
+              actionFn = () => performAction(thread.id, toggleThreadLock(firestore, thread.id, true), 'Thread locked.');
               buttonText = "Lock Thread"; break;
           case 'unlock':
               title = "Unlock Thread?"; description = "This will allow new replies.";
-              actionFn = () => performAction(thread.id, toggleThreadLock(thread.id, false), 'Thread unlocked.');
+              actionFn = () => performAction(thread.id, toggleThreadLock(firestore, thread.id, false), 'Thread unlocked.');
               buttonText = "Unlock Thread"; break;
           case 'pin':
               title = "Pin Thread?"; description = "This will keep the thread at the top of lists.";
-              actionFn = () => performAction(thread.id, toggleThreadPin(thread.id, true), 'Thread pinned.');
+              actionFn = () => performAction(thread.id, toggleThreadPin(firestore, thread.id, true), 'Thread pinned.');
               buttonText = "Pin Thread"; break;
           case 'unpin':
               title = "Unpin Thread?"; description = "This will remove the thread from the top of lists.";
-              actionFn = () => performAction(thread.id, toggleThreadPin(thread.id, false), 'Thread unpinned.');
+              actionFn = () => performAction(thread.id, toggleThreadPin(firestore, thread.id, false), 'Thread unpinned.');
               buttonText = "Unpin Thread"; break;
           case 'delete':
               title = "Delete Thread?"; description = "This is permanent and cannot be undone.";
@@ -253,3 +253,5 @@ export default function ModeratorDiscussionTable() {
     </>
   );
 }
+
+    

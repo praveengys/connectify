@@ -22,7 +22,7 @@ export default function NotificationDropdown() {
   if (!user) return null;
 
   const handleMarkAsRead = (id: string) => {
-    markNotificationAsRead(firestore, id);
+    markNotificationAsRead(firestore, user.uid, id);
   };
   
   const handleMarkAllAsRead = () => {
@@ -86,3 +86,5 @@ export default function NotificationDropdown() {
     </Card>
   );
 }
+
+    

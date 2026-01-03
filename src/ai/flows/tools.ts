@@ -2,7 +2,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { adminDb } from '@/firebase/server';
 
 // Example Tool: Get Stock Price
@@ -16,79 +15,69 @@ export const getStockPrice = ai.defineTool(
     outputSchema: z.number(),
   },
   async (input) => {
-    // This is a mock. In a real app, you'd call a financial API.
-    return Math.random() * 1000;
+    // In a real scenario, you'd fetch this from a financial API
+    console.log(`Fetching stock price for ${input.ticker}`);
+    if (input.ticker === 'GOOGL') return 175.0;
+    if (input.ticker === 'AAPL') return 214.0;
+    return Math.floor(Math.random() * 1000) + 100;
   }
 );
 
 
 export const searchDiscussions = ai.defineTool(
-  {
-    name: 'searchDiscussions',
-    description: 'Search for discussions (threads) in the community forum.',
-    inputSchema: z.object({
-      searchTerm: z.string().describe('The term to search for in discussion titles.'),
-    }),
-    outputSchema: z.array(z.object({
-        id: z.string(),
-        title: z.string(),
-        url: z.string(),
-    })),
-  },
-  async (input) => {
-    if (!adminDb) {
-      throw new Error("Firestore not initialized for search.");
+    {
+        name: 'searchDiscussions',
+        description: 'Searches for discussion threads based on a query.',
+        inputSchema: z.object({
+            query: z.string().describe('The search query for discussion titles.'),
+        }),
+        outputSchema: z.array(z.object({
+            id: z.string(),
+            title: z.string(),
+            path: z.string(),
+        })),
+    },
+    async (input) => {
+        const threadsRef = adminDb.collection('threads');
+        const q = threadsRef
+            .where('title', '>=', input.query)
+            .where('title', '<=', input.query + '\uf8ff')
+            .limit(5);
+
+        const snapshot = await q.get();
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            title: doc.data().title,
+            path: `/forum/threads/${doc.id}`,
+        }));
     }
-    const threadsRef = collection(adminDb, 'threads');
-    // Firestore does not support full-text search, this is a basic prefix match.
-    // For a real app, use a dedicated search service like Algolia.
-    const q = query(
-        threadsRef, 
-        where('title', '>=', input.searchTerm),
-        where('title', '<=', input.searchTerm + '\uf8ff'),
-        orderBy('title'),
-        limit(5)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        title: doc.data().title,
-        url: `/forum/threads/${doc.id}`,
-    }));
-  }
 );
 
-
 export const searchGroups = ai.defineTool(
-  {
-    name: 'searchGroups',
-    description: 'Search for chat groups in the community.',
-    inputSchema: z.object({
-      searchTerm: z.string().describe('The term to search for in group names.'),
-    }),
-    outputSchema: z.array(z.object({
-        id: z.string(),
-        name: z.string(),
-        url: z.string(),
-    })),
-  },
-  async (input) => {
-     if (!adminDb) {
-      throw new Error("Firestore not initialized for search.");
+    {
+        name: 'searchGroups',
+        description: 'Searches for chat groups based on a query.',
+        inputSchema: z.object({
+            query: z.string().describe('The search query for group names.'),
+        }),
+        outputSchema: z.array(z.object({
+            id: z.string(),
+            name: z.string(),
+            path: z.string(),
+        })),
+    },
+    async (input) => {
+        const groupsRef = adminDb.collection('groups');
+        const q = groupsRef
+            .where('name', '>=', input.query)
+            .where('name', '<=', input.query + '\uf8ff')
+            .limit(5);
+
+        const snapshot = await q.get();
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().name,
+            path: `/chat/${doc.id}`,
+        }));
     }
-    const groupsRef = collection(adminDb, 'groups');
-    const q = query(
-        groupsRef, 
-        where('name', '>=', input.searchTerm),
-        where('name', '<=', input.searchTerm + '\uf8ff'),
-        orderBy('name'),
-        limit(5)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name,
-        url: `/chat/${doc.id}`,
-    }));
-  }
 );

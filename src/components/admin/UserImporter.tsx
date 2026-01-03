@@ -45,10 +45,20 @@ export default function UserImporter() {
         const content = e.target?.result as string;
         const importResult = await importUsers(content);
         setResult(importResult);
-        toast({
-            title: 'Import Complete',
-            description: `${importResult.successCount} users created, ${importResult.errorCount} failed.`,
-        });
+
+        if (importResult.errorCount > 0 && importResult.errors.some(e => e.includes("Firebase Admin SDK is not initialized"))) {
+            toast({
+                title: 'Configuration Error',
+                description: 'Please set your Firebase Admin credentials in the .env file to enable this feature.',
+                variant: 'destructive',
+                duration: 10000,
+            });
+        } else {
+            toast({
+                title: 'Import Complete',
+                description: `${importResult.successCount} users created, ${importResult.errorCount} failed.`,
+            });
+        }
       } catch (error: any) {
         toast({
           title: 'Import Failed',
@@ -84,7 +94,7 @@ export default function UserImporter() {
                                     <p className="font-bold text-red-800">{result.errorCount} Users Failed to Import</p>
                                 </div>
                             </div>
-                            <ul className="mt-4 list-disc list-inside text-sm text-red-700 space-y-1">
+                            <ul className="mt-4 list-disc list-inside text-sm text-red-700 space-y-1 max-h-40 overflow-y-auto">
                                 {result.errors.map((error, index) => (
                                     <li key={index}>{error}</li>
                                 ))}
@@ -102,9 +112,9 @@ export default function UserImporter() {
     <div className="grid gap-8 md:grid-cols-2">
         <Card>
             <CardHeader>
-                <CardTitle>Import Member Logins</CardTitle>
+                <CardTitle>Create Member Logins</CardTitle>
                 <CardDescription>
-                    Upload your JSON file to create login credentials for your existing members in Firebase.
+                    Upload your JSON file to create login credentials for your existing Firestore user records.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -143,18 +153,19 @@ export default function UserImporter() {
              <CardHeader>
                 <CardTitle>JSON File Format</CardTitle>
                 <CardDescription>
-                    Your JSON file must be an array of user objects. Each object must have a <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code> and <code className="font-mono bg-muted px-1 py-0.5 rounded">memberEmailAddress</code>.
+                    Your file must be a JSON array. Each object must have a <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code> and <code className="font-mono bg-muted px-1 py-0.5 rounded">memberEmailAddress</code>.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">The importer will create Firebase Auth users with a UID matching the <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code>. A default password of 'password123' will be set.</p>
+                <p className="text-sm text-muted-foreground mb-2">The importer will create Firebase Auth users with a UID matching the <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code> and set a temporary password of 'password123'.</p>
                 <Button variant="outline" asChild>
                     <Link href="/docs/member-import-schema.json" target="_blank">View Schema</Link>
                 </Button>
+                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm">
+                    <strong>Important:</strong> This tool only creates login credentials. It assumes the user profiles already exist in your Firestore database.
+                </div>
             </CardContent>
         </Card>
     </div>
   );
 }
-
-    

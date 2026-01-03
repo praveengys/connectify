@@ -7,7 +7,7 @@ import { ArrowRight, MessageSquare, Users, BookOpen, Sparkles, UserCheck, Shield
 import Header from '@/components/Header';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import AboutSection from '@/components/landing/AboutSection';
 import NewsletterForm from '@/components/landing/NewsletterForm';
@@ -15,12 +15,42 @@ import NewsletterForm from '@/components/landing/NewsletterForm';
 export default function LandingPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const [typedText, setTypedText] = useState('');
+    const fullText = "The Community Behind AITSP";
 
     useEffect(() => {
         if (!loading && user) {
             router.replace('/dashboard');
         }
     }, [user, loading, router]);
+    
+    useEffect(() => {
+        let currentIndex = 0;
+        let isDeleting = false;
+    
+        const type = () => {
+          if (isDeleting) {
+            setTypedText(fullText.substring(0, currentIndex - 1));
+            currentIndex--;
+            if (currentIndex === 0) {
+              isDeleting = false;
+            }
+          } else {
+            setTypedText(fullText.substring(0, currentIndex + 1));
+            currentIndex++;
+            if (currentIndex === fullText.length) {
+                // Pause at the end before starting to delete
+                setTimeout(() => {
+                    isDeleting = true;
+                }, 2000);
+            }
+          }
+        };
+    
+        const typingInterval = setInterval(type, isDeleting ? 75 : 150);
+    
+        return () => clearInterval(typingInterval);
+      }, []);
 
 
   return (
@@ -31,8 +61,11 @@ export default function LandingPage() {
         <section className="relative container mx-auto px-4 py-20 md:py-32 text-center flex flex-col items-center">
           <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:6rem_4rem] opacity-20"></div>
           <div className="animate-fade-in-up">
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
-              The Community Behind AITSP
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4 h-24 md:h-32">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
+                    {typedText}
+                </span>
+                <span className="typing-cursor">|</span>
             </h1>
             <p className="max-w-2xl mx-auto text-lg text-muted-foreground mb-8">
               The AITSP Community Platform is a dedicated digital space built exclusively for AITSP members to connect, collaborate, and grow together. It brings professionals, leaders, and contributors into a single trusted environment designed to foster meaningful discussions, shared learning, and collective progress.

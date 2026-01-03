@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { createChatGroup } from '@/lib/firebase/firestore';
+import { createChatGroup } from '@/lib/firebase/client-actions';
 import { useAuth } from '@/hooks/use-auth';
 import type { Group } from '@/lib/types';
 

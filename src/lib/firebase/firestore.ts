@@ -116,6 +116,7 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
     }
 }
 
+
 export async function getThread(threadId: string): Promise<Thread | null> {
     const firestore = getFirestoreInstance();
     const threadRef = doc(firestore, 'threads', threadId);
@@ -162,6 +163,7 @@ export async function createChatMessage(threadId: string, messageData: Partial<C
   });
 }
 
+
 // Demo Booking
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
@@ -178,9 +180,10 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
 }
 
-// Admin/Moderator specific actions
-export async function updateReportStatus(reportId: string, status: 'resolved' | 'in_review'): Promise<void> {
+export async function updateReportStatus(reportId: string, status: 'in_review' | 'resolved'): Promise<void> {
     const firestore = getFirestoreInstance();
     const reportRef = doc(firestore, 'reports', reportId);
     await updateDoc(reportRef, { status });
 }
+
+    

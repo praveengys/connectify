@@ -12,6 +12,7 @@ import {
   Settings,
   CalendarCheck,
   Clock,
+  UploadCloud,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <NavLink href="/admin/slots">
                 <Clock className="h-4 w-4" />
                 Slots
+              </NavLink>
+              <NavLink href="/admin/import">
+                <UploadCloud className="h-4 w-4" />
+                User Import
               </NavLink>
             </nav>
           </div>

@@ -4,79 +4,24 @@
 import {
   collection,
   doc,
-  addDoc,
-  setDoc,
   getDoc,
   getDocs,
-  updateDoc,
   Timestamp,
-  serverTimestamp,
   query,
   where,
-  increment,
-  writeBatch,
-  runTransaction,
   orderBy,
-  deleteDoc,
   limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking, Notification } from '@/lib/types';
-import { errorEmitter } from '@/firebase/error-emitter';
+import type { UserProfile, Thread, Reply, Category, DemoSlot } from '@/lib/types';
 import { format } from 'date-fns';
 
 // Helper to get Firestore instance
 function getFirestoreInstance() {
-  try {
-    return initializeFirebase().firestore;
-  } catch (error: any) {
-    if (error.code === 'permission-denied') {
-      errorEmitter.emit('permission-error', error);
-    }
-    throw error;
-  }
+  return initializeFirebase().firestore;
 }
 
 // User Profile Functions
-export async function createUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
-  const firestore = getFirestoreInstance();
-  const userRef = doc(firestore, 'users', uid);
-  
-  // Check if profile already exists
-  const docSnap = await getDoc(userRef);
-  if (docSnap.exists()) {
-    // User profile already exists, maybe just update last login
-    await updateDoc(userRef, { lastActiveAt: serverTimestamp() });
-    return;
-  }
-
-  const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
-  
-  await setDoc(userRef, {
-    uid: uid,
-    username: username,
-    displayName: data.displayName || 'New Member',
-    email: data.email,
-    avatarUrl: data.avatarUrl || null,
-    bio: '',
-    interests: [],
-    skills: [],
-    languages: [],
-    location: '',
-    currentlyExploring: '',
-    company: '',
-    role: 'member',
-    profileVisibility: 'public',
-    emailVerified: false,
-    profileScore: 0,
-    postCount: 0,
-    commentCount: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    lastActiveAt: serverTimestamp(),
-  }, { merge: true });
-}
-
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
@@ -108,19 +53,9 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
         const doc = querySnapshot.docs[0];
         return { id: doc.id, ...doc.data() } as Category;
     } else {
-        const newCategoryRef = await addDoc(categoriesCollection, {
-            name,
-            slug,
-            description: `Discussions related to ${name}`,
-            threadCount: 0,
-        });
-        return {
-            id: newCategoryRef.id,
-            name,
-            slug,
-            description: `Discussions related to ${name}`,
-            threadCount: 0,
-        };
+        // In a server context, we can't create it, so we should indicate it's not found.
+        // The creation should be handled by a client action if needed.
+        return null;
     }
 }
 
@@ -153,18 +88,6 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
 }
 
 // Demo Booking
-export async function createDemoSlot(slotData: { date: string, startTime: string }): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const slotsRef = collection(firestore, 'demoSlots');
-    await addDoc(slotsRef, {
-        ...slotData,
-        status: 'available',
-        lockedByRequestId: null,
-        updatedAt: serverTimestamp(),
-    });
-}
-
-
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
   const dateStr = format(date, 'yyyy-MM-dd');
@@ -178,23 +101,4 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
-}
-
-export async function deleteThreadAdmin(threadId: string): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const batch = writeBatch(firestore);
-
-    // Delete replies and chat messages (subcollections)
-    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
-    const chatRef = collection(firestore, 'threads', threadId, 'chatMessages');
-    const repliesSnap = await getDocs(repliesRef);
-    const chatSnap = await getDocs(chatRef);
-    repliesSnap.forEach(doc => batch.delete(doc.ref));
-    chatSnap.forEach(doc => batch.delete(doc.ref));
-
-    // Delete the main thread doc
-    const threadRef = doc(firestore, 'threads', threadId);
-    batch.delete(threadRef);
-
-    await batch.commit();
 }

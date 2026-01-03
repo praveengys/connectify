@@ -8,7 +8,7 @@ import * as z from 'zod';
 import { collection, onSnapshot, query, orderBy, where, getDocs } from 'firebase/firestore';
 import { add, format, startOfDay } from 'date-fns';
 import { initializeFirebase } from '@/firebase';
-import { createDemoSlot } from '@/lib/firebase/firestore';
+import { createDemoSlot } from '@/lib/firebase/client-actions';
 import type { DemoSlot } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';

@@ -1,38 +1,31 @@
+
 'use client';
 
 import {
   getAuth,
   signInWithPopup,
   GoogleAuthProvider,
-  signOut,
   onAuthStateChanged,
+  signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   type User,
 } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
-import { createUserProfile, getUserProfile } from './firestore';
-
-const ensureUserProfile = async (user: User) => {
-    const userProfile = await getUserProfile(user.uid);
-    if (!userProfile) {
-        await createUserProfile(user.uid, {
-            email: user.email,
-            displayName: user.displayName,
-            avatarUrl: user.photoURL,
-        });
-    }
-}
+import { createUserProfile } from './client-actions';
 
 // Sign up with email and password
 export async function signUpWithEmail(email: string, password: string, displayName: string) {
-  const { auth } = initializeFirebase();
   try {
+    const { auth } = initializeFirebase();
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    await ensureUserProfile(user);
-    return { user: userCredential.user, error: null };
+    if (user) {
+      // Create user profile document in Firestore
+      await createUserProfile(user.uid, { displayName, email, emailVerified: user.emailVerified });
+    }
+    return { user, error: null };
   } catch (error: any) {
     return { user: null, error };
   }
@@ -40,10 +33,16 @@ export async function signUpWithEmail(email: string, password: string, displayNa
 
 // Sign in with email and password
 export async function signInWithEmail(email: string, password: string) {
-  const { auth } = initializeFirebase();
   try {
+    const { auth } = initializeFirebase();
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    await ensureUserProfile(userCredential.user);
+    // Upon successful sign-in, check if a profile exists, and create one if not.
+    await createUserProfile(userCredential.user.uid, { 
+      displayName: userCredential.user.displayName, 
+      email: userCredential.user.email,
+      avatarUrl: userCredential.user.photoURL,
+      emailVerified: userCredential.user.emailVerified
+    });
     return { user: userCredential.user, error: null };
   } catch (error: any) {
     return { user: null, error };
@@ -52,12 +51,19 @@ export async function signInWithEmail(email: string, password: string) {
 
 // Sign in with Google
 export async function signInWithGoogle() {
-  const { auth } = initializeFirebase();
-  const provider = new GoogleAuthProvider();
   try {
+    const { auth } = initializeFirebase();
+    const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    await ensureUserProfile(result.user);
-    return { user: result.user, error: null };
+    const user = result.user;
+    // Upon successful sign-in, check if a profile exists, and create one if not.
+    await createUserProfile(user.uid, { 
+      displayName: user.displayName, 
+      email: user.email,
+      avatarUrl: user.photoURL,
+      emailVerified: user.emailVerified
+    });
+    return { user, error: null };
   } catch (error: any) {
     return { user: null, error };
   }
@@ -65,8 +71,8 @@ export async function signInWithGoogle() {
 
 // Sign out
 export async function signOutUser() {
-  const { auth } = initializeFirebase();
   try {
+    const { auth } = initializeFirebase();
     await signOut(auth);
     return { error: null };
   } catch (error: any) {
@@ -76,8 +82,8 @@ export async function signOutUser() {
 
 // Send password reset email
 export async function sendPasswordReset(email: string) {
-  const { auth } = initializeFirebase();
   try {
+    const { auth } = initializeFirebase();
     await sendPasswordResetEmail(auth, email);
     return { error: null };
   } catch (error: any) {
@@ -86,7 +92,7 @@ export async function sendPasswordReset(email: string) {
 }
 
 // Listen for auth state changes
-export function onAuthStateChange(callback: (user: User | null) => void) {
+export function onAuthChanges(callback: (user: User | null) => void) {
   const { auth } = initializeFirebase();
   return onAuthStateChanged(auth, callback);
 }

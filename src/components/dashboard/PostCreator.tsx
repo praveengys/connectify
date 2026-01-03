@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -187,7 +188,7 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
                 </TooltipProvider>
             </div>
             <div className="flex gap-2">
-                <Button onClick={handleCreatePost} disabled={isPosting || (!user?.uid)}>
+                <Button onClick={handleCreatePost} disabled={isPosting}>
                     {isPosting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Post
                 </Button>

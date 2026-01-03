@@ -56,7 +56,7 @@ export default function UserImporter() {
         } else {
             toast({
                 title: 'Import Complete',
-                description: `${importResult.successCount} users created, ${importResult.errorCount} failed.`,
+                description: `${importResult.successCount} users processed, ${importResult.errorCount} failed.`,
             });
         }
       } catch (error: any) {
@@ -75,15 +75,15 @@ export default function UserImporter() {
         <Card>
             <CardHeader>
                 <CardTitle>Import Results</CardTitle>
-                <CardDescription>The user import process has finished.</CardDescription>
+                <CardDescription>The user data import process has finished.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
                     <div className="flex items-center gap-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                         <CheckCircle className="h-8 w-8 text-green-600"/>
                         <div>
-                            <p className="font-bold text-green-800">{result.successCount} User Authentication Profiles Created</p>
-                            <p className="text-sm text-green-700">These users can now log in with the password 'password123'.</p>
+                            <p className="font-bold text-green-800">{result.successCount} User Profiles Updated/Created</p>
+                            <p className="text-sm text-green-700">The documents in your 'users' collection have been updated.</p>
                         </div>
                     </div>
                      {result.errorCount > 0 && (
@@ -91,7 +91,7 @@ export default function UserImporter() {
                             <div className="flex items-center gap-4">
                                 <AlertTriangle className="h-8 w-8 text-red-600"/>
                                 <div>
-                                    <p className="font-bold text-red-800">{result.errorCount} Users Failed to Import</p>
+                                    <p className="font-bold text-red-800">{result.errorCount} Records Failed</p>
                                 </div>
                             </div>
                             <ul className="mt-4 list-disc list-inside text-sm text-red-700 space-y-1 max-h-40 overflow-y-auto">
@@ -112,9 +112,9 @@ export default function UserImporter() {
     <div className="grid gap-8 md:grid-cols-2">
         <Card>
             <CardHeader>
-                <CardTitle>Create Member Logins</CardTitle>
+                <CardTitle>Update User Profiles</CardTitle>
                 <CardDescription>
-                    Upload your JSON file to create login credentials for your existing Firestore user records.
+                    Upload your JSON file to enrich existing user profiles in your Firestore 'users' collection.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -125,7 +125,7 @@ export default function UserImporter() {
                     name="jsonFile"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Members JSON File</FormLabel>
+                        <FormLabel>User Data JSON File</FormLabel>
                         <FormControl>
                             <Input 
                                 type="file" 
@@ -143,7 +143,7 @@ export default function UserImporter() {
                     ) : (
                         <UploadCloud className="mr-2 h-4 w-4" />
                     )}
-                    Create Logins
+                    Update User Data
                     </Button>
                 </form>
                 </Form>
@@ -153,17 +153,14 @@ export default function UserImporter() {
              <CardHeader>
                 <CardTitle>JSON File Format</CardTitle>
                 <CardDescription>
-                    Your file must be a JSON array. Each object must have a <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code> and <code className="font-mono bg-muted px-1 py-0.5 rounded">memberEmailAddress</code>.
+                    Your file must be a JSON array. The script uses <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code> to find the corresponding document in Firestore.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">The importer will create Firebase Auth users with a UID matching the <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code> and set a temporary password of 'password123'.</p>
+                <p className="text-sm text-muted-foreground mb-2">This tool will update documents in the `users` collection. It will not create authentication credentials or remove any data. Passwords will be ignored.</p>
                 <Button variant="outline" asChild>
                     <Link href="/docs/member-import-schema.json" target="_blank">View Schema</Link>
                 </Button>
-                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm">
-                    <strong>Important:</strong> This tool only creates login credentials. It assumes the user profiles already exist in your Firestore database.
-                </div>
             </CardContent>
         </Card>
     </div>

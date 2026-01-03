@@ -114,6 +114,22 @@ export type UserProfile = {
   company?: string;
   isMuted?: boolean;
   isBanned?: boolean;
+
+  // Fields from external JSON
+  memberId?: number;
+  memberTitle?: string | null;
+  memberFirstName?: string;
+  memberLastName?: string;
+  memberEmailAddress?: string;
+  memberMobileNumber?: string;
+  memberExperience?: string;
+  memberType?: string;
+  memberOTP?: string | null;
+  memberStatus?: string;
+  firstReminder?: number;
+  finalReminder?: number;
+  created_at?: string;
+  modified_at?: string;
 };
 
 export type Group = {

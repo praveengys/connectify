@@ -116,32 +116,16 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
   
   const displayUser = user || initialUser;
 
-  if (!displayUser || !displayUser.displayName) {
-    return (
-        <Card>
-            <CardContent className="p-4">
-                <div className="flex gap-4">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div className="flex-grow space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-3/4" />
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-  }
-
   return (
     <Card>
       <CardContent className="p-4">
         <div className="flex gap-4">
           <Avatar>
             <AvatarImage src={displayUser.avatarUrl || ''} />
-            <AvatarFallback>{displayUser.displayName.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{displayUser.displayName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <Textarea 
-            placeholder={`Share what's on your mind, ${displayUser.displayName.split(' ')[0]}...`}
+            placeholder={`Share what's on your mind, ${displayUser.displayName?.split(' ')[0]}...`}
             className="flex-grow border-none focus-visible:ring-0 bg-transparent p-0" 
             value={content}
             onChange={(e) => setContent(e.target.value)}

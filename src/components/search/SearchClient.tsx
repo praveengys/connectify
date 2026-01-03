@@ -116,7 +116,7 @@ function SearchResults() {
                                     </Avatar>
                                     <div>
                                         <p className="font-semibold">{user.displayName}</p>
-                                        <p className="text-sm text-muted-foreground">@{user.username}</p>
+                                        <p className="text-sm text-muted-foreground">ID: {user.memberId}</p>
                                     </div>
                                 </div>
                             </Link>

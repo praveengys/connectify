@@ -93,7 +93,6 @@ export type Report = {
 
 export type UserProfile = {
   uid: string;
-  username: string;
   displayName: string;
   avatarUrl: string | null;
   role: 'member' | 'admin' | 'moderator';
@@ -102,7 +101,6 @@ export type UserProfile = {
   postCount: number;
   commentCount: number;
   lastActiveAt: Date;
-  email?: string | null;
   isMuted?: boolean;
   isBanned?: boolean;
 
@@ -176,7 +174,7 @@ export type Post = {
     createdAt: Date | Timestamp;
     updatedAt: Date | Timestamp;
     // Denormalized author data for easy display
-    author?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>;
+    author?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'memberId'>;
     // For real-time updates on the client
     isLiked?: boolean;
 };
@@ -188,7 +186,7 @@ export type PostComment = {
     content: string;
     parentCommentId: string | null;
     createdAt: Date | Timestamp;
-    author?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>;
+    author?: Pick<UserProfile, 'displayName' | 'avatarUrl' | 'memberId'>;
 };
 
 export type PostLike = {

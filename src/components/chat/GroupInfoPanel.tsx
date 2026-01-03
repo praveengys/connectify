@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Group, UserProfile } from "@/lib/types";
@@ -72,7 +73,7 @@ export default function GroupInfoPanel({ group }: GroupInfoPanelProps) {
                                 </Avatar>
                                 <div>
                                     <p className="font-semibold">{member.displayName}</p>
-                                    <p className="text-xs text-muted-foreground">@{member.username}</p>
+                                    <p className="text-xs text-muted-foreground">ID: {member.memberId}</p>
                                 </div>
                             </div>
                              {role && role !== 'member' && (

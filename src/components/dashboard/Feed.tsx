@@ -19,7 +19,7 @@ async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
     const uniqueAuthorIds = Array.from(authorIds);
     if (uniqueAuthorIds.length === 0) return posts;
 
-    const authorProfiles = new Map<string, Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>>();
+    const authorProfiles = new Map<string, Pick<UserProfile, 'displayName' | 'avatarUrl' | 'memberId'>>();
     const authorDocs = await Promise.all(
         uniqueAuthorIds.map(id => getDoc(doc(initializeFirebase().firestore, 'users', id)))
     );
@@ -30,7 +30,7 @@ async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
             authorProfiles.set(docSnap.id, {
                 displayName: data.displayName,
                 avatarUrl: data.avatarUrl,
-                username: data.username
+                memberId: data.memberId
             });
         }
     });

@@ -19,7 +19,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.'),
+  memberId: z.number().optional(),
   memberFirstName: z.string().min(1, 'First name is required.'),
   memberLastName: z.string().min(1, 'Last name is required.'),
   memberEmailAddress: z.string().optional(),
@@ -52,7 +52,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: user.username ?? '',
+      memberId: user.memberId ?? undefined,
       memberFirstName: user.memberFirstName ?? '',
       memberLastName: user.memberLastName ?? '',
       memberEmailAddress: user.memberEmailAddress ?? '',
@@ -65,7 +65,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
   useEffect(() => {
     form.reset({
-      username: user.username ?? '',
+      memberId: user.memberId ?? undefined,
       memberFirstName: user.memberFirstName ?? '',
       memberLastName: user.memberLastName ?? '',
       memberEmailAddress: user.memberEmailAddress ?? '',
@@ -90,8 +90,8 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         memberStatus: values.memberStatus,
       };
 
-      if (isAdminEditing || !user.username) {
-        updatedData.username = values.username;
+      if (isAdminEditing) {
+        updatedData.memberId = values.memberId;
       }
 
       await updateUserProfile(user.uid, updatedData);
@@ -245,18 +245,18 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 </FormItem>
                 )}
             />
-             <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
+            <FormField
+              control={form.control}
+              name="memberId"
+              render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                    <Input placeholder="your_unique_handle" {...field} disabled={!isAdminEditing && !!user.username} />
-                    </FormControl>
-                    <FormMessage />
+                  <FormLabel>Member ID</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} onChange={event => field.onChange(+event.target.value)} disabled={!isAdminEditing} />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
-                )}
+              )}
             />
              <FormField
                 control={form.control}

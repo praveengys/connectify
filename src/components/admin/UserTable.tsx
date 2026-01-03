@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
@@ -157,8 +158,7 @@ export default function UserTable() {
   const filteredUsers = useMemo(() => {
     return users.filter(user =>
       user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.memberEmailAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.username?.toLowerCase().includes(searchTerm.toLowerCase())
+      user.memberEmailAddress?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm]);
 
@@ -191,7 +191,7 @@ export default function UserTable() {
             <div className="relative w-full max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, email, or username"
+                placeholder="Search by name, or email"
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

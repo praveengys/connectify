@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -53,8 +54,7 @@ export default function MembersClient() {
     const lowercasedQuery = searchQuery.toLowerCase();
     return members.filter(member => 
       member.displayName.toLowerCase().includes(lowercasedQuery) ||
-      (member.email && member.email.toLowerCase().includes(lowercasedQuery)) ||
-      (member.username && member.username.toLowerCase().includes(lowercasedQuery))
+      (member.memberEmailAddress && member.memberEmailAddress.toLowerCase().includes(lowercasedQuery))
     );
   }, [members, searchQuery]);
 
@@ -93,7 +93,7 @@ export default function MembersClient() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input 
                     type="search"
-                    placeholder="Search by name, username or email..."
+                    placeholder="Search by name or email..."
                     className="pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -111,14 +111,9 @@ export default function MembersClient() {
                           <AvatarFallback>{member.displayName ? member.displayName.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
                         </Avatar>
                         <h3 className="font-semibold text-lg">{member.displayName}</h3>
-                        <p className="text-sm text-muted-foreground">@{member.username || 'new_member'}</p>
-                        <p className="text-sm mt-2 text-muted-foreground line-clamp-2 h-10">
-                          {member.bio || 'No bio available.'}
-                        </p>
+                        <p className="text-sm text-muted-foreground">ID: {member.memberId || 'new_member'}</p>
                         <div className="mt-4 flex flex-wrap justify-center gap-2">
-                          {member.interests?.slice(0, 3).map(interest => (
-                            <Badge key={interest} variant="secondary">{interest}</Badge>
-                          ))}
+                          <Badge variant="secondary">{member.memberType}</Badge>
                         </div>
                       </CardContent>
                     </Card>

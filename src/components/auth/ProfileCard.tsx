@@ -14,7 +14,6 @@ type ProfileCardProps = {
 const getProfileCompleteness = (profile: UserProfile): number => {
     let score = 0;
     const fields = [
-        { value: profile.username, weight: 15 },
         { value: profile.avatarUrl, weight: 15 },
         { value: profile.memberFirstName, weight: 20 },
         { value: profile.memberLastName, weight: 10 },
@@ -48,7 +47,7 @@ export default function ProfileCard({ user }: ProfileCardProps) {
             <p className="text-lg font-semibold leading-none">{user.displayName}</p>
             <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'} className="capitalize">{user.role}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground">@{user.username || 'username_not_set'}</p>
+          <p className="text-sm text-muted-foreground">ID: {user.memberId || 'not_set'}</p>
         </div>
       </div>
       

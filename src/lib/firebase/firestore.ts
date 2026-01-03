@@ -1,3 +1,5 @@
+
+
 'use server';
 
 import {
@@ -42,7 +44,9 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   const userRef = doc(firestore, 'users', uid);
   const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
   
-  const userData: Partial<UserProfile> = {
+  const initialRole = data.email === 'tnbit2@gmail.com' ? 'moderator' : 'member';
+
+  await setDoc(userRef, {
     uid: uid,
     username: username,
     displayName: data.displayName || 'New Member',
@@ -55,18 +59,16 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: data.email === 'tnbit2@gmail.com' ? 'moderator' : 'member',
+    role: initialRole,
     profileVisibility: 'public',
     emailVerified: false,
     profileScore: 0,
     postCount: 0,
     commentCount: 0,
-    createdAt: serverTimestamp() as any,
-    updatedAt: serverTimestamp() as any,
-    lastActiveAt: serverTimestamp() as any,
-  };
-
-  await setDoc(userRef, userData, { merge: true });
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastActiveAt: serverTimestamp(),
+  }, { merge: true });
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -284,8 +286,11 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     createdAt: serverTimestamp(),
     memberCount: 1,
     members: {
-      [ownerId]: 'owner' as const
+      [ownerId]: true,
     },
+    memberRoles: {
+      [ownerId]: 'owner' as const,
+    }
   };
 
   const newGroupRef = await addDoc(groupsCollection, newGroupData);
@@ -294,7 +299,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     id: newGroupRef.id,
     ...newGroupData,
     createdAt: new Date(),
-  } as Group;
+  };
 }
 
 export async function joinChatGroup(groupId: string, userId: string): Promise<void> {
@@ -308,13 +313,14 @@ export async function joinChatGroup(groupId: string, userId: string): Promise<vo
         }
 
         const groupData = groupDoc.data();
-        if (groupData.members[userId]) {
+        if (groupData.members && groupData.members[userId]) {
             // User is already a member, do nothing.
             return;
         }
 
         transaction.update(groupRef, {
-            [`members.${userId}`]: 'member',
+            [`members.${userId}`]: true,
+            [`memberRoles.${userId}`]: 'member',
             memberCount: increment(1)
         });
     });
@@ -331,17 +337,18 @@ export async function removeUserFromGroup(groupId: string, userId: string): Prom
         }
         
         const groupData = groupDoc.data();
-        if (!groupData.members[userId]) {
+        if (!groupData.members || !groupData.members[userId]) {
             return; // User is not a member
         }
         
-        // Firestore does not allow deleting fields inside a transaction easily
-        // without reading first, which we did. We create a new members object.
         const newMembers = { ...groupData.members };
         delete newMembers[userId];
+        const newMemberRoles = { ...groupData.memberRoles };
+        delete newMemberRoles[userId];
         
         transaction.update(groupRef, {
             members: newMembers,
+            memberRoles: newMemberRoles,
             memberCount: increment(-1)
         });
     });
@@ -351,7 +358,7 @@ export async function updateUserGroupRole(groupId: string, userId: string, role:
     const firestore = getFirestoreInstance();
     const groupRef = doc(firestore, 'groups', groupId);
     await updateDoc(groupRef, {
-        [`members.${userId}`]: role
+        [`memberRoles.${userId}`]: role
     });
 }
 
@@ -416,7 +423,7 @@ export async function toggleLikePost(postId: string, userId: string): Promise<vo
     batch.update(postRef, { likesCount: increment(-1) });
   } else {
     // Like
-    batch.set(likeRef, { userId, createdAt: serverTimestamp() });
+    batch.set(likeRef, { userId: userId, createdAt: serverTimestamp() });
     batch.update(postRef, { likesCount: increment(1) });
   }
   await batch.commit();
@@ -486,7 +493,7 @@ type BookingRequest = {
   name: string;
   email: string;
   notes: string;
-  uid: string;
+  uid?: string; // UID of the logged-in user
 };
 
 export async function bookDemo(request: BookingRequest): Promise<void> {

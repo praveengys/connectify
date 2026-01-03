@@ -4,10 +4,11 @@ import { Group, UserProfile } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Users, Video, Info } from "lucide-react";
+import { Users, Video, Info, ShieldCheck } from "lucide-react";
 import { ScrollArea } from "../ui/scroll-area";
 import { useEffect, useState } from "react";
 import { getUserProfile } from "@/lib/firebase/firestore";
+import { cn } from "@/lib/utils";
 
 type GroupInfoPanelProps = {
   group: Group;
@@ -36,7 +37,9 @@ export default function GroupInfoPanel({ group }: GroupInfoPanelProps) {
         <p className="text-sm text-muted-foreground">{group.type === 'public' ? 'Public' : 'Private'} Group</p>
         <div className="flex justify-center gap-2 mt-4">
           <Button variant="outline" size="sm"><Users className="mr-2" /> Members</Button>
-          <Button variant="outline" size="sm"><Video className="mr-2" /> Call</Button>
+          <Button variant="outline" size="sm" disabled>
+            <Video className="mr-2" /> Call
+          </Button>
         </div>
       </div>
       
@@ -58,18 +61,29 @@ export default function GroupInfoPanel({ group }: GroupInfoPanelProps) {
                     <CardTitle className="text-base flex items-center gap-2"><Users size={16} /> Members ({group.memberCount})</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {members.map(member => (
-                        <div key={member.uid} className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9">
-                                <AvatarImage src={member.avatarUrl ?? undefined} />
-                                <AvatarFallback>{member.displayName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold">{member.displayName}</p>
-                                <p className="text-xs text-muted-foreground">@{member.username}</p>
+                    {members.map(member => {
+                      const role = group.memberRoles[member.uid];
+                      return (
+                        <div key={member.uid} className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                    <AvatarImage src={member.avatarUrl ?? undefined} />
+                                    <AvatarFallback>{member.displayName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-semibold">{member.displayName}</p>
+                                    <p className="text-xs text-muted-foreground">@{member.username}</p>
+                                </div>
                             </div>
+                             {role && role !== 'member' && (
+                                <div className={cn("text-xs flex items-center gap-1", role === 'owner' && "text-primary font-bold", role === 'admin' && "text-amber-600")}>
+                                  <ShieldCheck size={14} />
+                                  <span className="capitalize">{role}</span>
+                                </div>
+                              )}
                         </div>
-                    ))}
+                      )
+                    })}
                 </CardContent>
             </Card>
         </div>

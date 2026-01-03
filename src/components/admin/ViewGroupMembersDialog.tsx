@@ -76,7 +76,7 @@ export default function ViewGroupMembersDialog({ group, isOpen, setIsOpen }: Vie
           if (profile) {
             memberList.push({
               profile,
-              role: group.members[profile.uid],
+              role: group.memberRoles[profile.uid],
             });
           }
         });

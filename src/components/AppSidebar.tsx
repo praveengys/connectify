@@ -60,7 +60,6 @@ function HorizontalNav() {
   };
 
   if (!mounted) {
-    // Render a skeleton or null on the server and initial client render
     return (
         <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-14 items-center">
@@ -192,6 +191,11 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
     const isAdminPage = pathname.startsWith('/admin');
     const isModeratorPage = pathname.startsWith('/moderator');
     const hideSidebars = pathname.startsWith('/chat');
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/book-demo');
 
@@ -212,7 +216,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
                 <div className="flex-1">{children}</div>
             ) : (
                 <div className="flex flex-1">
-                    <LeftSidebar />
+                    {mounted && <LeftSidebar />}
                     <div className="flex-1">{children}</div>
                 </div>
             )}

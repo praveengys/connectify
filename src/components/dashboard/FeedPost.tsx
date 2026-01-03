@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,7 +22,11 @@ type FeedPostProps = {
 }
 
 const isVideo = (url: string) => {
-    return /\.(mp4|webm|ogg)$/i.test(new URL(url).pathname);
+    try {
+        return /\.(mp4|webm|ogg)$/i.test(new URL(url).pathname);
+    } catch (e) {
+        return false;
+    }
 }
 
 export default function FeedPost({ post }: FeedPostProps) {
@@ -69,7 +72,7 @@ export default function FeedPost({ post }: FeedPostProps) {
             {isVideo(post.media[0]) ? (
               <video src={post.media[0]} controls className="w-full h-full bg-black" />
             ) : (
-              <Image src={post.media[0]} alt="Post media" layout="fill" objectFit="cover" />
+              <Image src={post.media[0]} alt="Post media" fill className="object-cover" />
             )}
           </div>
         )}

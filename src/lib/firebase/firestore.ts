@@ -42,9 +42,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   const userRef = doc(firestore, 'users', uid);
   const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
   
-  const userRole = data.email === 'tnbit2@gmail.com' ? 'moderator' : 'member';
-
-  await setDoc(userRef, {
+  const userData: Partial<UserProfile> = {
     uid: uid,
     username: username,
     displayName: data.displayName || 'New Member',
@@ -57,19 +55,22 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: userRole,
+    role: data.email === 'tnbit2@gmail.com' ? 'moderator' : 'member',
     profileVisibility: 'public',
     emailVerified: false,
     profileScore: 0,
     postCount: 0,
     commentCount: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    lastActiveAt: serverTimestamp(),
-  }, { merge: true });
+    createdAt: serverTimestamp() as any,
+    updatedAt: serverTimestamp() as any,
+    lastActiveAt: serverTimestamp() as any,
+  };
+
+  await setDoc(userRef, userData, { merge: true });
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+  if (!uid) return null;
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
   const docSnap = await getDoc(userRef);
@@ -117,19 +118,22 @@ export async function toggleBanUser(uid: string, isBanned: boolean): Promise<voi
 export async function createForum(name: string, description: string, createdBy: string): Promise<Forum> {
     const firestore = getFirestoreInstance();
     const forumsCollection = collection(firestore, 'forums');
-    const newForumData = {
+    const newForumRef = await addDoc(forumsCollection, {
         name,
         description,
         createdBy,
-        visibility: 'public' as const,
-        status: 'active' as const,
+        visibility: 'public',
+        status: 'active',
         createdAt: serverTimestamp(),
-    };
-    const newForumRef = await addDoc(forumsCollection, newForumData);
+    });
 
     return {
         id: newForumRef.id,
-        ...newForumData,
+        name,
+        description,
+        createdBy,
+        visibility: 'public',
+        status: 'active',
         createdAt: new Date(),
     };
 }
@@ -166,23 +170,19 @@ export async function createThread(data: ThreadData): Promise<Thread> {
   const firestore = getFirestoreInstance();
   const threadsRef = collection(firestore, 'threads');
   
-  if (!data.authorId) {
-    throw new Error("Author ID is required to create a thread.");
-  }
-
-  const newThreadData = {
+  const newThreadRef = await addDoc(threadsRef, {
     ...data,
     replyCount: 0,
     latestReplyAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  };
-
-  const newThreadRef = await addDoc(threadsRef, newThreadData);
+  });
 
   return {
     id: newThreadRef.id,
-    ...newThreadData,
+    ...data,
+    replyCount: 0,
+    latestReplyAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -228,10 +228,6 @@ export async function createReply(data: ReplyData): Promise<void> {
     const threadRef = doc(firestore, 'threads', data.threadId);
     const repliesRef = collection(threadRef, 'replies');
     
-    if (!data.authorId) {
-        throw new Error("Author ID is required to create a reply.");
-    }
-    
     await addDoc(repliesRef, {
         authorId: data.authorId,
         body: data.body,
@@ -260,12 +256,7 @@ export async function toggleThreadPin(threadId: string, isPinned: boolean): Prom
 // Chat (Real-time) functions
 export async function createChatMessage(threadId: string, messageData: Partial<ChatMessage>): Promise<void> {
   const firestore = getFirestoreInstance();
-  const senderId = messageData.senderId;
-  if (!senderId) {
-    throw new Error("Sender ID is required to create a chat message.");
-  }
-  
-  const user = await getUserProfile(senderId);
+  const user = await getUserProfile(messageData.senderId!);
   if (!user) throw new Error("User not found");
 
   const messagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
@@ -303,7 +294,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     id: newGroupRef.id,
     ...newGroupData,
     createdAt: new Date(),
-  };
+  } as Group;
 }
 
 export async function joinChatGroup(groupId: string, userId: string): Promise<void> {
@@ -344,6 +335,8 @@ export async function removeUserFromGroup(groupId: string, userId: string): Prom
             return; // User is not a member
         }
         
+        // Firestore does not allow deleting fields inside a transaction easily
+        // without reading first, which we did. We create a new members object.
         const newMembers = { ...groupData.members };
         delete newMembers[userId];
         
@@ -437,7 +430,7 @@ export async function createComment(postId: string, authorId: string, content: s
   const batch = writeBatch(firestore);
   
   // Add new comment
-  const newCommentRef = doc(commentsRef);
+  const newCommentRef = doc(commentsRef); // Create a new doc reference
   batch.set(newCommentRef, {
     postId,
     authorId,
@@ -493,16 +486,12 @@ type BookingRequest = {
   name: string;
   email: string;
   notes: string;
-  uid?: string; // UID of the logged-in user
+  uid: string;
 };
 
 export async function bookDemo(request: BookingRequest): Promise<void> {
     const firestore = getFirestoreInstance();
     const { slotId, ...bookingData } = request;
-
-    if (!bookingData.uid) {
-        throw new Error("User must be logged in to book a demo.");
-    }
     
     await runTransaction(firestore, async (transaction) => {
         const slotRef = doc(firestore, 'demoSlots', slotId);

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -11,6 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Input } from '../ui/input';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import Link from 'next/link';
 
 export default function MembersClient() {
   const [members, setMembers] = useState<UserProfile[]>([]);
@@ -82,6 +82,7 @@ export default function MembersClient() {
              <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
                   <h3 className="mt-4 text-lg font-semibold">Please Log In</h3>
                   <p className="mt-1 text-sm">You must be logged in to view community members.</p>
+                  <Button asChild className="mt-4"><Link href="/login">Log In</Link></Button>
               </div>
           )}
 

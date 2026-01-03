@@ -26,7 +26,6 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(uid())).data.role in ['admin', 'moderator'];
     }
 
-    // Users
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if isSelf(userId);
@@ -39,12 +38,12 @@ service cloud.firestore {
       }
     }
 
-    // Posts, Likes, Comments
     match /posts/{postId} {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && request.resource.data.authorId == uid()
-        && exists(/databases/$(database)/documents/users/$(uid()));
+      allow create: if request.auth != null
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.content is string;
       allow update: if isAdmin() || uid() == resource.data.authorId;
       allow delete: if isAdmin() || uid() == resource.data.authorId;
 
@@ -63,14 +62,13 @@ service cloud.firestore {
       }
     }
 
-    // Groups & Group Chat
     match /groups/{groupId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.createdBy == uid();
-      
+
       allow update: if isAdmin()
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'memberCount', 'members', 'memberRoles']));
-        
+
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
@@ -85,16 +83,17 @@ service cloud.firestore {
 
         allow update, delete: if isAdmin() || uid() == resource.data.senderId;
       }
-       match /typing/{typingId} {
+      
+      match /typing/{typingId} {
           allow read, write: if signedIn() && get(/databases/$(database)/documents/groups/$(groupId)).data.members[uid()] == true;
       }
     }
 
-    // Threads, Replies, and Thread Chat
     match /threads/{threadId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.authorId == uid();
-      allow update, delete: if isAdmin() || uid() == resource.data.authorId;
+      allow update: if isAdmin() || uid() == resource.data.authorId;
+      allow delete: if isAdmin() || uid() == resource.data.authorId;
 
       match /replies/{replyId} {
         allow read: if signedIn();
@@ -107,20 +106,7 @@ service cloud.firestore {
         allow update, delete: if isAdmin() || uid() == resource.data.senderId;
       }
     }
-
-    // Demo Booking
-    match /demoSlots/{id} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    match /demoBookings/{id} {
-      allow create: if signedIn() && request.resource.data.uid == uid();
-      allow read: if isAdmin() || uid() == resource.data.uid;
-      allow update, delete: if isAdmin();
-    }
     
-    // Moderation & Forums
     match /forums/{id} {
       allow read: if signedIn();
       allow write: if isModerator();
@@ -129,6 +115,17 @@ service cloud.firestore {
     match /categories/{id} {
       allow read: if signedIn();
       allow write: if isModerator();
+    }
+
+    match /demoSlots/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /demoBookings/{id} {
+      allow create: if signedIn() && (request.resource.data.uid == uid() || uid() == null);
+      allow read: if isAdmin() || uid() == resource.data.uid;
+      allow update, delete: if isAdmin();
     }
 
     match /moderationLogs/{id} {

@@ -44,9 +44,9 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   const userRef = doc(firestore, 'users', uid);
   const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
   
-  const initialRole = data.email === 'tnbit2@gmail.com' ? 'moderator' : 'member';
+  const isModerator = data.email === 'tnbit2@gmail.com';
 
-  await setDoc(userRef, {
+  const userProfileData = {
     uid: uid,
     username: username,
     displayName: data.displayName || 'New Member',
@@ -59,16 +59,18 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: initialRole,
+    role: isModerator ? 'moderator' : 'member',
     profileVisibility: 'public',
-    emailVerified: false,
+    emailVerified: data.emailVerified ?? false,
     profileScore: 0,
     postCount: 0,
     commentCount: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     lastActiveAt: serverTimestamp(),
-  }, { merge: true });
+  };
+
+  await setDoc(userRef, userProfileData, { merge: true });
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -289,7 +291,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
       [ownerId]: true
     },
     memberRoles: {
-      [ownerId]: 'owner'
+        [ownerId]: 'owner'
     }
   };
 
@@ -299,6 +301,9 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     id: newGroupRef.id,
     ...newGroupData,
     createdAt: new Date(),
+    memberRoles: {
+        [ownerId]: 'owner'
+    }
   } as Group;
 }
 
@@ -423,7 +428,7 @@ export async function toggleLikePost(postId: string, userId: string): Promise<vo
     batch.update(postRef, { likesCount: increment(-1) });
   } else {
     // Like
-    batch.set(likeRef, { userId: userId, createdAt: serverTimestamp() });
+    batch.set(likeRef, { userId, createdAt: serverTimestamp() });
     batch.update(postRef, { likesCount: increment(1) });
   }
   await batch.commit();
@@ -592,6 +597,7 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 }
 
 
+// Admin Functions
 export async function deleteThread(threadId: string): Promise<void> {
     const firestore = getFirestoreInstance();
     const batch = writeBatch(firestore);
@@ -599,9 +605,11 @@ export async function deleteThread(threadId: string): Promise<void> {
     // Delete replies and chat messages (subcollections)
     const repliesRef = collection(firestore, 'threads', threadId, 'replies');
     const chatRef = collection(firestore, 'threads', threadId, 'chatMessages');
+    
     const repliesSnap = await getDocs(repliesRef);
-    const chatSnap = await getDocs(chatRef);
     repliesSnap.forEach(doc => batch.delete(doc.ref));
+
+    const chatSnap = await getDocs(chatRef);
     chatSnap.forEach(doc => batch.delete(doc.ref));
 
     // Delete the main thread doc
@@ -618,9 +626,11 @@ export async function deleteGroup(groupId: string): Promise<void> {
 
     const messagesRef = collection(firestore, 'groups', groupId, 'messages');
     const typingRef = collection(firestore, 'groups', groupId, 'typing');
+
     const messagesSnap = await getDocs(messagesRef);
-    const typingSnap = await getDocs(typingRef);
     messagesSnap.forEach(doc => batch.delete(doc.ref));
+
+    const typingSnap = await getDocs(typingRef);
     typingSnap.forEach(doc => batch.delete(doc.ref));
 
     const groupRef = doc(firestore, 'groups', groupId);

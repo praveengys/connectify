@@ -11,36 +11,15 @@ type ProfileCardProps = {
   user: UserProfile;
 };
 
-const getProfileCompleteness = (profile: UserProfile): number => {
-    let score = 0;
-    const fields = [
-        { value: profile.avatarUrl, weight: 15 },
-        { value: profile.memberFirstName, weight: 20 },
-        { value: profile.memberLastName, weight: 10 },
-        { value: profile.memberMobileNumber, weight: 10 },
-        { value: profile.memberExperience, weight: 10 },
-        { value: profile.memberType, weight: 5 },
-        { value: profile.memberStatus, weight: 10 }
-    ];
-
-    fields.forEach(field => {
-        if (field.value) score += field.weight;
-    });
-
-    score += 5; 
-    return Math.min(score, 100);
-  };
-
 export default function ProfileCard({ user }: ProfileCardProps) {
   if (!user) return null;
-  const completeness = getProfileCompleteness(user);
 
   return (
     <div className="p-2">
       <div className="flex items-center gap-4">
         <Avatar className="h-16 w-16">
           <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? 'User'} />
-          <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+          <AvatarFallback>{user.memberFirstName?.charAt(0).toUpperCase() || user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
           <div className="flex items-center gap-2">

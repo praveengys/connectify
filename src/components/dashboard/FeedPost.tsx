@@ -53,7 +53,7 @@ export default function FeedPost({ post }: FeedPostProps) {
       <CardHeader className="flex flex-row items-center gap-4">
         <Avatar>
           <AvatarImage src={displayAuthor?.avatarUrl ?? undefined} />
-          <AvatarFallback>{displayAuthor?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
+          <AvatarFallback>{displayAuthor?.displayName?.charAt(0) ?? 'A'}</AvatarFallback>
         </Avatar>
         <div className="flex-grow">
           <p className="font-semibold">{displayAuthor?.displayName ?? 'Community Member'}</p>

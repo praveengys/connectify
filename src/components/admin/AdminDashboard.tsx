@@ -47,7 +47,7 @@ const RecentSignups = ({ users, loading }: { users: UserProfile[], loading: bool
                 <div key={user.uid} className="flex items-center gap-4">
                     <Avatar className="h-10 w-10">
                         <AvatarImage src={user.avatarUrl ?? undefined} />
-                        <AvatarFallback>{user.displayName?.charAt(0)}</AvatarFallback>
+                        <AvatarFallback>{user.displayName?.charAt(0) ?? 'A'}</AvatarFallback>
                     </Avatar>
                     <div>
                         <p className="font-semibold">{user.displayName}</p>

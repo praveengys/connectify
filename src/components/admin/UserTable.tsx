@@ -38,7 +38,7 @@ import ViewUserProfileDialog from './ViewUserProfileDialog';
 import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import ProfileForm from '../dashboard/ProfileForm';
-import { updateUserProfile } from '@/lib/firebase/client-actions';
+import { updateUserProfile } from '@/lib/firebase/user-actions';
 
 export default function UserTable() {
   const { user: adminUser } = useAuth();
@@ -217,7 +217,7 @@ export default function UserTable() {
                     <div className="flex items-center gap-3">
                       <Avatar>
                         <AvatarImage src={user.avatarUrl ?? undefined} />
-                        <AvatarFallback>{user.displayName?.charAt(0) ?? '?'}</AvatarFallback>
+                        <AvatarFallback>{user.displayName?.charAt(0) ?? 'A'}</AvatarFallback>
                       </Avatar>
                       <div>
                         <p className="font-medium">{user.displayName}</p>

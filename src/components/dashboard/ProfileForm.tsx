@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -168,7 +169,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
             <div className="relative">
                 <Avatar className="h-20 w-20">
                     <AvatarImage src={previewUrl ?? undefined} alt={user.displayName ?? 'User'} />
-                    <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{user.memberFirstName?.charAt(0).toUpperCase() || user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <input
                     type="file"

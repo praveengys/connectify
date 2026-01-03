@@ -14,7 +14,6 @@ import { uploadPhoto } from "@/lib/actions";
 import Image from "next/image";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import { Skeleton } from "../ui/skeleton";
 
 export default function PostCreator({ user: initialUser }: { user: UserProfile }) {
   const { user } = useAuth(); // Use the live user from auth context
@@ -122,7 +121,7 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
         <div className="flex gap-4">
           <Avatar>
             <AvatarImage src={displayUser.avatarUrl || ''} />
-            <AvatarFallback>{displayUser.displayName?.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{displayUser.displayName?.charAt(0) ?? displayUser.memberFirstName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <Textarea 
             placeholder={`Share what's on your mind, ${displayUser.displayName?.split(' ')[0]}...`}

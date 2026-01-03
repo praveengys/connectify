@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -209,7 +210,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <Avatar className="h-9 w-9">
             <AvatarImage src={threadAuthor?.avatarUrl ?? undefined} />
-            <AvatarFallback>{threadAuthor?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
+            <AvatarFallback>{threadAuthor?.displayName?.charAt(0) ?? 'A'}</AvatarFallback>
           </Avatar>
           <div>
             <span className="font-semibold text-foreground">{threadAuthor?.displayName ?? '...'}</span>
@@ -284,7 +285,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
               <div className="flex items-start gap-4">
                 <Avatar className="h-9 w-9">
                   <AvatarImage src={parentAuthor?.avatarUrl ?? undefined} />
-                  <AvatarFallback>{parentAuthor?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
+                  <AvatarFallback>{parentAuthor?.displayName?.charAt(0) ?? 'A'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
@@ -312,7 +313,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
                       <div key={child.id} className="flex items-start gap-4">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={childAuthor?.avatarUrl ?? undefined} />
-                          <AvatarFallback>{childAuthor?.displayName?.charAt(0) ?? '?'}</AvatarFallback>
+                          <AvatarFallback>{childAuthor?.displayName?.charAt(0) ?? 'A'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center justify-between">

@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -11,6 +10,7 @@ import {
   Search,
   Shield,
   MessageSquare,
+  Home,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';

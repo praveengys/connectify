@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -11,6 +12,7 @@ import {
   Shield,
   MessageSquare,
   Home,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
@@ -99,6 +101,7 @@ function HorizontalNav() {
                             <div className="p-4">
                                <nav className="grid items-start text-sm font-medium">
                                  <Link href="/dashboard" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname === '/dashboard' && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><Home className="h-4 w-4" />Home</Link>
+                                 <Link href="/dashboard/my-posts" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/dashboard/my-posts') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><FileText className="h-4 w-4" />My Posts</Link>
                                  <Link href="/members" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/members') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><Users className="h-4 w-4" />Members</Link>
                                  <Link href="/forum" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/forum') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><BookOpen className="h-4 w-4" />Forum</Link>
                                  <Link href="/chat" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/chat') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><MessageSquare className="h-4 w-4" />Chat</Link>
@@ -196,6 +199,11 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
     const isAdminPage = pathname.startsWith('/admin');
     const isModeratorPage = pathname.startsWith('/moderator');
     const hideSidebars = pathname.startsWith('/chat');
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/book-demo');
 
@@ -216,8 +224,8 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
                 <div className="flex-1">{children}</div>
             ) : (
                 <div className="flex flex-1">
-                    <LeftSidebar />
-                    <div className="flex-1">{children}</div>
+                    {mounted && <LeftSidebar />}
+                    <main className="flex-1">{children}</main>
                 </div>
             )}
             <FloatingAssistant />

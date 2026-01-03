@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -27,10 +28,10 @@ export default function ChatRoomPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-      if (authLoading || !user || !groupId) {
-          if (!authLoading && !user) {
-              setError("You must be logged in to view a chat.");
-              setLoading(false);
+      if (authLoading || !user) {
+          if (!authLoading) {
+            setLoading(false);
+            setError("You must be logged in to view a chat.");
           }
           return;
       }

@@ -114,13 +114,26 @@ function HorizontalNav() {
           </Link>
         </Button>
       )}
+       {user?.role === 'moderator' && (
+         <Button 
+          asChild 
+          variant={pathname.startsWith('/moderator') ? "secondary" : "ghost"}
+          className={cn("justify-start", isMobile ? "w-full" : "")}
+          onClick={() => isMobile && setMobileMenuOpen(false)}
+        >
+          <Link href="/moderator">
+            <Shield className="mr-2 h-4 w-4" />
+            Moderator
+          </Link>
+        </Button>
+      )}
     </nav>
   );
 
   if (!mounted) {
     // Render a skeleton or null on the server and initial client render
     return (
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-14 items-center">
                 <div className="h-8 w-8 bg-muted rounded-lg animate-pulse md:mr-2"></div>
                 <div className="h-6 w-24 bg-muted rounded-md animate-pulse hidden md:inline-block"></div>
@@ -132,61 +145,50 @@ function HorizontalNav() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center">
             <div className="mr-4 flex items-center gap-2">
-                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <div className="md:hidden">
+                    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                        <SheetTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <Menu className="h-5 w-5" />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-full max-w-xs p-0">
+                             <div className="flex h-14 items-center border-b px-6">
+                                <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+                                <MessageSquare className="h-6 w-6 text-primary" />
+                                <span>Connectify Hub</span>
+                                </Link>
+                            </div>
+                            <NavLinks isMobile />
+                        </SheetContent>
+                    </Sheet>
+                </div>
+                 <div className="h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground hidden md:flex">
                     <MessageSquare size={18} />
                 </div>
                 <span className="font-bold text-lg hidden md:inline-block">Connectify</span>
             </div>
 
-            {/* Mobile Menu */}
-            <div className="md:hidden">
-                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                    <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                            <Menu className="h-5 w-5" />
-                            <span className="sr-only">Open menu</span>
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="w-full max-w-xs p-0">
-                        <SheetHeader className="p-4 border-b">
-                            <SheetTitle asChild>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                        <MessageSquare size={18} />
-                                    </div>
-                                    <span className="font-bold text-lg">Connectify</span>
-                                </div>
-                            </SheetTitle>
-                             <SheetDescription className="sr-only">
-                                Main navigation menu for the Connectify Hub application.
-                            </SheetDescription>
-                        </SheetHeader>
-                        <NavLinks isMobile />
-                    </SheetContent>
-                </Sheet>
-            </div>
-            
             <div className="flex flex-1 items-center justify-end space-x-2">
-                <div className="hidden md:flex items-center gap-1">
-                    <NavLinks />
+                <div className="w-full flex-1 md:w-auto md:flex-none">
+                     <form onSubmit={handleSearchSubmit}>
+                        <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="search"
+                            placeholder="Search..."
+                            className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px] bg-background"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        </div>
+                    </form>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div ref={searchContainerRef} className={cn("relative w-full transition-all duration-300 ease-in-out", isSearchOpen ? "max-w-xs" : "max-w-[2.5rem]")}>
-                        <Button variant="ghost" size="icon" className={cn("absolute right-0 top-1/2 -translate-y-1/2 z-10", isSearchOpen ? 'hidden' : 'inline-flex')} onClick={() => setIsSearchOpen(true)}>
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                        <form onSubmit={handleSearchSubmit}>
-                            <Input 
-                                placeholder="Search..." 
-                                className={cn("pl-8 transition-all", isSearchOpen ? 'opacity-100' : 'opacity-0')}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </form>
-                    </div>
                     {loading ? (
                         <div className="h-10 w-10 animate-pulse rounded-full bg-muted"></div>
                     ) : user ? (
@@ -242,21 +244,19 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
     const publicPages = ['/', '/login', '/signup', '/forgot-password'];
     const isAdminPage = pathname.startsWith('/admin');
     const isModeratorPage = pathname.startsWith('/moderator');
+    const isDashboardPage = pathname.startsWith('/dashboard');
+
     const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/search') || pathname.startsWith('/book-demo');
 
-    if (isPublicPage || isAdminPage || isModeratorPage) {
-        if(pathname.startsWith('/book-demo') || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password') {
-             return (
-                <div className="flex flex-col min-h-screen bg-background">
-                    <Header />
-                    <main className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
-                        <div className="w-full max-w-4xl">
-                           {children}
-                        </div>
-                    </main>
-                </div>
-            );
-        }
+    if (isPublicPage) {
+        return <>{children}</>;
+    }
+    
+    if (isAdminPage || isModeratorPage) {
+        return <>{children}</>;
+    }
+
+    if(isDashboardPage) {
         return <>{children}</>;
     }
   

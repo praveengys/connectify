@@ -6,7 +6,8 @@ import PostCreator from './PostCreator';
 import Feed from './Feed';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
-import { Card, CardContent } from '../ui/card';
+import Stories from './Stories';
+import Header from '../Header';
 
 type DashboardClientProps = {
   user: UserProfile;
@@ -14,24 +15,18 @@ type DashboardClientProps = {
 
 export default function DashboardClient({ user }: DashboardClientProps) {
   return (
-    <div className="container mx-auto py-8">
-       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <aside className="hidden lg:block lg:col-span-3">
-          <LeftSidebar />
-        </aside>
-        
-        <div className="lg:col-span-6">
-           <h2 className="text-2xl font-bold mb-4">Activity Feed</h2>
-          <PostCreator user={user} />
-          <div className="mt-8">
-            <Feed />
-          </div>
-        </div>
-
-        <aside className="hidden lg:block lg:col-span-3">
-          <RightSidebar user={user} />
-        </aside>
-      </div>
+    <div className="flex min-h-screen bg-secondary/30">
+        <LeftSidebar />
+        <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+            <div className="max-w-3xl mx-auto">
+                <h2 className="text-2xl font-bold mb-4">Activity Feed</h2>
+                <PostCreator user={user} />
+                <div className="mt-8">
+                  <Feed />
+                </div>
+            </div>
+        </main>
+        <RightSidebar user={user} />
     </div>
   );
 }

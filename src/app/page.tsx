@@ -12,11 +12,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import AboutSection from '@/components/landing/AboutSection';
 import NewsletterForm from '@/components/landing/NewsletterForm';
 
+const phrases = [
+    "The Community Behind AITSP",
+    "Meaningful Discussions",
+    "Shared Learning",
+    "Collective Progress",
+];
+
 export default function LandingPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const [typedText, setTypedText] = useState('');
-    const fullText = "The Community Behind AITSP";
+    const [phraseIndex, setPhraseIndex] = useState(0);
 
     useEffect(() => {
         if (!loading && user) {
@@ -27,30 +34,37 @@ export default function LandingPage() {
     useEffect(() => {
         let currentIndex = 0;
         let isDeleting = false;
-    
+        let timeoutId: NodeJS.Timeout;
+
         const type = () => {
+          const currentPhrase = phrases[phraseIndex];
+          
           if (isDeleting) {
-            setTypedText(fullText.substring(0, currentIndex - 1));
+            setTypedText(currentPhrase.substring(0, currentIndex - 1));
             currentIndex--;
             if (currentIndex === 0) {
               isDeleting = false;
+              setPhraseIndex((prevIndex) => (prevIndex + 1) % phrases.length);
             }
           } else {
-            setTypedText(fullText.substring(0, currentIndex + 1));
+            setTypedText(currentPhrase.substring(0, currentIndex + 1));
             currentIndex++;
-            if (currentIndex === fullText.length) {
-                // Pause at the end before starting to delete
-                setTimeout(() => {
-                    isDeleting = true;
-                }, 2000);
+            if (currentIndex === currentPhrase.length) {
+              // Pause at the end of the phrase
+              timeoutId = setTimeout(() => {
+                isDeleting = true;
+              }, 2000);
             }
           }
         };
     
         const typingInterval = setInterval(type, isDeleting ? 75 : 150);
     
-        return () => clearInterval(typingInterval);
-      }, []);
+        return () => {
+            clearInterval(typingInterval);
+            clearTimeout(timeoutId);
+        };
+      }, [phraseIndex]);
 
 
   return (

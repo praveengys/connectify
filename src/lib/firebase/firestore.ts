@@ -286,10 +286,10 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     createdAt: serverTimestamp(),
     memberCount: 1,
     members: {
-      [ownerId]: true,
+      [ownerId]: true
     },
     memberRoles: {
-      [ownerId]: 'owner' as const,
+      [ownerId]: 'owner'
     }
   };
 
@@ -299,7 +299,7 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     id: newGroupRef.id,
     ...newGroupData,
     createdAt: new Date(),
-  };
+  } as Group;
 }
 
 export async function joinChatGroup(groupId: string, userId: string): Promise<void> {

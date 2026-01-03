@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { deleteGroup } from '@/lib/firebase/admin';
+import { deleteGroup } from '@/lib/firebase/client-actions';
 import ViewGroupMembersDialog from './ViewGroupMembersDialog';
 
 

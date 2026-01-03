@@ -1,4 +1,5 @@
 
+
 import { type Timestamp } from 'firebase/firestore';
 
 export type Forum = {
@@ -94,24 +95,14 @@ export type UserProfile = {
   uid: string;
   username: string;
   displayName: string;
-  bio: string;
   avatarUrl: string | null;
-  interests: string[];
-  skills: string[];
-  languages: string[];
-  location: string;
-  currentlyExploring: string;
   role: 'member' | 'admin' | 'moderator';
   profileVisibility: 'public' | 'private';
   emailVerified: boolean;
-  profileScore: number;
   postCount: number;
   commentCount: number;
-  createdAt: Date;
-  updatedAt: Date;
   lastActiveAt: Date;
   email?: string | null;
-  company?: string;
   isMuted?: boolean;
   isBanned?: boolean;
 
@@ -128,7 +119,7 @@ export type UserProfile = {
   memberStatus?: string;
   firstReminder?: number;
   finalReminder?: number;
-  created_at?: string;
+  createdAt: string | Date | Timestamp;
   modified_at?: string;
 };
 

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { UserProfile } from '@/lib/types';
@@ -22,7 +23,7 @@ type ViewUserProfileDialogProps = {
   setIsOpen: (isOpen: boolean) => void;
 };
 
-const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | React.ReactNode }) => {
+const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | React.ReactNode | number | null | undefined }) => {
     if (!value) return null;
     return (
         <div className="flex items-start gap-3">
@@ -61,19 +62,18 @@ export default function ViewUserProfileDialog({ user, isOpen, setIsOpen }: ViewU
             </DialogHeader>
 
             <div className="mt-6 space-y-6 px-6 pb-6">
-                {user.bio && <p className="text-center text-muted-foreground italic">&ldquo;{user.bio}&rdquo;</p>}
                 
                 <Separator />
                 <h4 className="font-semibold text-lg">General Information</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <DetailItem icon={Mail} label="Email" value={user.email} />
-                    <DetailItem icon={Calendar} label="Joined" value={user.createdAt ? format(new Date(user.createdAt), 'PPP') : 'N/A'} />
-                    <DetailItem icon={Briefcase} label="Company" value={user.company} />
-                    <DetailItem icon={MapPin} label="Location" value={user.location} />
-                    <DetailItem icon={Languages} label="Languages" value={user.languages?.join(', ')} />
-                    <DetailItem icon={Sparkles} label="Interests" value={user.interests?.join(', ')} />
-                    <DetailItem icon={PencilRuler} label="Skills" value={user.skills?.join(', ')} />
-                    <DetailItem icon={User} label="Currently Exploring" value={user.currentlyExploring} />
+                    {user.createdAt && (
+                        <DetailItem 
+                            icon={Calendar} 
+                            label="Joined" 
+                            value={typeof user.createdAt === 'string' ? user.createdAt : format(new Date(user.createdAt), 'PPP')} 
+                        />
+                    )}
                 </div>
                 
                 <Separator />
@@ -91,7 +91,7 @@ export default function ViewUserProfileDialog({ user, isOpen, setIsOpen }: ViewU
                     <DetailItem icon={Badge} label="Member Status" value={user.memberStatus} />
                     <DetailItem icon={AlertTriangle} label="First Reminder" value={user.firstReminder} />
                     <DetailItem icon={AlertTriangle} label="Final Reminder" value={user.finalReminder} />
-                    <DetailItem icon={Clock} label="Created At (Import)" value={user.created_at} />
+                    <DetailItem icon={Clock} label="Created At (Import)" value={user.createdAt} />
                     <DetailItem icon={Clock} label="Modified At (Import)" value={user.modified_at} />
                 </div>
             </div>
@@ -101,4 +101,3 @@ export default function ViewUserProfileDialog({ user, isOpen, setIsOpen }: ViewU
     </Dialog>
   );
 }
-

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -22,12 +23,6 @@ import { Separator } from '../ui/separator';
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
   username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.'),
-  bio: z.string().max(160, 'Bio cannot be more than 160 characters.').optional().default(''),
-  company: z.string().max(50, 'Company name cannot be more than 50 characters.').optional().default(''),
-  skills: z.string().optional().default(''),
-  location: z.string().optional().default(''),
-  currentlyExploring: z.string().max(60, 'Cannot be more than 60 characters.').optional().default(''),
-  languages: z.string().optional().default(''),
   // Member fields are now part of the form
   memberFirstName: z.string().optional(),
   memberLastName: z.string().optional(),
@@ -65,12 +60,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     defaultValues: {
       displayName: user.displayName ?? '',
       username: user.username ?? '',
-      bio: user.bio ?? '',
-      company: user.company ?? '',
-      skills: user.skills?.join(', ') ?? '',
-      location: user.location ?? '',
-      currentlyExploring: user.currentlyExploring ?? '',
-      languages: user.languages?.join(', ') ?? '',
       memberFirstName: user.memberFirstName ?? '',
       memberLastName: user.memberLastName ?? '',
       memberEmailAddress: user.memberEmailAddress ?? '',
@@ -85,12 +74,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     form.reset({
       displayName: user.displayName ?? '',
       username: user.username ?? '',
-      bio: user.bio ?? '',
-      company: user.company ?? '',
-      skills: user.skills?.join(', ') ?? '',
-      location: user.location ?? '',
-      currentlyExploring: user.currentlyExploring ?? '',
-      languages: user.languages?.join(', ') ?? '',
       memberFirstName: user.memberFirstName ?? '',
       memberLastName: user.memberLastName ?? '',
       memberEmailAddress: user.memberEmailAddress ?? '',
@@ -106,12 +89,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     try {
       const updatedData: Partial<UserProfile> = {
         displayName: values.displayName,
-        bio: values.bio,
-        company: values.company,
-        location: values.location,
-        currentlyExploring: values.currentlyExploring,
-        skills: values.skills ? values.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
-        languages: values.languages ? values.languages.split(',').map(s => s.trim()).filter(Boolean) : [],
         // Include member fields in the update
         memberFirstName: values.memberFirstName,
         memberLastName: values.memberLastName,
@@ -251,7 +228,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <h4 className="text-lg font-semibold">Profile Details</h4>
+          <h4 className="text-lg font-semibold">Editable Profile</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
@@ -280,90 +257,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 )}
             />
           </div>
-          <FormField
-            control={form.control}
-            name="bio"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Short Bio</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="Tell us a little about yourself" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                    control={form.control}
-                    name="company"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Company</FormLabel>
-                        <FormControl>
-                        <Input placeholder="Your company" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <FormControl>
-                        <Input placeholder="City or Country" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-           </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                    control={form.control}
-                    name="languages"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Languages</FormLabel>
-                        <FormControl>
-                        <Input placeholder="English, Spanish" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="currentlyExploring"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Currently Exploring</FormLabel>
-                        <FormControl>
-                        <Input placeholder="What are you learning now?" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-           </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                    control={form.control}
-                    name="skills"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Skills</FormLabel>
-                        <FormControl>
-                        <Input placeholder="JavaScript, Photography" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-           </div>
 
           <Separator className="my-8" />
           

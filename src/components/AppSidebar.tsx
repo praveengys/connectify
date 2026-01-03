@@ -191,11 +191,6 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
     const isAdminPage = pathname.startsWith('/admin');
     const isModeratorPage = pathname.startsWith('/moderator');
     const hideSidebars = pathname.startsWith('/chat');
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
 
     const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/book-demo');
 
@@ -216,7 +211,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
                 <div className="flex-1">{children}</div>
             ) : (
                 <div className="flex flex-1">
-                    {mounted && <LeftSidebar />}
+                    <LeftSidebar />
                     <div className="flex-1">{children}</div>
                 </div>
             )}

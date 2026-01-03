@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -44,9 +43,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   const userRef = doc(firestore, 'users', uid);
   const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
   
-  const isModerator = data.email === 'tnbit2@gmail.com';
-
-  const userProfileData = {
+  const userData: Partial<UserProfile> = {
     uid: uid,
     username: username,
     displayName: data.displayName || 'New Member',
@@ -59,18 +56,22 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: isModerator ? 'moderator' : 'member',
+    role: 'member',
     profileVisibility: 'public',
-    emailVerified: data.emailVerified ?? false,
+    emailVerified: false,
     profileScore: 0,
     postCount: 0,
     commentCount: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    lastActiveAt: serverTimestamp(),
+    createdAt: serverTimestamp() as Timestamp,
+    updatedAt: serverTimestamp() as Timestamp,
+    lastActiveAt: serverTimestamp() as Timestamp,
   };
 
-  await setDoc(userRef, userProfileData, { merge: true });
+  if (data.email === 'tnbit2@gmail.com') {
+    userData.role = 'moderator';
+  }
+
+  await setDoc(userRef, userData, { merge: true });
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -301,9 +302,6 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
     id: newGroupRef.id,
     ...newGroupData,
     createdAt: new Date(),
-    memberRoles: {
-        [ownerId]: 'owner'
-    }
   } as Group;
 }
 
@@ -318,7 +316,7 @@ export async function joinChatGroup(groupId: string, userId: string): Promise<vo
         }
 
         const groupData = groupDoc.data();
-        if (groupData.members && groupData.members[userId]) {
+        if (groupData.members[userId]) {
             // User is already a member, do nothing.
             return;
         }
@@ -342,7 +340,7 @@ export async function removeUserFromGroup(groupId: string, userId: string): Prom
         }
         
         const groupData = groupDoc.data();
-        if (!groupData.members || !groupData.members[userId]) {
+        if (!groupData.members[userId]) {
             return; // User is not a member
         }
         
@@ -400,7 +398,7 @@ export async function createPost(authorId: string, content: string, visibility: 
   const firestore = getFirestoreInstance();
   const postsRef = collection(firestore, 'posts');
 
-  await addDoc(postsRef, {
+  const payload = {
     authorId,
     content,
     media,
@@ -412,7 +410,9 @@ export async function createPost(authorId: string, content: string, visibility: 
     repostsCount: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+
+  await addDoc(postsRef, payload);
 }
 
 export async function toggleLikePost(postId: string, userId: string): Promise<void> {
@@ -597,7 +597,6 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 }
 
 
-// Admin Functions
 export async function deleteThread(threadId: string): Promise<void> {
     const firestore = getFirestoreInstance();
     const batch = writeBatch(firestore);
@@ -605,11 +604,9 @@ export async function deleteThread(threadId: string): Promise<void> {
     // Delete replies and chat messages (subcollections)
     const repliesRef = collection(firestore, 'threads', threadId, 'replies');
     const chatRef = collection(firestore, 'threads', threadId, 'chatMessages');
-    
     const repliesSnap = await getDocs(repliesRef);
-    repliesSnap.forEach(doc => batch.delete(doc.ref));
-
     const chatSnap = await getDocs(chatRef);
+    repliesSnap.forEach(doc => batch.delete(doc.ref));
     chatSnap.forEach(doc => batch.delete(doc.ref));
 
     // Delete the main thread doc
@@ -626,11 +623,9 @@ export async function deleteGroup(groupId: string): Promise<void> {
 
     const messagesRef = collection(firestore, 'groups', groupId, 'messages');
     const typingRef = collection(firestore, 'groups', groupId, 'typing');
-
     const messagesSnap = await getDocs(messagesRef);
-    messagesSnap.forEach(doc => batch.delete(doc.ref));
-
     const typingSnap = await getDocs(typingRef);
+    messagesSnap.forEach(doc => batch.delete(doc.ref));
     typingSnap.forEach(doc => batch.delete(doc.ref));
 
     const groupRef = doc(firestore, 'groups', groupId);

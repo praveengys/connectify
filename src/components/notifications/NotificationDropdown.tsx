@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useNotifications } from '@/hooks/use-notifications';
@@ -46,7 +47,7 @@ export default function NotificationDropdown() {
           )}
           <div className="space-y-1">
             {notifications.map((notification) => (
-              <Link href={notification.actionUrl} key={notification.id} passHref>
+              <Link href={notification.actionUrl || '#'} key={notification.id} passHref>
                 <div
                   className={cn(
                     'flex items-start gap-3 p-4 hover:bg-accent cursor-pointer',
@@ -56,7 +57,7 @@ export default function NotificationDropdown() {
                 >
                   <div className="relative">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={notification.sender?.avatarUrl} />
+                      <AvatarImage src={notification.sender?.avatarUrl ?? undefined} />
                       <AvatarFallback>{notification.sender?.displayName?.charAt(0) || <BellRing/>}</AvatarFallback>
                     </Avatar>
                      {!notification.isRead && <div className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />}
@@ -64,7 +65,7 @@ export default function NotificationDropdown() {
                   <div className="flex-1 space-y-1">
                     <p className="text-sm" dangerouslySetInnerHTML={{ __html: notification.message }} />
                     <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                      {notification.createdAt ? formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true }) : ''}
                     </p>
                   </div>
                 </div>
@@ -79,3 +80,5 @@ export default function NotificationDropdown() {
     </Card>
   );
 }
+
+    

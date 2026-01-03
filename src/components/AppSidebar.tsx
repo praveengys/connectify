@@ -33,34 +33,19 @@ import FloatingAssistant from './assistant/FloatingAssistant';
 import { cn } from '@/lib/utils';
 import Header from './Header';
 import NotificationBell from './notifications/NotificationBell';
+import LeftSidebar from './dashboard/LeftSidebar';
 
 function HorizontalNav() {
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const searchContainerRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-        setIsSearchOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
 
   const handleSignOut = async () => {
     await signOutUser();
@@ -71,64 +56,8 @@ function HorizontalNav() {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setIsSearchOpen(false);
     }
   };
-
-  const menuItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/members', icon: Users, label: 'Members' },
-    { href: '/forum', icon: BookOpen, label: 'Forum' },
-    { href: '/chat', icon: MessageSquare, label: 'Chat' },
-  ];
-
-  const NavLinks = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <nav className={cn(
-        "items-center gap-1",
-        isMobile ? "flex flex-col p-4" : "flex"
-    )}>
-      {menuItems.map((item) => (
-        <Button 
-          asChild 
-          key={item.href} 
-          variant={pathname.startsWith(item.href) ? "secondary" : "ghost"}
-          className={cn("justify-start", isMobile ? "w-full" : "")}
-          onClick={() => isMobile && setMobileMenuOpen(false)}
-        >
-          <Link href={item.href}>
-            <item.icon className="mr-2 h-4 w-4" />
-            {item.label}
-          </Link>
-        </Button>
-      ))}
-      {user?.role === 'admin' && (
-         <Button 
-          asChild 
-          variant={pathname.startsWith('/admin') ? "secondary" : "ghost"}
-          className={cn("justify-start", isMobile ? "w-full" : "")}
-          onClick={() => isMobile && setMobileMenuOpen(false)}
-        >
-          <Link href="/admin">
-            <Shield className="mr-2 h-4 w-4" />
-            Admin
-          </Link>
-        </Button>
-      )}
-       {user?.role === 'moderator' && (
-         <Button 
-          asChild 
-          variant={pathname.startsWith('/moderator') ? "secondary" : "ghost"}
-          className={cn("justify-start", isMobile ? "w-full" : "")}
-          onClick={() => isMobile && setMobileMenuOpen(false)}
-        >
-          <Link href="/moderator">
-            <Shield className="mr-2 h-4 w-4" />
-            Moderator
-          </Link>
-        </Button>
-      )}
-    </nav>
-  );
 
   if (!mounted) {
     // Render a skeleton or null on the server and initial client render
@@ -163,14 +92,25 @@ function HorizontalNav() {
                                 <span>Connectify Hub</span>
                                 </Link>
                             </div>
-                            <NavLinks isMobile />
+                            <div className="p-4">
+                               <nav className="grid items-start text-sm font-medium">
+                                 <Link href="/dashboard" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname === '/dashboard' && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><Home className="h-4 w-4" />Home</Link>
+                                 <Link href="/members" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/members') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><Users className="h-4 w-4" />Members</Link>
+                                 <Link href="/forum" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/forum') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><BookOpen className="h-4 w-4" />Forum</Link>
+                                 <Link href="/chat" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/chat') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><MessageSquare className="h-4 w-4" />Chat</Link>
+                                 {user?.role === 'admin' && <Link href="/admin" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/admin') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><Shield className="h-4 w-4" />Admin</Link>}
+                                 {user?.role === 'moderator' && <Link href="/moderator" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", pathname.startsWith('/moderator') && 'bg-muted text-primary')} onClick={() => setMobileMenuOpen(false)}><Shield className="h-4 w-4" />Moderator</Link>}
+                                </nav>
+                            </div>
                         </SheetContent>
                     </Sheet>
                 </div>
-                 <div className="h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground hidden md:flex">
-                    <MessageSquare size={18} />
-                </div>
-                <span className="font-bold text-lg hidden md:inline-block">Connectify</span>
+                 <Link href="/" className="flex items-center gap-2">
+                    <div className="h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground hidden md:flex">
+                        <MessageSquare size={18} />
+                    </div>
+                    <span className="font-bold text-lg hidden md:inline-block">Connectify</span>
+                </Link>
             </div>
 
             <div className="flex flex-1 items-center justify-end space-x-2">
@@ -244,27 +184,34 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
     const publicPages = ['/', '/login', '/signup', '/forgot-password'];
     const isAdminPage = pathname.startsWith('/admin');
     const isModeratorPage = pathname.startsWith('/moderator');
-    const isDashboardPage = pathname.startsWith('/dashboard');
+    const hideSidebars = pathname.startsWith('/chat');
 
-    const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/search') || pathname.startsWith('/book-demo');
+    const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/book-demo');
 
     if (isPublicPage) {
+        // For public pages, we might want a different, simpler layout,
+        // or just the content itself. Header is handled inside LandingPage.
         return <>{children}</>;
     }
     
     if (isAdminPage || isModeratorPage) {
         return <>{children}</>;
     }
-
-    if(isDashboardPage) {
-        return <>{children}</>;
-    }
   
     return (
-        <div className="relative flex min-h-screen flex-col">
+        <div className="relative flex min-h-screen flex-col bg-secondary/30">
             <HorizontalNav />
-            <div className="flex-1">{children}</div>
+            {hideSidebars ? (
+                <div className="flex-1">{children}</div>
+            ) : (
+                <div className="flex flex-1">
+                    <LeftSidebar />
+                    <div className="flex-1">{children}</div>
+                </div>
+            )}
             <FloatingAssistant />
         </div>
     );
 }
+
+    

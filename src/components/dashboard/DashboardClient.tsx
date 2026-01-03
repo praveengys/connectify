@@ -15,8 +15,7 @@ type DashboardClientProps = {
 
 export default function DashboardClient({ user }: DashboardClientProps) {
   return (
-    <div className="flex min-h-screen bg-secondary/30">
-        <LeftSidebar />
+    <div className="flex min-h-screen">
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
             <div className="max-w-3xl mx-auto">
                 <h2 className="text-2xl font-bold mb-4">Activity Feed</h2>
@@ -30,3 +29,5 @@ export default function DashboardClient({ user }: DashboardClientProps) {
     </div>
   );
 }
+
+    

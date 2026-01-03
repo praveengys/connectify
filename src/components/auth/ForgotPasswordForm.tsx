@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -12,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { sendPasswordReset } from '@/lib/firebase/auth';
 import { Loader2, MailCheck } from 'lucide-react';
 import AuthRedirect from './AuthRedirect';
+import Link from 'next/link';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -47,7 +49,7 @@ export default function ForgotPasswordForm() {
 
   return (
     <AuthRedirect>
-      <Card>
+      <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Forgot Password</CardTitle>
           <CardDescription>
@@ -88,6 +90,12 @@ export default function ForgotPasswordForm() {
           )}
         </CardContent>
       </Card>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+        Remember your password?{' '}
+        <Link href="/login" className="font-semibold text-primary hover:underline">
+            Sign In
+        </Link>
+        </p>
     </AuthRedirect>
   );
 }

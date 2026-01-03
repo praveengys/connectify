@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -34,7 +35,11 @@ export default function AuthRedirect({ children }: { children: ReactNode }) {
 
   // If loading is finished and there's no user, show the children (e.g., the login form).
   if (!user) {
-    return <>{children}</>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        {children}
+      </div>
+    );
   }
   
   // If there IS a user, the useEffect will trigger the redirect.

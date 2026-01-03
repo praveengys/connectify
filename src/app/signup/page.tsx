@@ -1,17 +1,11 @@
 
-import SignUpForm from '@/components/auth/SignUpForm';
-import Link from 'next/link';
+import AuthLayout from '@/components/auth/AuthLayout';
+import AuthRedirect from '@/components/auth/AuthRedirect';
 
 export default function SignUpPage() {
   return (
-    <div className="w-full max-w-md">
-        <SignUpForm />
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-        Already have an account?{' '}
-        <Link href="/login" className="font-semibold text-primary hover:underline">
-            Sign In
-        </Link>
-        </p>
-    </div>
+    <AuthRedirect>
+        <AuthLayout defaultTab="signup" />
+    </AuthRedirect>
   );
 }

@@ -2,108 +2,85 @@
 'use client';
 
 import {
-  useState,
-  useEffect,
   createContext,
   useContext,
+  useEffect,
+  useState,
   type ReactNode,
 } from 'react';
-import { onAuthStateChanged, onIdTokenChanged, type User } from 'firebase/auth';
-import { doc, onSnapshot, type DocumentData } from 'firebase/firestore';
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
-import { Loader2 } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
-import { getAuth } from 'firebase/auth';
+import { getUserProfile, createUserProfile, updateUserProfile } from '@/lib/firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
-export interface UserProfile extends DocumentData {
-  uid: string;
-  email: string;
-  displayName: string;
-  avatarUrl?: string | null;
-  username: string;
-  bio: string;
-  interests: string[];
-  skills: string[];
-  languages: string[];
-  location: string;
-  currentlyExploring: string;
-  company: string;
-  role: 'member' | 'admin' | 'moderator';
-  profileVisibility: 'public' | 'private';
-  isMuted?: boolean;
-  isBanned?: boolean;
-  createdAt: Date;
-}
+export type User = UserProfile;
 
 type AuthContextType = {
-  user: UserProfile | null;
+  user: User | null;
   loading: boolean;
-  error: Error | null;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  error: null,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const { auth, firestore } = initializeFirebase();
-    
-    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: User | null) => {
+    const { auth } = initializeFirebase();
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        const tokenResult = await firebaseUser.getIdTokenResult();
-        const userRef = doc(firestore, 'users', firebaseUser.uid);
+        let userProfile = await getUserProfile(firebaseUser.uid);
         
-        const userUnsubscribe = onSnapshot(userRef, 
-          (docSnap) => {
-            if (docSnap.exists()) {
-              const userData = docSnap.data();
-              setUser({
-                ...userData,
-                uid: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                displayName: userData.displayName || firebaseUser.displayName,
-                avatarUrl: userData.avatarUrl || firebaseUser.photoURL,
-                emailVerified: firebaseUser.emailVerified,
-                role: tokenResult.claims.role || 'member',
-                createdAt: userData.createdAt?.toDate() ?? new Date(),
-              } as UserProfile);
-            }
-            setLoading(false);
-          }, 
-          (err) => {
-            console.error("Error fetching user profile:", err);
-            setError(err);
-            setLoading(false);
-          }
-        );
+        // Special role assignment for testing
+        const adminEmail = 'tnbit@gmail.com';
+        const moderatorEmail = 'tnbit2@gmail.com';
+        let role: 'member' | 'admin' | 'moderator' = 'member';
+        
+        if (firebaseUser.email === adminEmail) {
+            role = 'admin';
+        } else if (firebaseUser.email === moderatorEmail) {
+            role = 'moderator';
+        }
 
-        return () => userUnsubscribe();
+        if (!userProfile) {
+          await createUserProfile(firebaseUser.uid, {
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            avatarUrl: firebaseUser.photoURL,
+            role: role,
+          });
+          userProfile = await getUserProfile(firebaseUser.uid);
+        } else if (userProfile.role !== role) {
+            // If the user exists but their role doesn't match our special assignment, update it.
+            await updateUserProfile(firebaseUser.uid, { role });
+            userProfile.role = role;
+        }
+
+        setUser(userProfile);
       } else {
         setUser(null);
-        setLoading(false);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
-
+  
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, error }}>
+    <AuthContext.Provider value={{ user, loading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -116,5 +93,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    

@@ -21,7 +21,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking, Notification } from '@/lib/types';
+import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking, Notification, Post, PostComment } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { format } from 'date-fns';
 
@@ -41,7 +41,7 @@ function getFirestoreInstance() {
 export async function createUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
-  const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
+  const username = data.email ? data.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : `user_${uid.substring(0, 6)}`;
   
   await setDoc(userRef, {
     uid: uid,
@@ -56,7 +56,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: 'member',
+    role: data.role || 'member',
     profileVisibility: 'public',
     emailVerified: false,
     profileScore: 0,
@@ -87,8 +87,16 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
-// Forum & Thread Functions
+export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
+  const firestore = getFirestoreInstance();
+  const userRef = doc(firestore, 'users', uid);
+  await updateDoc(userRef, {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
 
+// Forum & Thread Functions
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
     const categoriesCollection = collection(firestore, 'categories');
@@ -115,7 +123,6 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
         };
     }
 }
-
 
 export async function getThread(threadId: string): Promise<Thread | null> {
     const firestore = getFirestoreInstance();
@@ -145,7 +152,6 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
     } as Reply));
 }
 
-// Chat (Real-time) functions
 export async function createChatMessage(threadId: string, messageData: Partial<ChatMessage>): Promise<void> {
   const firestore = getFirestoreInstance();
   const user = await getUserProfile(messageData.senderId!);
@@ -163,7 +169,6 @@ export async function createChatMessage(threadId: string, messageData: Partial<C
   });
 }
 
-
 // Demo Booking
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
@@ -180,10 +185,8 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
 }
 
-export async function updateReportStatus(reportId: string, status: 'in_review' | 'resolved'): Promise<void> {
+export async function updateReportStatus(reportId: string, status: 'resolved' | 'in_review'): Promise<void> {
     const firestore = getFirestoreInstance();
     const reportRef = doc(firestore, 'reports', reportId);
-    await updateDoc(reportRef, { status });
+    await updateDoc(reportRef, { status, updatedAt: serverTimestamp() });
 }
-
-    

@@ -13,6 +13,7 @@ import {
   CalendarCheck,
   Clock,
   UploadCloud,
+  DatabaseZap,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex-1">
             <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+              <h3 className="px-2 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Management</h3>
               <NavLink href="/admin" exact>
                 <Home className="h-4 w-4" />
                 Dashboard
@@ -93,9 +95,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Clock className="h-4 w-4" />
                 Slots
               </NavLink>
+              <h3 className="px-2 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tools</h3>
               <NavLink href="/admin/import">
                 <UploadCloud className="h-4 w-4" />
                 User Import
+              </NavLink>
+              <NavLink href="/admin/data-reset">
+                <DatabaseZap className="h-4 w-4" />
+                Data Reset
               </NavLink>
             </nav>
           </div>

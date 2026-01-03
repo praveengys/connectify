@@ -123,7 +123,7 @@ export type Group = {
     createdBy: string;
     createdAt: Timestamp | Date;
     memberCount: number;
-    members: { [uid: string]: true }; // Changed from role string to boolean for secure rule checking
+    members: { [uid: string]: true }; 
     memberRoles: { [uid: string]: 'owner' | 'admin' | 'member' };
     muted?: { [uid: string]: Timestamp | Date };
     lastMessage?: {

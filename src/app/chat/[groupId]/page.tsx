@@ -53,6 +53,7 @@ export default function ChatRoomPage() {
                 setGroup({
                     id: docSnap.id,
                     ...data,
+                    memberRoles: data.memberRoles || {}, // Ensure memberRoles exists
                     createdAt: data.createdAt?.toDate(),
                 } as Group);
                 setError(null);

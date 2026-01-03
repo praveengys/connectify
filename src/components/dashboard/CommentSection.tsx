@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
@@ -16,6 +15,13 @@ import PostCommentItem from './PostCommentItem';
 
 type CommentSectionProps = {
   postId: string;
+};
+
+type GroupedComments = {
+  [key: string]: {
+    parent: PostComment;
+    children: PostComment[];
+  };
 };
 
 export default function CommentSection({ postId }: CommentSectionProps) {
@@ -75,15 +81,41 @@ export default function CommentSection({ postId }: CommentSectionProps) {
 
     return () => unsubscribe();
   }, [postId, fetchAuthors]);
+  
+  const groupedComments = useMemo(() => {
+    const topLevelComments = comments.filter(c => !c.parentCommentId);
+    const nestedComments = comments.filter(c => c.parentCommentId);
+    
+    const groups: GroupedComments = {};
+    
+    topLevelComments.forEach(parent => {
+        groups[parent.id] = { parent, children: [] };
+    });
+    
+    nestedComments.forEach(child => {
+        if (child.parentCommentId && groups[child.parentCommentId]) {
+            groups[child.parentCommentId].children.push(child);
+        } else {
+            // Handle orphaned children if necessary, maybe show them as top-level
+            groups[child.id] = { parent: child, children: [] };
+        }
+    });
 
-  const handleSubmitComment = async () => {
-    if (!newComment.trim() || !user) {
+    return Object.values(groups).sort((a,b) => new Date(a.parent.createdAt as Date).getTime() - new Date(b.parent.createdAt as Date).getTime());
+
+  }, [comments]);
+
+
+  const handleSubmitComment = async (content: string, parentId: string | null = null) => {
+    if (!content.trim() || !user) {
       return;
     }
     setSubmitting(true);
     try {
-      await createComment(postId, user.uid, newComment.trim());
-      setNewComment('');
+      await createComment(postId, user.uid, content.trim(), parentId);
+      if (!parentId) {
+        setNewComment('');
+      }
     } catch (e: any) {
       toast({
         title: "Error",
@@ -103,8 +135,27 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         
         {!loading && !error && (
             <>
-                {comments.map(comment => (
-                    <PostCommentItem key={comment.id} comment={comment} author={authors[comment.authorId]} />
+                {groupedComments.map(({parent, children}) => (
+                    <PostCommentItem 
+                        key={parent.id} 
+                        comment={parent} 
+                        author={authors[parent.authorId]}
+                        onReply={handleSubmitComment}
+                    >
+                        {children.length > 0 && (
+                            <div className="ml-8 mt-4 space-y-4 border-l-2 pl-4">
+                                {children.map(child => (
+                                    <PostCommentItem 
+                                        key={child.id}
+                                        comment={child}
+                                        author={authors[child.authorId]}
+                                        onReply={handleSubmitComment}
+                                        isChild
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </PostCommentItem>
                 ))}
                 {comments.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No comments yet. Be the first to comment!</p>}
             </>
@@ -124,7 +175,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                 />
                 <div className="flex justify-end mt-2">
                     <Button 
-                        onClick={handleSubmitComment} 
+                        onClick={() => handleSubmitComment(newComment)} 
                         disabled={isSubmitting || authLoading || !newComment.trim()}
                         size="sm"
                     >

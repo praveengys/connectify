@@ -15,7 +15,7 @@ import { MoreHorizontal, Loader2, ServerCrash, CheckCircle, XCircle } from 'luci
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { updateBookingStatus } from '@/lib/firebase/firestore';
+import { updateBookingStatus } from '@/lib/firebase/client-actions';
 
 export default function BookingTable() {
   const [bookings, setBookings] = useState<DemoBooking[]>([]);

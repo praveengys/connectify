@@ -30,7 +30,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { getUserProfile, toggleThreadLock, toggleThreadPin } from '@/lib/firebase/firestore';
+import { getUserProfile } from '@/lib/firebase/firestore';
+import { toggleThreadLock, toggleThreadPin } from '@/lib/firebase/client-actions';
 import { deleteThread } from '@/lib/firebase/admin';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import Link from 'next/link';

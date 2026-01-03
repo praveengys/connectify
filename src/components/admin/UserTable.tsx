@@ -22,7 +22,7 @@ import {
 import { Search, MoreHorizontal, Loader2, ServerCrash, MicOff, UserCheck, UserX, ShieldCheck, ShieldOff, Edit, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { toggleBanUser, toggleMuteUser, updateUserProfile, updateUserRole } from '@/lib/firebase/firestore';
+import { toggleBanUser, toggleMuteUser, updateUserProfile, updateUserRole } from '@/lib/firebase/client-actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,7 +82,7 @@ export default function UserTable() {
     return () => unsubscribe();
   }, []);
 
-  const handleAction = (user: UserProfile, action: 'mute' | 'unmute' | 'makeAdmin' | 'removeAdmin' | 'ban' | 'unban') => {
+  const handleAction = (user: UserProfile, action: 'mute' | 'unmute' | 'makeAdmin' | 'removeAdmin' | 'makeModerator' | 'removeModerator' | 'ban' | 'unban') => {
     setActionUser(user);
     let title = '';
     let description = '';
@@ -107,6 +107,16 @@ export default function UserTable() {
         case 'removeAdmin':
             title = `Remove admin rights from ${user.displayName}?`;
             description = "This will revoke their administrative privileges.";
+            actionFn = () => performAction(user.uid, updateUserRole(user.uid, 'member'), 'User role updated to member');
+            break;
+        case 'makeModerator':
+            title = `Make ${user.displayName} a moderator?`;
+            description = "This will grant them content moderation privileges.";
+            actionFn = () => performAction(user.uid, updateUserRole(user.uid, 'moderator'), 'User role updated to moderator');
+            break;
+        case 'removeModerator':
+            title = `Remove moderator rights from ${user.displayName}?`;
+            description = "This will revoke their moderation privileges.";
             actionFn = () => performAction(user.uid, updateUserRole(user.uid, 'member'), 'User role updated to member');
             break;
         case 'ban':
@@ -215,7 +225,7 @@ export default function UserTable() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                    <Badge variant={user.role === 'admin' ? 'default' : user.role === 'moderator' ? 'secondary' : 'outline'} className="capitalize">
                       {user.role}
                     </Badge>
                   </TableCell>
@@ -243,13 +253,22 @@ export default function UserTable() {
                             <Edit className="mr-2 h-4 w-4" /> Edit Profile
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        {user.role !== 'admin' ? (
-                            <DropdownMenuItem onSelect={() => handleAction(user, 'makeAdmin')}>
-                                <ShieldCheck className="mr-2 h-4 w-4" /> Make Admin
+                        {user.role === 'admin' ? (
+                           <DropdownMenuItem onSelect={() => handleAction(user, 'removeAdmin')}>
+                                <ShieldOff className="mr-2 h-4 w-4" /> Remove Admin
                             </DropdownMenuItem>
                         ) : (
-                            <DropdownMenuItem onSelect={() => handleAction(user, 'removeAdmin')}>
-                                <ShieldOff className="mr-2 h-4 w-4" /> Remove Admin
+                           <DropdownMenuItem onSelect={() => handleAction(user, 'makeAdmin')}>
+                                <ShieldCheck className="mr-2 h-4 w-4" /> Make Admin
+                            </DropdownMenuItem>
+                        )}
+                         {user.role === 'moderator' ? (
+                           <DropdownMenuItem onSelect={() => handleAction(user, 'removeModerator')}>
+                                <ShieldOff className="mr-2 h-4 w-4" /> Remove Moderator
+                            </DropdownMenuItem>
+                        ) : (
+                           <DropdownMenuItem onSelect={() => handleAction(user, 'makeModerator')}>
+                                <ShieldCheck className="mr-2 h-4 w-4" /> Make Moderator
                             </DropdownMenuItem>
                         )}
                         {user.isMuted ? (

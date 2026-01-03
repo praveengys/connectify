@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -17,6 +16,7 @@ import { uploadPhoto } from '@/lib/actions';
 import { Card, CardContent } from '../ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '../ui/separator';
+import { Textarea } from '../ui/textarea';
 
 const formSchema = z.object({
   memberFirstName: z.string().min(1, 'First name is required.'),
@@ -26,6 +26,11 @@ const formSchema = z.object({
   memberExperience: z.string().optional(),
   memberType: z.string().optional(),
   memberStatus: z.string().optional(),
+  bio: z.string().optional(),
+  location: z.string().optional(),
+  company: z.string().optional(),
+  skills: z.string().optional(),
+  interests: z.string().optional(),
 });
 
 type ProfileFormProps = {
@@ -58,6 +63,11 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       memberExperience: user.memberExperience ?? '',
       memberType: user.memberType ?? '',
       memberStatus: user.memberStatus ?? '',
+      bio: user.bio ?? '',
+      location: user.location ?? '',
+      company: user.company ?? '',
+      skills: (user.skills || []).join(', '),
+      interests: (user.interests || []).join(', '),
     },
   });
 
@@ -70,6 +80,11 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       memberExperience: user.memberExperience ?? '',
       memberType: user.memberType ?? '',
       memberStatus: user.memberStatus ?? '',
+      bio: user.bio ?? '',
+      location: user.location ?? '',
+      company: user.company ?? '',
+      skills: (user.skills || []).join(', '),
+      interests: (user.interests || []).join(', '),
     });
   }, [user, form]);
 
@@ -85,6 +100,11 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         memberExperience: values.memberExperience,
         memberType: values.memberType,
         memberStatus: values.memberStatus,
+        bio: values.bio,
+        location: values.location,
+        company: values.company,
+        skills: values.skills?.split(',').map(s => s.trim()).filter(Boolean) || [],
+        interests: values.interests?.split(',').map(s => s.trim()).filter(Boolean) || [],
       };
 
       await updateUserProfile(user.uid, updatedData);
@@ -250,7 +270,74 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 </FormItem>
                 )}
             />
+             <FormField
+              control={form.control}
+              name="company"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Your company" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Location</FormLabel>
+                  <FormControl>
+                    <Input placeholder="City, Country" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
+           <FormField
+              control={form.control}
+              name="bio"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bio</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Tell us a little about yourself" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="skills"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Skills</FormLabel>
+                  <FormControl>
+                    <Input placeholder="React, Next.js, Firebase..." {...field} />
+                  </FormControl>
+                   <p className="text-xs text-muted-foreground">Separate skills with a comma.</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="interests"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Interests</FormLabel>
+                  <FormControl>
+                    <Input placeholder="AI, hiking, coffee..." {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">Separate interests with a comma.</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
           <Separator className="my-8" />
           

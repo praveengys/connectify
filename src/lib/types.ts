@@ -104,6 +104,12 @@ export type UserProfile = {
   isMuted?: boolean;
   isBanned?: boolean;
 
+  bio?: string;
+  interests?: string[];
+  skills?: string[];
+  location?: string;
+  company?: string;
+
   // Fields from external JSON
   memberId?: number;
   memberTitle?: string | null;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,8 +59,8 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
   }
 
   const handleCreatePost = async () => {
-    // CRITICAL FIX: Ensure user and user.uid are present before posting.
-    if (!user?.uid) {
+    // CRITICAL FIX: Use the live user from the useAuth hook and ensure it's available.
+    if (!user || !user.uid) {
         toast({
             title: "Authentication Error",
             description: "Please wait a moment and try again. Your session is initializing.",
@@ -93,8 +94,8 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
             mediaUrl = result.secure_url;
         }
 
-        // Use the confirmed user.uid for the authorId
-        await createPost(user.uid, content, 'active', mediaUrl ? [mediaUrl] : []);
+        // Use the confirmed, live user.uid for the authorId
+        await createPost(user.uid, content, 'public', mediaUrl ? [mediaUrl] : []);
         
         setContent('');
         clearMedia();
@@ -172,7 +173,7 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
                 </TooltipProvider>
             </div>
             <div className="flex gap-2">
-                <Button onClick={handleCreatePost} disabled={isPosting || (!user?.uid) || (!content.trim() && !mediaFile)}>
+                <Button onClick={handleCreatePost} disabled={isPosting || (!user?.uid)}>
                     {isPosting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Post
                 </Button>

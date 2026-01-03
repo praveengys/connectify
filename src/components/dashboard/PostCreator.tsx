@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -59,7 +58,6 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
   }
 
   const handleCreatePost = async () => {
-    // CRITICAL FIX: Use the live user from the useAuth hook and ensure it's available.
     if (!user || !user.uid) {
         toast({
             title: "Authentication Error",
@@ -85,7 +83,7 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
         if (mediaFile) {
             toast({ title: 'Uploading media...', description: 'Please wait.' });
             const formData = new FormData();
-            formData.append('photo', mediaFile); // 'photo' key is used by our server action for all media
+            formData.append('photo', mediaFile);
             const result: any = await uploadPhoto(formData);
             
             if (!result?.secure_url) {
@@ -94,7 +92,6 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
             mediaUrl = result.secure_url;
         }
 
-        // Use the confirmed, live user.uid for the authorId
         await createPost(user.uid, content, 'public', mediaUrl ? [mediaUrl] : []);
         
         setContent('');

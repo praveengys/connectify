@@ -1,4 +1,3 @@
-
 'use server';
 
 import {
@@ -41,9 +40,17 @@ function getFirestoreInstance() {
 export async function createUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
-  const username = data.email ? data.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : `user_${uid.substring(0, 6)}`;
   
-  // Use setDoc with merge:true to create or update, preventing overwrite
+  // Check if profile already exists
+  const docSnap = await getDoc(userRef);
+  if (docSnap.exists()) {
+    // Update last active time but don't overwrite existing data
+    await updateDoc(userRef, { lastActiveAt: serverTimestamp() });
+    return;
+  }
+
+  const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
+  
   await setDoc(userRef, {
     uid: uid,
     username: username,
@@ -143,7 +150,7 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
     } as Reply));
 }
 
-// Demo Booking Server-side Functions
+// Demo Booking Server-Side Functions
 export async function createDemoSlot(slotData: { date: string, startTime: string }): Promise<void> {
     const firestore = getFirestoreInstance();
     const slotsRef = collection(firestore, 'demoSlots');
@@ -154,7 +161,6 @@ export async function createDemoSlot(slotData: { date: string, startTime: string
         updatedAt: serverTimestamp(),
     });
 }
-
 
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();

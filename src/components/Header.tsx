@@ -47,6 +47,14 @@ export default function Header() {
                             </Link>
                          </Button>
                     )}
+                     {user.role === 'moderator' && (
+                         <Button asChild variant="outline">
+                            <Link href="/moderator">
+                                <Shield className="mr-2 h-4 w-4" />
+                                Moderator Dashboard
+                            </Link>
+                         </Button>
+                    )}
                      <Button asChild>
                         <Link href="/dashboard">Go to Dashboard</Link>
                     </Button>

@@ -241,9 +241,10 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
     const pathname = usePathname();
     const publicPages = ['/', '/login', '/signup', '/forgot-password'];
     const isAdminPage = pathname.startsWith('/admin');
+    const isModeratorPage = pathname.startsWith('/moderator');
     const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/search') || pathname.startsWith('/book-demo');
 
-    if (isPublicPage || isAdminPage) {
+    if (isPublicPage || isAdminPage || isModeratorPage) {
         if(pathname.startsWith('/book-demo') || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password') {
              return (
                 <div className="flex flex-col min-h-screen bg-background">

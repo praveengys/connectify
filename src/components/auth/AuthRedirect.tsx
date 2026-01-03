@@ -14,6 +14,8 @@ export default function AuthRedirect({ children }: { children: ReactNode }) {
     if (!loading && user) {
       if (user.role === 'admin') {
         router.replace('/admin');
+      } else if (user.role === 'moderator') {
+        router.replace('/moderator');
       } else {
         router.replace('/dashboard');
       }

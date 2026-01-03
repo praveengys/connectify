@@ -9,9 +9,10 @@ import { Loader2, Search, Users } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { Input } from '../ui/input';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import Link from 'next/link';
+import { Button } from '../ui/button';
 
 export default function MembersClient() {
   const [members, setMembers] = useState<UserProfile[]>([]);
@@ -28,7 +29,7 @@ export default function MembersClient() {
 
     const { firestore } = initializeFirebase();
     const usersRef = collection(firestore, 'users');
-    const q = query(usersRef, where('profileVisibility', '==', 'public'));
+    const q = query(usersRef, orderBy('displayName', 'asc'));
     
     setLoading(true);
     const unsubscribe = onSnapshot(q, (snapshot) => {

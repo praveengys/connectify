@@ -15,12 +15,13 @@ import {
   where,
   increment,
   writeBatch,
+  runTransaction,
   orderBy,
   deleteDoc,
   limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { UserProfile, Category, DemoSlot } from '@/lib/types';
+import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking, Notification } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { format } from 'date-fns';
 
@@ -40,8 +41,9 @@ function getFirestoreInstance() {
 export async function createUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
-  const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
+  const username = data.email ? data.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : `user_${uid.substring(0, 6)}`;
   
+  // Use setDoc with merge:true to create or update, preventing overwrite
   await setDoc(userRef, {
     uid: uid,
     username: username,
@@ -113,6 +115,35 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
     }
 }
 
+export async function getThread(threadId: string): Promise<Thread | null> {
+    const firestore = getFirestoreInstance();
+    const threadRef = doc(firestore, 'threads', threadId);
+    const docSnap = await getDoc(threadRef);
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() ?? new Date(),
+            updatedAt: data.updatedAt?.toDate() ?? new Date(),
+        } as Thread;
+    }
+    return null;
+}
+
+export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
+    const firestore = getFirestoreInstance();
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+    const q = query(repliesRef, where('status', '==', 'published'), orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() ?? new Date(),
+    } as Reply));
+}
+
+// Demo Booking Server-side Functions
 export async function createDemoSlot(slotData: { date: string, startTime: string }): Promise<void> {
     const firestore = getFirestoreInstance();
     const slotsRef = collection(firestore, 'demoSlots');

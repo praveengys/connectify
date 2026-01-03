@@ -33,7 +33,12 @@ import FloatingAssistant from './assistant/FloatingAssistant';
 import { cn } from '@/lib/utils';
 import Header from './Header';
 import NotificationBell from './notifications/NotificationBell';
-import LeftSidebar from './dashboard/LeftSidebar';
+import dynamic from 'next/dynamic';
+
+const LeftSidebar = dynamic(() => import('./dashboard/LeftSidebar'), {
+  ssr: false,
+});
+
 
 function HorizontalNav() {
   const pathname = usePathname();

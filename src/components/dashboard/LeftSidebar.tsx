@@ -21,7 +21,6 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { useEffect, useState } from 'react';
 
 const NavLink = ({ href, icon: Icon, label, comingSoon, exact = false }: { href:string; icon: React.ElementType; label: string; comingSoon?: boolean, exact?: boolean }) => {
   const pathname = usePathname();
@@ -61,16 +60,6 @@ const NavLink = ({ href, icon: Icon, label, comingSoon, exact = false }: { href:
 };
 
 export default function LeftSidebar() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <aside className="hidden lg:block w-20 border-r bg-background"></aside>;
-  }
-
   return (
     <aside className="hidden lg:flex lg:flex-col w-20 border-r bg-background">
       <div className="flex h-14 items-center justify-center border-b px-6">

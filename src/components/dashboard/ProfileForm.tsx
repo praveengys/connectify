@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -11,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, Trash2 } from 'lucide-react';
 import type { UserProfile } from '@/hooks/use-auth';
-import { updateUserProfile } from '@/lib/firebase/client-actions';
+import { updateUserProfile } from '@/lib/firebase/user-actions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadPhoto } from '@/lib/actions';
 import { Card, CardContent } from '../ui/card';
@@ -19,7 +18,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
-  memberId: z.number().optional(),
   memberFirstName: z.string().min(1, 'First name is required.'),
   memberLastName: z.string().min(1, 'Last name is required.'),
   memberEmailAddress: z.string().optional(),
@@ -52,7 +50,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      memberId: user.memberId ?? undefined,
       memberFirstName: user.memberFirstName ?? '',
       memberLastName: user.memberLastName ?? '',
       memberEmailAddress: user.memberEmailAddress ?? '',
@@ -65,7 +62,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
   useEffect(() => {
     form.reset({
-      memberId: user.memberId ?? undefined,
       memberFirstName: user.memberFirstName ?? '',
       memberLastName: user.memberLastName ?? '',
       memberEmailAddress: user.memberEmailAddress ?? '',
@@ -89,10 +85,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         memberType: values.memberType,
         memberStatus: values.memberStatus,
       };
-
-      if (isAdminEditing) {
-        updatedData.memberId = values.memberId;
-      }
 
       await updateUserProfile(user.uid, updatedData);
       
@@ -244,19 +236,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                     <FormMessage />
                 </FormItem>
                 )}
-            />
-            <FormField
-              control={form.control}
-              name="memberId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Member ID</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} onChange={event => field.onChange(+event.target.value)} disabled={!isAdminEditing} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
             />
              <FormField
                 control={form.control}

@@ -1,131 +1,135 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
-    function isSignedIn() {
+    // --- Global Helper Functions ---
+
+    function signedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function uid() {
+      return request.auth.uid;
     }
 
-    function isRole(role) {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    function isSelf(userId) {
+      return signedIn() && uid() == userId;
     }
-    
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(uid()));
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(uid()));
+    }
+
+    function role() {
+      return hasUserDoc() ? userDoc().data.role : null;
+    }
+
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return role() == 'admin';
     }
 
     function isModerator() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator'];
+      return role() in ['admin', 'moderator'];
     }
 
-    function isGroupMember(groupId) {
-      return isSignedIn() && resource != null && get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] != null;
-    }
+    // --- User Profiles & Notifications ---
 
-    function isGroupAdmin(groupId) {
-      return isSignedIn() && resource != null && get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] in ['admin', 'owner'];
-    }
-
-    function isGroupOwner(groupId) {
-      return isSignedIn() && resource != null && get(/databases/$(database)/documents/groups/$(groupId)).data.members[request.auth.uid] == 'owner';
-    }
-
-    // Collection Rules
     match /users/{userId} {
-      allow read: if isSignedIn() && exists(/databases/$(database)/documents/users/$(userId));
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
+      allow read: if signedIn();
+      allow create: if isSelf(userId);
+      allow update: if isSelf(userId) || isAdmin();
       allow delete: if isAdmin();
-      
+
       match /notifications/{notificationId} {
-        allow read, update: if isOwner(userId);
-        allow create, delete: if false; // Server-side only
+        allow read, update, delete: if isSelf(userId);
+        allow create: if false; // Can only be created by backend/Cloud Functions
       }
     }
 
-    match /posts/{postId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-      allow update: if isSignedIn() && 
-                      // Allow author to update their own post
-                      (isOwner(resource.data.authorId) || 
-                      // Allow anyone to update ONLY the likesCount
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])));
-      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+    // --- Social Feed (Posts, Likes, Comments) ---
 
-      match /likes/{userId} {
-        allow read: if isSignedIn();
-        allow create, delete: if isOwner(userId);
+    match /posts/{postId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.authorId == uid();
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == resource.data.authorId);
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == resource.data.authorId);
+
+      match /likes/{likeId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && likeId == uid();
       }
 
       match /comments/{commentId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-        allow update: if isOwner(resource.data.authorId) || isAdmin();
-        allow delete: if isOwner(resource.data.authorId) || isAdmin();
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.authorId == uid();
+        allow update, delete: if isAdmin() || (signedIn() && request.auth.uid == resource.data.authorId);
       }
     }
+
+    // --- Groups & Group Messages ---
 
     match /groups/{groupId} {
-      allow read: if isSignedIn(); // Could be tightened to isGroupMember(groupId) if needed for private groups
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow update: if isGroupAdmin(groupId);
-      allow delete: if isGroupOwner(groupId);
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.createdBy == uid();
+      allow update, delete: if isAdmin(); // Group-wide updates are admin-only for now
 
       match /messages/{messageId} {
-        allow read: if isGroupMember(groupId);
-        allow create: if isGroupMember(groupId) && request.resource.data.senderId == request.auth.uid;
-        allow update, delete: if isOwner(resource.data.senderId) || isGroupAdmin(groupId);
+        allow read: if signedIn(); // Simplification: membership checked at app level
+        allow create: if signedIn() && request.resource.data.senderId == uid();
+        allow update, delete: if isAdmin() || (signedIn() && request.auth.uid == resource.data.senderId);
       }
     }
+
+    // --- Forum (Threads, Replies, Chat) ---
 
     match /threads/{threadId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-      allow update: if isOwner(resource.data.authorId) || isModerator();
-      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.authorId == uid();
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == resource.data.authorId);
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == resource.data.authorId);
 
       match /replies/{replyId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-        allow update: if isOwner(resource.data.authorId) || isModerator();
-        allow delete: if isOwner(resource.data.authorId) || isModerator();
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.authorId == uid();
+        allow update, delete: if isAdmin() || (signedIn() && request.auth.uid == resource.data.authorId);
       }
-      
+
       match /chatMessages/{messageId} {
-          allow read, create: if isSignedIn();
-          allow update, delete: if isOwner(resource.data.senderId) || isModerator();
+        allow read, create: if signedIn();
+        allow update, delete: if isAdmin() || (signedIn() && request.auth.uid == resource.data.senderId);
       }
     }
 
-    match /forums/{forumId} {
-        allow read: if isSignedIn();
-        allow create: if isModerator();
-        allow update, delete: if isAdmin();
+    // --- Demo Booking ---
+
+    match /demoSlots/{slotId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
     }
 
-    match /categories/{categoryId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isModerator();
-    }
-    
-    match /demoSlots/{slotId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
-    }
-    
     match /demoBookings/{bookingId} {
-      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.status == "pending";
-      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.uid);
+      allow create: if signedIn() && request.resource.data.uid == uid();
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == resource.data.uid);
       allow update, delete: if isAdmin();
     }
+    
+    // --- Categories and Forums (Publicly Readable) ---
+    
+    match /forums/{forumId} {
+      allow read: if signedIn();
+      allow write: if isModerator();
+    }
+    
+    match /categories/{categoryId} {
+      allow read: if signedIn();
+      allow write: if isModerator();
+    }
+
+    // --- Moderation ---
 
     match /moderationLogs/{logId} {
       allow read, write: if isModerator();

@@ -15,13 +15,12 @@ import {
   where,
   increment,
   writeBatch,
-  runTransaction,
   orderBy,
   deleteDoc,
   limit,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking, Notification } from '@/lib/types';
+import type { UserProfile, Category, DemoSlot, Report } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { format } from 'date-fns';
 
@@ -68,24 +67,34 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   }, { merge: true });
 }
 
+
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
-  const docSnap = await getDoc(userRef);
-
-  if (docSnap.exists()) {
-    const data = docSnap.data();
-    return {
-      ...data,
-      uid: docSnap.id,
-      createdAt: data.createdAt?.toDate() ?? new Date(),
-      updatedAt: data.updatedAt?.toDate() ?? new Date(),
-      lastActiveAt: data.lastActiveAt?.toDate() ?? new Date(),
-    } as UserProfile;
-  } else {
-    return null;
+  try {
+    const docSnap = await getDoc(userRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        ...data,
+        uid: docSnap.id,
+        createdAt: data.createdAt?.toDate() ?? new Date(),
+        updatedAt: data.updatedAt?.toDate() ?? new Date(),
+        lastActiveAt: data.lastActiveAt?.toDate() ?? new Date(),
+      } as UserProfile;
+    } else {
+      return null;
+    }
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      console.warn(`Permission denied fetching profile for UID: ${uid}. This can happen if rules deny access or the user doesn't exist.`);
+      return null;
+    }
+    console.error("Error fetching user profile:", error);
+    throw error;
   }
 }
+
 
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
@@ -114,64 +123,6 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
     }
 }
 
-export async function getThread(threadId: string): Promise<Thread | null> {
-    const firestore = getFirestoreInstance();
-    const threadRef = doc(firestore, 'threads', threadId);
-    const docSnap = await getDoc(threadRef);
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        return {
-            id: docSnap.id,
-            ...data,
-            createdAt: data.createdAt?.toDate() ?? new Date(),
-            updatedAt: data.updatedAt?.toDate() ?? new Date(),
-        } as Thread;
-    }
-    return null;
-}
-
-export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
-    const firestore = getFirestoreInstance();
-    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
-    const q = query(repliesRef, where('status', '==', 'published'), orderBy('createdAt', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() ?? new Date(),
-    } as Reply));
-}
-
-
-// Chat (Real-time) functions
-export async function createChatMessage(threadId: string, messageData: Partial<ChatMessage>): Promise<void> {
-  const firestore = getFirestoreInstance();
-  const user = await getUserProfile(messageData.senderId!);
-  if (!user) throw new Error("User not found");
-
-  const messagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
-  await addDoc(messagesRef, {
-      ...messageData,
-      senderProfile: {
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-      },
-      createdAt: serverTimestamp(),
-      status: 'visible'
-  });
-}
-
-// Demo Booking
-export async function createDemoSlot(slotData: { date: string, startTime: string, status: string }): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const slotsRef = collection(firestore, 'demoSlots');
-    await addDoc(slotsRef, {
-        ...slotData,
-        lockedByRequestId: null,
-        updatedAt: serverTimestamp(),
-    });
-}
-
 
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
@@ -188,42 +139,7 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
 }
 
-
-export async function updateBookingStatus(bookingId: string, newStatus: 'scheduled' | 'denied'): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const bookingRef = doc(firestore, 'demoBookings', bookingId);
-    
-    await runTransaction(firestore, async (transaction) => {
-        const bookingDoc = await transaction.get(bookingRef);
-        if (!bookingDoc.exists()) {
-            throw new Error("Booking request not found.");
-        }
-        
-        const bookingData = bookingDoc.data() as DemoBooking;
-        if (!bookingData.slotId) {
-            transaction.update(bookingRef, { status: newStatus, reviewedAt: serverTimestamp() });
-            return;
-        }
-
-        const slotRef = doc(firestore, 'demoSlots', bookingData.slotId);
-        
-        transaction.update(bookingRef, { 
-            status: newStatus,
-            reviewedAt: serverTimestamp(),
-        });
-
-        if (newStatus === 'scheduled') {
-            transaction.update(slotRef, { status: 'booked' });
-        } else { // 'denied'
-            transaction.update(slotRef, { 
-                status: 'available',
-                lockedByRequestId: null,
-            });
-        }
-    });
-}
-
-export async function updateReportStatus(reportId: string, status: 'resolved' | 'in_review'): Promise<void> {
+export async function updateReportStatus(reportId: string, status: Report['status']): Promise<void> {
     const firestore = getFirestoreInstance();
     const reportRef = doc(firestore, 'reports', reportId);
     await updateDoc(reportRef, { status });

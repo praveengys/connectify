@@ -1,9 +1,9 @@
+
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
 import type { Group, UserProfile } from '@/lib/types';
-import { getUserProfile } from '@/lib/firebase/firestore';
-import { removeUserFromGroup, updateUserGroupRole } from '@/lib/firebase/client-actions';
+import { getUserProfile, removeUserFromGroup, updateUserGroupRole } from '@/lib/firebase/client-actions';
 import {
   Dialog,
   DialogContent,

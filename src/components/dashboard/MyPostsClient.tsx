@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Post, UserProfile } from '@/lib/types';
 import FeedPost from './FeedPost';
 import { Loader2, ServerCrash, FileText } from 'lucide-react';
@@ -11,6 +10,7 @@ import { Skeleton } from '../ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { Button } from '../ui/button';
+import { useFirebase } from '@/firebase/client-provider';
 
 const FeedSkeleton = () => (
     <div className="space-y-8">
@@ -32,6 +32,7 @@ const FeedSkeleton = () => (
 );
 
 export default function MyPostsClient() {
+    const { firestore } = useFirebase();
     const { user, loading: authLoading } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,7 +44,6 @@ export default function MyPostsClient() {
             return;
         }
 
-        const { firestore } = initializeFirebase();
         const postsRef = collection(firestore, 'posts');
         const q = query(
             postsRef,
@@ -83,7 +83,7 @@ export default function MyPostsClient() {
         });
 
         return () => unsubscribe();
-    }, [user, authLoading]);
+    }, [user, authLoading, firestore]);
     
     const renderContent = () => {
         if (loading || authLoading) {

@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { UserProfile, Group, Thread } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, MessageSquare, BookOpen, ArrowRight } from "lucide-react";
@@ -12,6 +11,7 @@ import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
+import { useFirebase } from '@/firebase/client-provider';
 
 const StatCard = ({ title, value, icon: Icon, href }: { title: string, value: number, icon: React.ElementType, href: string }) => (
     <Link href={href}>
@@ -63,6 +63,7 @@ const RecentSignups = ({ users, loading }: { users: UserProfile[], loading: bool
 )
 
 export default function AdminDashboard() {
+    const { firestore } = useFirebase();
     const { user, loading: authLoading } = useAuth();
     const [stats, setStats] = useState({ users: 0, groups: 0, threads: 0 });
     const [recentUsers, setRecentUsers] = useState<UserProfile[]>([]);
@@ -74,7 +75,6 @@ export default function AdminDashboard() {
             return;
         }
 
-        const { firestore } = initializeFirebase();
         const collections = {
             users: collection(firestore, 'users'),
             groups: collection(firestore, 'groups'),
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
         ];
 
         return () => unsubscribes.forEach(unsub => unsub());
-    }, [user, authLoading]);
+    }, [user, authLoading, firestore]);
 
   return (
     <div>

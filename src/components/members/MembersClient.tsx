@@ -10,11 +10,12 @@ import { Badge } from '../ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { Input } from '../ui/input';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import Link from 'next/link';
 import { Button } from '../ui/button';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function MembersClient() {
+  const { firestore } = useFirebase();
   const [members, setMembers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,7 +28,6 @@ export default function MembersClient() {
         return;
     }
 
-    const { firestore } = initializeFirebase();
     const usersRef = collection(firestore, 'users');
     const q = query(usersRef, orderBy('displayName', 'asc'));
     
@@ -46,7 +46,7 @@ export default function MembersClient() {
     });
 
     return () => unsubscribe();
-  }, [user, authLoading]);
+  }, [user, authLoading, firestore]);
 
   const filteredMembers = useMemo(() => {
     if (!searchQuery) {

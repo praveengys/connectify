@@ -1,9 +1,9 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import ChatRoomClient from '@/components/chat/ChatRoomClient';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Group } from '@/lib/types';
 import { notFound, useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -13,9 +13,11 @@ import { useToast } from '@/hooks/use-toast';
 import ChatLayout from '@/components/chat/ChatLayout';
 import GroupInfoPanel from '@/components/chat/GroupInfoPanel';
 import { joinChatGroup } from '@/lib/firebase/client-actions';
+import { useFirebase } from '@/firebase/client-provider';
 
 
 export default function ChatRoomPage() {
+  const { firestore } = useFirebase();
   const params = useParams();
   const groupId = params.groupId as string;
   const { user, loading: authLoading } = useAuth();
@@ -36,7 +38,6 @@ export default function ChatRoomPage() {
       }
       
       setLoading(true);
-      const { firestore } = initializeFirebase();
       const groupRef = doc(firestore, 'groups', groupId);
       
       const unsubscribe = onSnapshot(groupRef, (docSnap) => {
@@ -68,7 +69,7 @@ export default function ChatRoomPage() {
       });
 
       return () => unsubscribe();
-  }, [groupId, user, authLoading]);
+  }, [groupId, user, authLoading, firestore]);
 
   const handleJoinGroup = async () => {
     if (!user || !group) return;

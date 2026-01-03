@@ -1,8 +1,8 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { DemoBooking } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,8 +14,10 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { updateBookingStatus } from '@/lib/firebase/client-actions';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function BookingTable() {
+  const { firestore } = useFirebase();
   const [bookings, setBookings] = useState<DemoBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,6 @@ export default function BookingTable() {
   const [confirmDescription, setConfirmDescription] = useState('');
 
   useEffect(() => {
-    const { firestore } = initializeFirebase();
     const bookingsRef = collection(firestore, 'demoBookings');
     const q = query(bookingsRef, orderBy('createdAt', 'desc'));
 
@@ -48,7 +49,7 @@ export default function BookingTable() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [firestore]);
 
   const handleAction = (booking: DemoBooking, action: 'approve' | 'deny') => {
     setActionBooking(booking);

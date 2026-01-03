@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -13,7 +14,6 @@ import {
 } from 'firebase/firestore';
 import { Loader2, ServerCrash, Smile, Image as ImageIcon, Download, Send, Paperclip, Mic, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { initializeFirebase } from '@/firebase';
 import type { ChatMessage, Group, TypingIndicator } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -26,10 +26,12 @@ import { uploadPhoto } from '@/lib/actions';
 import { sendChatMessage } from '@/lib/firebase/client-actions';
 import Image from 'next/image';
 import { ScrollArea } from '../ui/scroll-area';
+import { useFirebase } from '@/firebase/client-provider';
 
 const EMOJI_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
 export default function ChatRoomClient({ group }: { group: Group }) {
+  const { firestore } = useFirebase();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -42,7 +44,6 @@ export default function ChatRoomClient({ group }: { group: Group }) {
 
   const updateTypingStatus = useCallback(async (isTyping: boolean) => {
     if (!user) return;
-    const { firestore } = initializeFirebase();
     const typingRef = doc(firestore, 'groups', group.id, 'typing', user.uid);
     const displayName = user.displayName || 'Anonymous';
     await setDoc(typingRef, {
@@ -50,11 +51,10 @@ export default function ChatRoomClient({ group }: { group: Group }) {
       updatedAt: serverTimestamp(),
       displayName: displayName
     });
-  }, [user, group.id]);
+  }, [user, group.id, firestore]);
 
   useEffect(() => {
     if (authLoading || !user) return;
-    const { firestore } = initializeFirebase();
 
     // Messages listener
     const messagesRef = collection(firestore, 'groups', group.id, 'messages');
@@ -94,7 +94,7 @@ export default function ChatRoomClient({ group }: { group: Group }) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       updateTypingStatus(false);
     };
-  }, [group.id, user, authLoading, updateTypingStatus]);
+  }, [group.id, user, authLoading, updateTypingStatus, firestore]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);

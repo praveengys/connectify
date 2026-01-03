@@ -3,14 +3,14 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Post, UserProfile } from '@/lib/types';
 import FeedPost from './FeedPost';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
+import { useFirebase } from '@/firebase/client-provider';
 
-async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
+async function fetchAndAttachAuthorData(firestore: any, posts: Post[]): Promise<Post[]> {
     const authorIds = new Set<string>();
     posts.forEach(post => {
         authorIds.add(post.authorId);
@@ -21,7 +21,7 @@ async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
 
     const authorProfiles = new Map<string, Partial<UserProfile>>();
     const authorDocs = await Promise.all(
-        uniqueAuthorIds.map(id => getDoc(doc(initializeFirebase().firestore, 'users', id)))
+        uniqueAuthorIds.map(id => getDoc(doc(firestore, 'users', id)))
     );
 
     authorDocs.forEach(docSnap => {
@@ -65,6 +65,7 @@ const FeedSkeleton = () => (
 );
 
 export default function Feed() {
+    const { firestore } = useFirebase();
     const { user, loading: authLoading } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -76,7 +77,6 @@ export default function Feed() {
             return;
         }
 
-        const { firestore } = initializeFirebase();
         const postsRef = collection(firestore, 'posts');
         const q = query(
             postsRef,
@@ -90,7 +90,7 @@ export default function Feed() {
                 createdAt: doc.data().createdAt?.toDate() ?? new Date(),
             } as Post));
 
-            const postsWithAuthors = await fetchAndAttachAuthorData(postsData);
+            const postsWithAuthors = await fetchAndAttachAuthorData(firestore, postsData);
             
             const postsWithLikes = await Promise.all(postsWithAuthors.map(async (post) => {
                 const likeRef = doc(firestore, 'posts', post.id, 'likes', user.uid);
@@ -107,7 +107,7 @@ export default function Feed() {
         });
 
         return () => unsubscribe();
-    }, [user, authLoading]);
+    }, [user, authLoading, firestore]);
 
     if (loading || authLoading) {
         return <FeedSkeleton />;

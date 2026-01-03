@@ -1,8 +1,8 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
 import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Group } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -31,9 +31,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { deleteGroup } from '@/lib/firebase/client-actions';
 import ViewGroupMembersDialog from './ViewGroupMembersDialog';
+import { useFirebase } from '@/firebase/client-provider';
 
 
 export default function GroupTable() {
+  const { firestore } = useFirebase();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,6 @@ export default function GroupTable() {
   const [confirmButtonText, setConfirmButtonText] = useState('Confirm');
 
   useEffect(() => {
-    const { firestore } = initializeFirebase();
     const groupsRef = collection(firestore, 'groups');
     const q = query(groupsRef, orderBy('createdAt', 'desc'));
 
@@ -73,7 +74,7 @@ export default function GroupTable() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [firestore]);
   
   const handleAction = (group: Group, action: 'delete') => {
       setActionGroup(group);

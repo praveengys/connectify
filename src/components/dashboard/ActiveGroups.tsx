@@ -3,15 +3,16 @@
 
 import { useEffect, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Group } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import { useAuth } from '@/hooks/use-auth';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function ActiveGroups() {
+    const { firestore } = useFirebase();
     const { user, loading: authLoading } = useAuth();
     const [groups, setGroups] = useState<Group[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,7 +23,6 @@ export default function ActiveGroups() {
             return;
         }
 
-        const { firestore } = initializeFirebase();
         const groupsRef = collection(firestore, 'groups');
         const q = query(
             groupsRef, 
@@ -44,7 +44,7 @@ export default function ActiveGroups() {
         });
 
         return () => unsubscribe();
-    }, [user, authLoading]);
+    }, [user, authLoading, firestore]);
 
     return (
         <Card>

@@ -1,87 +1,91 @@
-
+// src/lib/firebase/auth.ts
 'use client';
 
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
   signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
   sendPasswordResetEmail,
   updateProfile,
 } from 'firebase/auth';
-import { initializeFirebase } from '@/firebase';
+import { auth } from '@/firebase/client';
 import { createUserProfile } from './client-actions';
 
-const { auth } = initializeFirebase();
-const googleProvider = new GoogleAuthProvider();
 
+// Sign up with email and password
 export async function signUpWithEmail(email: string, password: string, firstName: string, lastName: string) {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    const fullName = `${firstName} ${lastName}`.trim();
     
     // Update Firebase Auth profile
-    await updateProfile(user, { displayName: fullName });
-    
-    // Create or link Firestore profile
-    await createUserProfile({
-      uid: user.uid,
-      email: user.email,
-      displayName: fullName,
-      memberFirstName: firstName,
-      memberLastName: lastName
-    });
+    const displayName = `${firstName} ${lastName}`.trim();
+    await updateProfile(user, { displayName });
 
-    return { user };
+    // Create user profile document in Firestore
+    await createUserProfile(user.uid, { 
+      displayName,
+      memberFirstName: firstName,
+      memberLastName: lastName,
+      memberEmailAddress: email,
+    });
+    
+    return { user, error: null };
   } catch (error: any) {
-    return { error };
+    return { user: null, error };
   }
 }
 
+// Sign in with email and password
 export async function signInWithEmail(email: string, password: string) {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user };
+    return { user: userCredential.user, error: null };
   } catch (error: any) {
-    return { error };
+    return { user: null, error };
   }
 }
 
+// Sign in with Google
 export async function signInWithGoogle() {
+  const provider = new GoogleAuthProvider();
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const result = await signInWithPopup(auth, provider);
     const user = result.user;
     
-    await createUserProfile({
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      avatarUrl: user.photoURL
+    // Check if a user profile already exists. If not, create one.
+    // This handles both new sign-ups and returning users.
+    await createUserProfile(user.uid, {
+        displayName: user.displayName || 'New Member',
+        memberEmailAddress: user.email!,
+        avatarUrl: user.photoURL,
     });
 
-    return { user };
+    return { user, error: null };
   } catch (error: any) {
-    return { error };
+    return { user: null, error };
   }
 }
 
+// Sign out
 export async function signOutUser() {
-  await signOut(auth);
-}
-
-export function onAuthObserver(callback: (user: import('firebase/auth').User | null) => void) {
-  return onAuthStateChanged(auth, callback);
-}
-
-export async function sendPasswordReset(email: string) {
   try {
-    await sendPasswordResetEmail(auth, email);
-    return {};
+    await signOut(auth);
+    return { error: null };
   } catch (error: any) {
     return { error };
   }
 }
 
+
+// Password Reset
+export async function sendPasswordReset(email: string) {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+}

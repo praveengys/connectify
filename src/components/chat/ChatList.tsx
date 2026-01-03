@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import type { Group } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -15,8 +14,10 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function ChatList() {
+  const { firestore } = useFirebase();
   const { user, loading: authLoading } = useAuth();
   const pathname = usePathname();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -31,7 +32,6 @@ export default function ChatList() {
     }
 
     setLoading(true);
-    const { firestore } = initializeFirebase();
     const groupsRef = collection(firestore, 'groups');
     // For now, we list all public groups. A more advanced implementation might list groups the user is a member of.
     const q = query(
@@ -59,7 +59,7 @@ export default function ChatList() {
     );
 
     return () => unsubscribe();
-  }, [user, authLoading]);
+  }, [user, authLoading, firestore]);
 
   const handleGroupCreated = () => {
     setCreateGroupOpen(false);

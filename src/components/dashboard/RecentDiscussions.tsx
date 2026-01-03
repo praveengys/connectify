@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Thread } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, Loader2 } from 'lucide-react';
@@ -11,8 +10,10 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '../ui/button';
 import { useAuth } from '@/hooks/use-auth';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function RecentDiscussions() {
+    const { firestore } = useFirebase();
     const { user, loading: authLoading } = useAuth();
     const [threads, setThreads] = useState<Thread[]>([]);
     const [loading, setLoading] = useState(true);
@@ -23,7 +24,6 @@ export default function RecentDiscussions() {
             return;
         }
 
-        const { firestore } = initializeFirebase();
         const threadsRef = collection(firestore, 'threads');
         const q = query(threadsRef, orderBy('createdAt', 'desc'), limit(5));
 
@@ -41,7 +41,7 @@ export default function RecentDiscussions() {
         });
 
         return () => unsubscribe();
-    }, [user, authLoading]);
+    }, [user, authLoading, firestore]);
 
     return (
         <Card>

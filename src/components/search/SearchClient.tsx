@@ -4,7 +4,6 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { UserProfile, Thread, Group } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Loader2, Search, Users, MessageSquare, BookOpen } from 'lucide-react';
@@ -12,8 +11,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import Link from 'next/link';
 import { Badge } from '../ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import { useFirebase } from '@/firebase/client-provider';
 
 function SearchResults() {
+  const { firestore } = useFirebase();
   const searchParams = useSearchParams();
   const q = searchParams.get('q');
 
@@ -32,7 +33,6 @@ function SearchResults() {
 
     const performSearch = async () => {
       setLoading(true);
-      const { firestore } = initializeFirebase();
 
       try {
         // NOTE: Firestore does not support native full-text search.
@@ -78,7 +78,7 @@ function SearchResults() {
     };
 
     performSearch();
-  }, [q]);
+  }, [q, firestore]);
 
   if (loading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>;

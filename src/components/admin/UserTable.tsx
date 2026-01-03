@@ -4,7 +4,6 @@
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -39,8 +38,10 @@ import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import ProfileForm from '../dashboard/ProfileForm';
 import { updateUserProfile } from '@/lib/firebase/user-actions';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function UserTable() {
+  const { firestore } = useFirebase();
   const { user: adminUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +61,6 @@ export default function UserTable() {
 
 
   useEffect(() => {
-    const { firestore } = initializeFirebase();
     const usersRef = collection(firestore, 'users');
     const q = query(usersRef, orderBy('createdAt', 'desc'));
 
@@ -82,7 +82,7 @@ export default function UserTable() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [firestore]);
 
   const handleAction = (user: UserProfile, action: 'mute' | 'unmute' | 'makeAdmin' | 'removeAdmin' | 'makeModerator' | 'removeModerator' | 'ban' | 'unban') => {
     setActionUser(user);

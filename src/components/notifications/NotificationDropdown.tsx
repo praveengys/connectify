@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/firebase/firestore';
+import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/firebase/client-actions';
 
 export default function NotificationDropdown() {
   const { notifications, loading, unreadCount } = useNotifications();

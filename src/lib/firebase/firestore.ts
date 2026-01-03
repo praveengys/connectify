@@ -41,7 +41,7 @@ function getFirestoreInstance() {
 export async function createUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
-  const username = data.email ? data.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : `user_${uid.substring(0, 6)}`;
+  const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
   
   await setDoc(userRef, {
     uid: uid,
@@ -69,23 +69,23 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-    if (!uid) return null;
-    const firestore = getFirestoreInstance();
-    const userRef = doc(firestore, 'users', uid);
-    const docSnap = await getDoc(userRef);
+  if (!uid) return null;
+  const firestore = getFirestoreInstance();
+  const userRef = doc(firestore, 'users', uid);
+  const docSnap = await getDoc(userRef);
 
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        return {
-        ...data,
-        uid: docSnap.id,
-        createdAt: data.createdAt?.toDate() ?? new Date(),
-        updatedAt: data.updatedAt?.toDate() ?? new Date(),
-        lastActiveAt: data.lastActiveAt?.toDate() ?? new Date(),
-        } as UserProfile;
-    } else {
-        return null;
-    }
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    return {
+      ...data,
+      uid: docSnap.id,
+      createdAt: data.createdAt?.toDate() ?? new Date(),
+      updatedAt: data.updatedAt?.toDate() ?? new Date(),
+      lastActiveAt: data.lastActiveAt?.toDate() ?? new Date(),
+    } as UserProfile;
+  } else {
+    return null;
+  }
 }
 
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
@@ -114,7 +114,6 @@ export async function toggleBanUser(uid: string, isBanned: boolean): Promise<voi
 
 
 // Forum & Thread Functions
-
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
     const categoriesCollection = collection(firestore, 'categories');
@@ -201,52 +200,6 @@ export async function createChatMessage(threadId: string, messageData: Partial<C
 
 
 // Group Chat functions
-export async function createChatGroup(name: string, type: 'public' | 'private', ownerId: string): Promise<Group> {
-  const firestore = getFirestoreInstance();
-  const groupsCollection = collection(firestore, 'groups');
-  
-  const newGroupData = {
-    name,
-    type,
-    createdBy: ownerId,
-    createdAt: serverTimestamp(),
-    memberCount: 1,
-    members: {
-      [ownerId]: true
-    },
-     memberRoles: {
-      [ownerId]: 'owner'
-    }
-  };
-
-  const newGroupRef = await addDoc(groupsCollection, newGroupData);
-
-  // Add the owner to the members subcollection
-  const membersRef = collection(newGroupRef, 'groupMembers');
-  await setDoc(doc(membersRef, ownerId), {
-    role: 'owner',
-    joinedAt: serverTimestamp()
-  });
-  
-  // Create a welcome message
-  const messagesRef = collection(newGroupRef, 'messages');
-  await addDoc(messagesRef, {
-      senderId: 'system',
-      type: 'text',
-      text: `${name} was created.`,
-      createdAt: serverTimestamp(),
-      status: 'visible'
-  });
-
-
-  return {
-    id: newGroupRef.id,
-    ...newGroupData,
-    createdAt: new Date(),
-  } as Group;
-}
-
-
 export async function removeUserFromGroup(groupId: string, userId: string): Promise<void> {
     const firestore = getFirestoreInstance();
     const groupRef = doc(firestore, 'groups', groupId);
@@ -264,7 +217,7 @@ export async function removeUserFromGroup(groupId: string, userId: string): Prom
         
         const newMembers = { ...groupData.members };
         delete newMembers[userId];
-        
+
         const newMemberRoles = { ...groupData.memberRoles };
         delete newMemberRoles[userId];
         
@@ -313,46 +266,6 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
 }
 
-type BookingRequest = {
-  slotId: string;
-  name: string;
-  email: string;
-  notes: string;
-  uid?: string; // UID of the logged-in user
-};
-
-export async function bookDemo(request: BookingRequest): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const { slotId, ...bookingData } = request;
-    
-    await runTransaction(firestore, async (transaction) => {
-        const slotRef = doc(firestore, 'demoSlots', slotId);
-        const slotDoc = await transaction.get(slotRef);
-
-        if (!slotDoc.exists() || slotDoc.data().status !== 'available') {
-          throw new Error("This time slot is no longer available. Please select another one.");
-        }
-
-        // Create the booking request document
-        const bookingRef = doc(collection(firestore, 'demoBookings'));
-        transaction.set(bookingRef, {
-            ...bookingData,
-            slotId: slotId,
-            date: slotDoc.data().date,
-            startTime: slotDoc.data().startTime,
-            status: 'pending',
-            createdAt: serverTimestamp(),
-        });
-
-        // Mark the slot as pending
-        transaction.update(slotRef, {
-            status: 'pending',
-            lockedByRequestId: bookingRef.id,
-        });
-    });
-}
-
-
 export async function updateBookingStatus(bookingId: string, newStatus: 'scheduled' | 'denied'): Promise<void> {
     const firestore = getFirestoreInstance();
     const bookingRef = doc(firestore, 'demoBookings', bookingId);
@@ -386,36 +299,6 @@ export async function updateBookingStatus(bookingId: string, newStatus: 'schedul
         }
     });
 }
-
-// Notification functions
-export async function markNotificationAsRead(notificationId: string): Promise<void> {
-  const { auth, firestore } = initializeFirebase();
-  const userId = auth.currentUser?.uid;
-  if (!userId) return;
-
-  const notifRef = doc(firestore, 'users', userId, 'notifications', notificationId);
-  await updateDoc(notifRef, { isRead: true });
-}
-
-export async function markAllNotificationsAsRead(): Promise<void> {
-  const { auth, firestore } = initializeFirebase();
-  const userId = auth.currentUser?.uid;
-  if (!userId) return;
-
-  const notifsRef = collection(firestore, 'users', userId, 'notifications');
-  const q = query(notifsRef, where('isRead', '==', false));
-  
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return;
-
-  const batch = writeBatch(firestore);
-  snapshot.docs.forEach(doc => {
-    batch.update(doc.ref, { isRead: true });
-  });
-
-  await batch.commit();
-}
-
 
 export async function deleteThread(threadId: string): Promise<void> {
     const firestore = getFirestoreInstance();

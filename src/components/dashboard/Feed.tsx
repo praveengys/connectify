@@ -19,7 +19,7 @@ async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
     const uniqueAuthorIds = Array.from(authorIds);
     if (uniqueAuthorIds.length === 0) return posts;
 
-    const authorProfiles = new Map<string, Pick<UserProfile, 'displayName' | 'avatarUrl' | 'memberId'>>();
+    const authorProfiles = new Map<string, Partial<UserProfile>>();
     const authorDocs = await Promise.all(
         uniqueAuthorIds.map(id => getDoc(doc(initializeFirebase().firestore, 'users', id)))
     );
@@ -27,8 +27,12 @@ async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
     authorDocs.forEach(docSnap => {
         if (docSnap.exists()) {
             const data = docSnap.data();
+            let displayName = data.displayName;
+            if (!displayName && data.memberFirstName) {
+                displayName = `${data.memberFirstName} ${data.memberLastName || ''}`.trim();
+            }
             authorProfiles.set(docSnap.id, {
-                displayName: data.displayName,
+                displayName: displayName,
                 avatarUrl: data.avatarUrl,
                 memberId: data.memberId
             });

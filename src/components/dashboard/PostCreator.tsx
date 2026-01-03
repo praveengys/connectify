@@ -13,6 +13,7 @@ import { uploadPhoto } from "@/lib/actions";
 import Image from "next/image";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
+import { Skeleton } from "../ui/skeleton";
 
 export default function PostCreator({ user: initialUser }: { user: UserProfile }) {
   const { user } = useAuth(); // Use the live user from auth context
@@ -113,6 +114,22 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
   };
   
   const displayUser = user || initialUser;
+
+  if (!displayUser || !displayUser.displayName) {
+    return (
+        <Card>
+            <CardContent className="p-4">
+                <div className="flex gap-4">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="flex-grow space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+  }
 
   return (
     <Card>

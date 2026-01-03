@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { add, format, startOfDay } from 'date-fns';
 import { Calendar as CalendarIcon, CheckCircle, Loader2 } from 'lucide-react';
-
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
@@ -15,65 +15,88 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { bookDemo } from '@/lib/firebase/firestore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { bookDemo, getAvailableTimeSlots } from '@/lib/firebase/firestore';
+import type { DemoSlot } from '@/lib/types';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Label } from '../ui/label';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Please enter your name.'),
   email: z.string().email('Please enter a valid email address.'),
   notes: z.string().max(500, 'Notes cannot exceed 500 characters.').optional(),
-  date: z.date({ required_error: 'Please select a date.' }),
-  time: z.string({ required_error: 'Please select a time.' }),
+  slotId: z.string({ required_error: 'Please select a time slot.' }),
 });
 
 export default function BookDemoClient() {
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [availableSlots, setAvailableSlots] = useState<DemoSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      email: '',
+      name: user?.displayName || '',
+      email: user?.email || '',
       notes: '',
     },
   });
-  
-  const availableTimeSlots = useMemo(() => {
-    const slots = [];
-    for (let hour = 9; hour < 17; hour++) {
-      slots.push(`${String(hour).padStart(2, '0')}:00`);
-      slots.push(`${String(hour).padStart(2, '0')}:30`);
-    }
-    return slots;
-  }, []);
 
-  const today = useMemo(() => startOfDay(new Date()), []);
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (!date) return;
+    
+    if (startOfDay(date) < startOfDay(new Date())) {
+        toast({
+            title: 'Invalid Date',
+            description: 'Please select a date in the future.',
+            variant: 'destructive',
+        });
+        setSelectedDate(undefined);
+        setAvailableSlots([]);
+        return;
+    }
+
+    setSelectedDate(date);
+    setLoadingSlots(true);
+    form.resetField('slotId');
+    try {
+      const slots = await getAvailableTimeSlots(date);
+      setAvailableSlots(slots);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Could not fetch available time slots.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+     if (!user) {
+      toast({
+        title: 'Authentication Error',
+        description: 'You must be logged in to book a demo.',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
-      const isBooked = await bookDemo({
+      await bookDemo({
+        slotId: values.slotId,
         name: values.name,
         email: values.email,
         notes: values.notes || '',
-        date: format(values.date, 'yyyy-MM-dd'),
-        startTime: values.time,
-        status: 'scheduled',
+        uid: user.uid
       });
-
-      if (isBooked) {
-         toast({
-            title: 'Unable to Book Demo',
-            description: 'This slot has just been taken. Please try another time.',
-            variant: 'destructive',
-         });
-      } else {
-        setIsSuccess(true);
-      }
+      setIsSuccess(true);
     } catch (error: any) {
       toast({
         title: 'Unable to Book Demo',
-        description: error.message || 'An unknown error occurred.',
+        description: error.message || 'This slot may have just been taken. Please refresh and try again.',
         variant: 'destructive',
       });
     }
@@ -84,89 +107,91 @@ export default function BookDemoClient() {
         <Card className="w-full max-w-lg mx-auto">
             <CardContent className="p-10 text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Demo Booked!</h2>
+                <h2 className="text-2xl font-bold mb-2">Demo Request Sent!</h2>
                 <p className="text-muted-foreground">
-                    Your demo is confirmed. You will receive a confirmation email with a calendar invite shortly.
+                    Your request has been submitted. Our team will review it and send a calendar invite to your email upon approval.
                 </p>
             </CardContent>
         </Card>
     );
   }
 
-  const selectedDate = form.watch('date');
-  const selectedTime = form.watch('time');
-  const endTime = selectedTime && selectedDate ? format(add(new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}`), { minutes: 30 }), 'p') : '';
+  const selectedSlotId = form.watch('slotId');
+  const selectedSlot = availableSlots.find(slot => slot.id === selectedSlotId);
+  const endTime = selectedSlot && selectedDate ? format(add(new Date(`${selectedSlot.date}T${selectedSlot.startTime}`), { minutes: 30 }), 'p') : '';
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>1. Select a Date & Time</CardTitle>
-            <CardDescription>Choose a day and time that works for you.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex justify-center">
-                <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              fromDate={new Date()}
-                              toDate={add(new Date(), { months: 2 })}
-                              disabled={(date) => date < today}
-                              initialFocus
-                          />
-                        </FormControl>
-                        <FormMessage className="text-center pt-2" />
-                      </FormItem>
-                    )}
-                  />
-            </div>
-             <FormField
-                control={form.control}
-                name="time"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Time</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder={selectedDate ? "Select a time slot" : "Select a date first"} />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        {availableTimeSlots.map(time => (
-                            <SelectItem key={time} value={time}>
-                            {format(new Date(`1970-01-01T${time}`), 'p')}
-                            </SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>1. Select a Date</CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-center">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleDateSelect}
+            fromDate={new Date()}
+            toDate={add(new Date(), { months: 2 })}
+            disabled={(date) => date < startOfDay(new Date())}
+            initialFocus
+          />
+        </CardContent>
+      </Card>
 
-            {selectedTime && (
-                <div className="p-3 text-sm rounded-md bg-muted text-center text-muted-foreground">
-                    Your demo will run from {format(new Date(`1970-01-01T${selectedTime}`), 'p')} to {endTime}.
-                </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
+      <Card>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardHeader>
-              <CardTitle>2. Your Details</CardTitle>
-              <CardDescription>Fill in your details so we can send you the calendar invite.</CardDescription>
+              <CardTitle>2. Schedule Your Demo</CardTitle>
+              <CardDescription>Fill in your details and we'll send you a calendar invite.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+                <div className="p-4 border rounded-lg bg-secondary/30">
+                    <p className="font-semibold flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                        {selectedDate ? format(selectedDate, 'PPP') : 'No date selected'}
+                    </p>
+                </div>
+              
+                {loadingSlots && <div className="flex justify-center py-4"><Loader2 className="animate-spin"/></div>}
+
+                {!loadingSlots && selectedDate && (
+                    <FormField
+                    control={form.control}
+                    name="slotId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Available Times</FormLabel>
+                        <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="grid grid-cols-3 gap-2"
+                        >
+                            {availableSlots.length > 0 ? availableSlots.map(slot => (
+                            <FormItem key={slot.id}>
+                                <FormControl>
+                                <RadioGroupItem value={slot.id} className="sr-only" id={slot.id} />
+                                </FormControl>
+                                <Label htmlFor={slot.id} className="block border rounded-md p-3 text-center cursor-pointer has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary transition-colors">
+                                {format(new Date(`1970-01-01T${slot.startTime}`), 'p')}
+                                </Label>
+                            </FormItem>
+                            )) : <p className="text-sm text-muted-foreground col-span-3">No available slots for this day.</p>}
+                        </RadioGroup>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                )}
+
+                {selectedSlot && (
+                    <div className="p-3 text-sm rounded-md bg-muted text-center text-muted-foreground">
+                        Your demo will run from {format(new Date(`1970-01-01T${selectedSlot.startTime}`), 'p')} to {endTime}.
+                    </div>
+                )}
+
+
                 <FormField
                     control={form.control}
                     name="name"
@@ -201,13 +226,14 @@ export default function BookDemoClient() {
                     )}
                 />
 
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !selectedTime || !selectedDate}>
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !selectedSlot}>
                     {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Book Your Demo
+                    Book Demo
                 </Button>
             </CardContent>
-        </Card>
-      </form>
-    </Form>
+          </form>
+        </Form>
+      </Card>
+    </div>
   );
 }

@@ -239,16 +239,16 @@ function HorizontalNav() {
 
 export default function AppSidebar({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const publicPages = ['/', '/login', '/signup', '/forgot-password', '/book-demo'];
+    const publicPages = ['/', '/login', '/signup', '/forgot-password'];
     const isAdminPage = pathname.startsWith('/admin');
-    const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/search');
+    const isPublicPage = publicPages.includes(pathname) || pathname.startsWith('/search') || pathname.startsWith('/book-demo');
 
     if (isPublicPage || isAdminPage) {
-        if(pathname === '/book-demo' || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password') {
-            return (
+        if(pathname.startsWith('/book-demo') || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password') {
+             return (
                 <div className="flex flex-col min-h-screen bg-background">
                     <Header />
-                    <main className="flex-grow flex items-center justify-center p-4">
+                    <main className="flex-grow container mx-auto px-4 py-8">
                         {children}
                     </main>
                 </div>

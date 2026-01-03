@@ -102,7 +102,7 @@ export type UserProfile = {
   languages: string[];
   location: string;
   currentlyExploring: string;
-  role: 'member' | 'admin';
+  role: 'member' | 'admin' | 'moderator';
   profileVisibility: 'public' | 'private';
   emailVerified: boolean;
   profileScore: number;
@@ -130,6 +130,12 @@ export type Group = {
       text: string;
       sender: string;
       timestamp: Timestamp | Date;
+    };
+    activeMeeting?: {
+      roomUrl: string;
+      startedBy: string;
+      startedAt: Timestamp | Date;
+      isLive: boolean;
     }
 };
 
@@ -227,4 +233,14 @@ export type NotificationPreferences = {
     chatNotifications: boolean;
     emailNotifications: boolean;
     pushNotifications: boolean;
+};
+
+export type ModerationLog = {
+    id: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    performedBy: string; // UID of moderator
+    timestamp: Timestamp | Date;
+    reason?: string;
 };

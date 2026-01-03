@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { createForum } from '@/lib/firebase/firestore';
+import { createForum } from '@/lib/firebase/client-actions';
 import { useAuth } from '@/hooks/use-auth';
 import type { Forum } from '@/lib/types';
 

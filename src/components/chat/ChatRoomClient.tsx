@@ -24,7 +24,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { uploadPhoto } from '@/lib/actions';
-import { sendChatMessage } from '@/lib/firebase/firestore';
+import { sendChatMessage } from '@/lib/firebase/client-actions';
 import Image from 'next/image';
 import { ScrollArea } from '../ui/scroll-area';
 

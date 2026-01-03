@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,7 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { Category, Forum } from '@/lib/types';
-import { createThread, getOrCreateCategory } from '@/lib/firebase/firestore';
+import { getOrCreateCategory } from '@/lib/firebase/firestore';
+import { createThread } from '@/lib/firebase/client-actions';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { Combobox } from '@/components/ui/combobox';

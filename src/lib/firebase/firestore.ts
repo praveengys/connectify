@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -42,7 +41,7 @@ function getFirestoreInstance() {
 export async function createUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
-  const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
+  const username = data.email ? data.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : `user_${uid.substring(0, 6)}`;
   
   await setDoc(userRef, {
     uid: uid,
@@ -70,23 +69,23 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  if (!uid) return null;
-  const firestore = getFirestoreInstance();
-  const userRef = doc(firestore, 'users', uid);
-  const docSnap = await getDoc(userRef);
+    if (!uid) return null;
+    const firestore = getFirestoreInstance();
+    const userRef = doc(firestore, 'users', uid);
+    const docSnap = await getDoc(userRef);
 
-  if (docSnap.exists()) {
-    const data = docSnap.data();
-    return {
-      ...data,
-      uid: docSnap.id,
-      createdAt: data.createdAt?.toDate() ?? new Date(),
-      updatedAt: data.updatedAt?.toDate() ?? new Date(),
-      lastActiveAt: data.lastActiveAt?.toDate() ?? new Date(),
-    } as UserProfile;
-  } else {
-    return null;
-  }
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+        ...data,
+        uid: docSnap.id,
+        createdAt: data.createdAt?.toDate() ?? new Date(),
+        updatedAt: data.updatedAt?.toDate() ?? new Date(),
+        lastActiveAt: data.lastActiveAt?.toDate() ?? new Date(),
+        } as UserProfile;
+    } else {
+        return null;
+    }
 }
 
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
@@ -115,28 +114,6 @@ export async function toggleBanUser(uid: string, isBanned: boolean): Promise<voi
 
 
 // Forum & Thread Functions
-export async function createForum(name: string, description: string, createdBy: string): Promise<Forum> {
-    const firestore = getFirestoreInstance();
-    const forumsCollection = collection(firestore, 'forums');
-    const newForumRef = await addDoc(forumsCollection, {
-        name,
-        description,
-        createdBy,
-        visibility: 'public',
-        status: 'active',
-        createdAt: serverTimestamp(),
-    });
-
-    return {
-        id: newForumRef.id,
-        name,
-        description,
-        createdBy,
-        visibility: 'public',
-        status: 'active',
-        createdAt: new Date(),
-    };
-}
 
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
@@ -165,29 +142,6 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
     }
 }
 
-type ThreadData = Omit<Thread, 'id' | 'createdAt' | 'updatedAt' | 'replyCount' | 'latestReplyAt' | 'moderation'>;
-export async function createThread(data: ThreadData): Promise<Thread> {
-  const firestore = getFirestoreInstance();
-  const threadsRef = collection(firestore, 'threads');
-  
-  const newThreadRef = await addDoc(threadsRef, {
-    ...data,
-    replyCount: 0,
-    latestReplyAt: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-
-  return {
-    id: newThreadRef.id,
-    ...data,
-    replyCount: 0,
-    latestReplyAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-}
-
 export async function getThread(threadId: string): Promise<Thread | null> {
     const firestore = getFirestoreInstance();
     const threadRef = doc(firestore, 'threads', threadId);
@@ -214,32 +168,6 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() ?? new Date(),
     } as Reply));
-}
-
-
-type ReplyData = {
-    threadId: string;
-    authorId: string;
-    body: string;
-    parentReplyId: string | null;
-};
-export async function createReply(data: ReplyData): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const threadRef = doc(firestore, 'threads', data.threadId);
-    const repliesRef = collection(threadRef, 'replies');
-    
-    await addDoc(repliesRef, {
-        authorId: data.authorId,
-        body: data.body,
-        parentReplyId: data.parentReplyId,
-        status: 'published',
-        createdAt: serverTimestamp(),
-    });
-
-    await updateDoc(threadRef, {
-        replyCount: increment(1),
-        latestReplyAt: serverTimestamp(),
-    });
 }
 
 export async function toggleThreadLock(threadId: string, isLocked: boolean): Promise<void> {
@@ -293,70 +221,59 @@ export async function createChatGroup(name: string, type: 'public' | 'private', 
 
   const newGroupRef = await addDoc(groupsCollection, newGroupData);
 
-  // Add the group to the user's subcollection of groups
-  const userGroupsRef = collection(firestore, 'users', ownerId, 'groups');
-  await setDoc(doc(userGroupsRef, newGroupRef.id), { joinedAt: serverTimestamp() });
+  // Add the owner to the members subcollection
+  const membersRef = collection(newGroupRef, 'groupMembers');
+  await setDoc(doc(membersRef, ownerId), {
+    role: 'owner',
+    joinedAt: serverTimestamp()
+  });
+  
+  // Create a welcome message
+  const messagesRef = collection(newGroupRef, 'messages');
+  await addDoc(messagesRef, {
+      senderId: 'system',
+      type: 'text',
+      text: `${name} was created.`,
+      createdAt: serverTimestamp(),
+      status: 'visible'
+  });
 
 
   return {
     id: newGroupRef.id,
     ...newGroupData,
     createdAt: new Date(),
-    memberRoles: { [ownerId]: 'owner' }
-  };
+  } as Group;
 }
 
-export async function joinChatGroup(groupId: string, userId: string): Promise<void> {
+
+export async function removeUserFromGroup(groupId: string, userId: string): Promise<void> {
     const firestore = getFirestoreInstance();
     const groupRef = doc(firestore, 'groups', groupId);
-
+    
     await runTransaction(firestore, async (transaction) => {
         const groupDoc = await transaction.get(groupRef);
         if (!groupDoc.exists()) {
             throw new Error("Group does not exist.");
         }
-
-        const groupData = groupDoc.data();
-        if (groupData.members && groupData.members[userId]) {
-            // User is already a member, do nothing.
-            return;
-        }
-
-        transaction.update(groupRef, {
-            [`members.${userId}`]: true,
-            [`memberRoles.${userId}`]: 'member',
-            memberCount: increment(1)
-        });
         
-        // Add group to user's subcollection
-        const userGroupRef = doc(firestore, 'users', userId, 'groups', groupId);
-        transaction.set(userGroupRef, { joinedAt: serverTimestamp() });
+        const groupData = groupDoc.data();
+        if (!groupData.members[userId]) {
+            return; // User is not a member
+        }
+        
+        const newMembers = { ...groupData.members };
+        delete newMembers[userId];
+        
+        const newMemberRoles = { ...groupData.memberRoles };
+        delete newMemberRoles[userId];
+        
+        transaction.update(groupRef, {
+            members: newMembers,
+            memberRoles: newMemberRoles,
+            memberCount: increment(-1)
+        });
     });
-}
-
-export async function removeUserFromGroup(groupId: string, userId: string): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const batch = writeBatch(firestore);
-    
-    const groupRef = doc(firestore, 'groups', groupId);
-    const userGroupRef = doc(firestore, 'users', userId, 'groups', groupId);
-
-    const groupDoc = await getDoc(groupRef);
-    const groupData = groupDoc.data();
-
-    const newMembers = { ...groupData?.members };
-    delete newMembers[userId];
-    const newMemberRoles = { ...groupData?.memberRoles };
-    delete newMemberRoles[userId];
-
-    batch.update(groupRef, {
-        members: newMembers,
-        memberRoles: newMemberRoles,
-        memberCount: increment(-1)
-    });
-    batch.delete(userGroupRef);
-
-    await batch.commit();
 }
 
 export async function updateUserGroupRole(groupId: string, userId: string, role: 'admin' | 'member'): Promise<void> {
@@ -367,32 +284,6 @@ export async function updateUserGroupRole(groupId: string, userId: string, role:
     });
 }
 
-export async function sendChatMessage(groupId: string, senderId: string, messageContent: { type: 'text', text: string } | { type: 'image', imageUrl: string }): Promise<void> {
-  const firestore = getFirestoreInstance();
-  const user = await getUserProfile(senderId);
-  if (!user) throw new Error("User not found");
-
-  const messagesRef = collection(firestore, 'groups', groupId, 'messages');
-  await addDoc(messagesRef, {
-      senderId,
-      senderProfile: {
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-      },
-      ...messageContent,
-      createdAt: serverTimestamp(),
-      status: 'visible'
-  });
-  
-  // Update last message on group for previews
-  const groupRef = doc(firestore, 'groups', groupId);
-  const lastMessageText = messageContent.type === 'text' ? messageContent.text : 'Sent an image';
-  await updateDoc(groupRef, {
-      'lastMessage.text': lastMessageText,
-      'lastMessage.sender': user.displayName,
-      'lastMessage.timestamp': serverTimestamp()
-  });
-}
 
 // Demo Booking
 export async function createDemoSlot(slotData: { date: string, startTime: string }): Promise<void> {
@@ -523,4 +414,42 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   });
 
   await batch.commit();
+}
+
+
+export async function deleteThread(threadId: string): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const batch = writeBatch(firestore);
+
+    // Delete replies and chat messages (subcollections)
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+    const chatRef = collection(firestore, 'threads', threadId, 'chatMessages');
+    const repliesSnap = await getDocs(repliesRef);
+    const chatSnap = await getDocs(chatRef);
+    repliesSnap.forEach(doc => batch.delete(doc.ref));
+    chatSnap.forEach(doc => batch.delete(doc.ref));
+
+    // Delete the main thread doc
+    const threadRef = doc(firestore, 'threads', threadId);
+    batch.delete(threadRef);
+
+    await batch.commit();
+}
+
+
+export async function deleteGroup(groupId: string): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const batch = writeBatch(firestore);
+
+    const messagesRef = collection(firestore, 'groups', groupId, 'messages');
+    const typingRef = collection(firestore, 'groups', groupId, 'typing');
+    const messagesSnap = await getDocs(messagesRef);
+    const typingSnap = await getDocs(typingRef);
+    messagesSnap.forEach(doc => batch.delete(doc.ref));
+    typingSnap.forEach(doc => batch.delete(doc.ref));
+
+    const groupRef = doc(firestore, 'groups', groupId);
+    batch.delete(groupRef);
+
+    await batch.commit();
 }

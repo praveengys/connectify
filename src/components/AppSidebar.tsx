@@ -139,7 +139,7 @@ function HorizontalNav() {
                                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                                     <Avatar className="h-8 w-8">
                                         <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? 'user'} />
-                                        <AvatarFallback>{user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon size={16} />}</AvatarFallback>
+                                        <AvatarFallback>{user.memberFirstName?.charAt(0).toUpperCase() || user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
                                     </Avatar>
                                 </Button>
                             </DropdownMenuTrigger>

@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -44,7 +45,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   // Check if profile already exists
   const docSnap = await getDoc(userRef);
   if (docSnap.exists()) {
-    // Update last active time but don't overwrite existing data
+    // User profile already exists, maybe just update last login
     await updateDoc(userRef, { lastActiveAt: serverTimestamp() });
     return;
   }
@@ -95,6 +96,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
+// Forum & Thread Functions
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
     const categoriesCollection = collection(firestore, 'categories');
@@ -150,7 +152,7 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
     } as Reply));
 }
 
-// Demo Booking Server-Side Functions
+// Demo Booking
 export async function createDemoSlot(slotData: { date: string, startTime: string }): Promise<void> {
     const firestore = getFirestoreInstance();
     const slotsRef = collection(firestore, 'demoSlots');
@@ -161,6 +163,7 @@ export async function createDemoSlot(slotData: { date: string, startTime: string
         updatedAt: serverTimestamp(),
     });
 }
+
 
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
@@ -175,4 +178,23 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
+}
+
+export async function deleteThreadAdmin(threadId: string): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const batch = writeBatch(firestore);
+
+    // Delete replies and chat messages (subcollections)
+    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
+    const chatRef = collection(firestore, 'threads', threadId, 'chatMessages');
+    const repliesSnap = await getDocs(repliesRef);
+    const chatSnap = await getDocs(chatRef);
+    repliesSnap.forEach(doc => batch.delete(doc.ref));
+    chatSnap.forEach(doc => batch.delete(doc.ref));
+
+    // Delete the main thread doc
+    const threadRef = doc(firestore, 'threads', threadId);
+    batch.delete(threadRef);
+
+    await batch.commit();
 }

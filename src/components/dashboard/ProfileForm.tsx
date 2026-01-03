@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, Trash2 } from 'lucide-react';
 import type { UserProfile } from '@/hooks/use-auth';
-import { updateUserProfile } from '@/lib/firebase/firestore';
+import { updateUserProfile } from '@/lib/firebase/client-actions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { uploadPhoto } from '@/lib/actions';
 import { Card, CardContent } from '../ui/card';

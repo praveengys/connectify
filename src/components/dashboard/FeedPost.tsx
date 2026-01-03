@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useFirebase } from "@/firebase/client-provider";
 
 type FeedPostProps = {
     post: Post;
@@ -43,6 +44,7 @@ const isVideo = (url: string) => {
 }
 
 export default function FeedPost({ post }: FeedPostProps) {
+  const { firestore } = useFirebase();
   const { user } = useAuth();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -52,7 +54,7 @@ export default function FeedPost({ post }: FeedPostProps) {
   if (!user) return null;
 
   const handleShare = () => {
-    sharePost(post.id, user.uid);
+    sharePost(firestore, post.id, user.uid);
   }
   
   const handleDelete = async () => {
@@ -142,9 +144,8 @@ export default function FeedPost({ post }: FeedPostProps) {
         postId={post.id}
         isOpen={isShareOpen}
         setIsOpen={setIsShareOpen}
-        onShare={handleShare}
       />
-      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+    <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to delete this post?</AlertDialogTitle>

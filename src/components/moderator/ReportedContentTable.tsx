@@ -47,21 +47,21 @@ export default function ReportedContentTable() {
       const augmentedReports = await Promise.all(reportsData.map(async (report) => {
           let content: Thread | Reply | null = null;
           let contentAuthor: UserProfile | null = null;
-          const reporter = await getUserProfile(report.reporterId);
+          const reporter = await getUserProfile(firestore, report.reporterId);
           
           if (report.contentType === 'thread') {
               const threadRef = doc(firestore, 'threads', report.contentId);
               const threadSnap = await getDoc(threadRef);
               if (threadSnap.exists()) {
                   content = { id: threadSnap.id, ...threadSnap.data() } as Thread;
-                  contentAuthor = await getUserProfile(content.authorId);
+                  contentAuthor = await getUserProfile(firestore, content.authorId);
               }
           } else if (report.contentType === 'reply' && report.threadId) {
               const replyRef = doc(firestore, 'threads', report.threadId, 'replies', report.contentId);
               const replySnap = await getDoc(replyRef);
               if (replySnap.exists()) {
                   content = { id: replySnap.id, ...replySnap.data() } as Reply;
-                  contentAuthor = await getUserProfile(content.authorId);
+                  contentAuthor = await getUserProfile(firestore, content.authorId);
               }
           }
 

@@ -35,6 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useFirebase } from '@/firebase/client-provider';
 
 type ViewGroupMembersDialogProps = {
   group: Group;
@@ -48,6 +49,7 @@ type MemberWithProfile = {
 }
 
 export default function ViewGroupMembersDialog({ group, isOpen, setIsOpen }: ViewGroupMembersDialogProps) {
+  const { firestore } = useFirebase();
   const { user: adminUser } = useAuth();
   const { toast } = useToast();
   const [members, setMembers] = useState<MemberWithProfile[]>([]);
@@ -70,7 +72,7 @@ export default function ViewGroupMembersDialog({ group, isOpen, setIsOpen }: Vie
       setError(null);
       try {
         const memberIds = Object.keys(group.members);
-        const memberPromises = memberIds.map(id => getUserProfile(id));
+        const memberPromises = memberIds.map(id => getUserProfile(firestore, id));
         const memberProfiles = await Promise.all(memberPromises);
 
         const memberList: MemberWithProfile[] = [];
@@ -98,7 +100,7 @@ export default function ViewGroupMembersDialog({ group, isOpen, setIsOpen }: Vie
     };
 
     fetchMembers();
-  }, [group, isOpen]);
+  }, [group, isOpen, firestore]);
   
   const handleAction = (title: string, description: string, onConfirm: () => void) => {
     setConfirmState({ isOpen: true, title, description, onConfirm });

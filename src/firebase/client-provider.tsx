@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getAuth, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,36 +14,40 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-interface FirebaseContextValue {
-  firebaseApp: FirebaseApp;
-  auth: Auth;
-  firestore: Firestore;
-}
+type FirebaseContextValue = {
+    app: FirebaseApp;
+    firestore: Firestore;
+    auth: Auth;
+};
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
 
 export function FirebaseClientProvider({ children }: { children: ReactNode }) {
-  const firebaseApp = useMemo(() => initializeApp(firebaseConfig), []);
-  const auth = useMemo(() => getAuth(firebaseApp), [firebaseApp]);
-  const firestore = useMemo(() => getFirestore(firebaseApp), [firebaseApp]);
-  
-  const contextValue = useMemo(() => ({
-    firebaseApp,
-    auth,
-    firestore,
-  }), [firebaseApp, auth, firestore]);
+    const [firebase, setFirebase] = useState<FirebaseContextValue | null>(null);
 
-  return (
-    <FirebaseContext.Provider value={contextValue}>
-        {children}
-    </FirebaseContext.Provider>
-  );
+    useEffect(() => {
+        const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+        const firestore = getFirestore(app);
+        const auth = getAuth(app);
+        setFirebase({ app, firestore, auth });
+    }, []);
+
+    if (!firebase) {
+        // You can return a loader here if you want
+        return null;
+    }
+
+    return (
+        <FirebaseContext.Provider value={firebase}>
+            {children}
+        </FirebaseContext.Provider>
+    );
 }
 
 export function useFirebase() {
-  const context = useContext(FirebaseContext);
-  if (!context) {
-    throw new Error('useFirebase must be used within a FirebaseProvider');
-  }
-  return context;
+    const context = useContext(FirebaseContext);
+    if (!context) {
+        throw new Error('useFirebase must be used within a FirebaseClientProvider');
+    }
+    return context;
 }

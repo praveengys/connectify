@@ -8,25 +8,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Users, Video, Info, ShieldCheck } from "lucide-react";
 import { ScrollArea } from "../ui/scroll-area";
 import { useEffect, useState } from "react";
-import { getUserProfile } from "@/lib/firebase/firestore";
+import { getUserProfile } from "@/lib/firebase/client-actions";
 import { cn } from "@/lib/utils";
+import { useFirebase } from "@/firebase/client-provider";
 
 type GroupInfoPanelProps = {
   group: Group;
 }
 
 export default function GroupInfoPanel({ group }: GroupInfoPanelProps) {
+  const { firestore } = useFirebase();
   const [members, setMembers] = useState<UserProfile[]>([]);
 
   useEffect(() => {
     const fetchMembers = async () => {
       const memberIds = Object.keys(group.members);
-      const memberPromises = memberIds.map(id => getUserProfile(id));
+      const memberPromises = memberIds.map(id => getUserProfile(firestore, id));
       const memberProfiles = (await Promise.all(memberPromises)).filter(p => p !== null) as UserProfile[];
       setMembers(memberProfiles);
     }
     fetchMembers();
-  }, [group.members]);
+  }, [group.members, firestore]);
 
   return (
     <div className="flex flex-col h-full bg-secondary/30">

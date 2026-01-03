@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,6 @@ const phrases = [
 export default function LandingPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
-    const [typedText, setTypedText] = useState('');
     const [phraseIndex, setPhraseIndex] = useState(0);
 
     useEffect(() => {
@@ -32,39 +30,12 @@ export default function LandingPage() {
     }, [user, loading, router]);
     
     useEffect(() => {
-        let currentIndex = 0;
-        let isDeleting = false;
-        let timeoutId: NodeJS.Timeout;
-
-        const type = () => {
-          const currentPhrase = phrases[phraseIndex];
-          
-          if (isDeleting) {
-            setTypedText(currentPhrase.substring(0, currentIndex - 1));
-            currentIndex--;
-            if (currentIndex === 0) {
-              isDeleting = false;
-              setPhraseIndex((prevIndex) => (prevIndex + 1) % phrases.length);
-            }
-          } else {
-            setTypedText(currentPhrase.substring(0, currentIndex + 1));
-            currentIndex++;
-            if (currentIndex === currentPhrase.length) {
-              // Pause at the end of the phrase
-              timeoutId = setTimeout(() => {
-                isDeleting = true;
-              }, 2000);
-            }
-          }
-        };
+        const intervalId = setInterval(() => {
+          setPhraseIndex((prevIndex) => (prevIndex + 1) % phrases.length);
+        }, 3000); // Change phrase every 3 seconds
     
-        const typingInterval = setInterval(type, isDeleting ? 75 : 150);
-    
-        return () => {
-            clearInterval(typingInterval);
-            clearTimeout(timeoutId);
-        };
-      }, [phraseIndex]);
+        return () => clearInterval(intervalId);
+      }, []);
 
 
   return (
@@ -76,10 +47,9 @@ export default function LandingPage() {
           <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:6rem_4rem] opacity-20"></div>
           <div className="animate-fade-in-up">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4 h-24 md:h-32">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
-                    {typedText}
+                <span key={phraseIndex} className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500 inline-block animate-popup">
+                    {phrases[phraseIndex]}
                 </span>
-                <span className="typing-cursor">|</span>
             </h1>
             <p className="max-w-2xl mx-auto text-lg text-muted-foreground mb-8">
               The AITSP Community Platform is a dedicated digital space built exclusively for AITSP members to connect, collaborate, and grow together. It brings professionals, leaders, and contributors into a single trusted environment designed to foster meaningful discussions, shared learning, and collective progress.

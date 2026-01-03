@@ -1,5 +1,4 @@
 
-
 import { type Timestamp } from 'firebase/firestore';
 
 export type Forum = {
@@ -246,4 +245,8 @@ export type ModerationLog = {
     reason?: string;
 };
 
-    
+export type NewsletterSubscription = {
+    email: string;
+    createdAt: Timestamp | Date;
+    source: string;
+};

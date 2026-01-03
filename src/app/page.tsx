@@ -3,13 +3,14 @@
 
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, MessageSquare, Users, BookOpen, Sparkles, UserCheck, Shield, Zap } from 'lucide-react';
+import { ArrowRight, MessageSquare, Users, BookOpen, Sparkles, UserCheck, Shield, Zap, LifeBuoy } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import AboutSection from '@/components/landing/AboutSection';
+import NewsletterForm from '@/components/landing/NewsletterForm';
 
 export default function LandingPage() {
     const { user, loading } = useAuth();
@@ -106,6 +107,29 @@ export default function LandingPage() {
 
         {/* About Section */}
         <AboutSection />
+
+        {/* Newsletter and Contact Section */}
+        <section className="py-20 bg-secondary/30">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <NewsletterForm />
+              <Link href="/contact" className="h-full">
+                <Card className="h-full card-hover flex flex-col items-center justify-center text-center p-8 relative overflow-hidden">
+                    <div className="absolute -bottom-10 -right-10 w-32 h-32 text-primary/5">
+                        <LifeBuoy className="w-full h-full" strokeWidth={0.5}/>
+                    </div>
+                    <div className="relative">
+                        <div className="p-4 bg-primary/10 rounded-full inline-block mb-4">
+                            <LifeBuoy className="h-10 w-10 text-primary" />
+                        </div>
+                        <h3 className="text-2xl font-bold">Contact</h3>
+                        <p className="text-muted-foreground mt-2">Questions, comments, or concerns? We’re here to help!</p>
+                    </div>
+                </Card>
+              </Link>
+            </div>
+          </div>
+        </section>
 
         {/* Call to Action Section */}
         <section className="container mx-auto px-4 py-20 text-center">

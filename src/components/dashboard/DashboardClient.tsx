@@ -4,10 +4,7 @@ import { useState, useEffect } from 'react';
 import type { UserProfile } from '@/hooks/use-auth';
 import PostCreator from './PostCreator';
 import Feed from './Feed';
-import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
-import Stories from './Stories';
-import Header from '../Header';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import ProfileForm from './ProfileForm';
 
@@ -31,8 +28,13 @@ export default function DashboardClient({ user }: DashboardClientProps) {
     setCurrentUser(updatedUser);
   };
 
+  // Keep the state in sync if the root user prop changes (e.g. from auth provider)
+  useEffect(() => {
+    setCurrentUser(user);
+  }, [user]);
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-1">
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
             <div className="max-w-3xl mx-auto">
                 <h2 className="text-2xl font-bold mb-4">Activity Feed</h2>

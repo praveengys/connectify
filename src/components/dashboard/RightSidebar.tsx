@@ -12,7 +12,7 @@ type RightSidebarProps = {
 
 export default function RightSidebar({ user, onEditProfile }: RightSidebarProps) {
   return (
-    <aside className="hidden lg:flex lg:flex-col w-80 border-l p-6 bg-background space-y-6">
+    <aside className="hidden lg:flex lg:flex-col w-80 border-l p-6 bg-secondary/30 space-y-6">
       <ProfileCompleteness user={user} onEditProfile={onEditProfile} />
       <RecentDiscussions />
       <ActiveGroups />

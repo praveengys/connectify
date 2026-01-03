@@ -104,7 +104,7 @@ export default function UserImporter() {
             <CardHeader>
                 <CardTitle>Import Member Logins</CardTitle>
                 <CardDescription>
-                    Upload your JSON file to create login credentials for your existing members in Firestore.
+                    Upload your JSON file to create login credentials for your existing members in Firebase.
                 </CardDescription>
             </CardHeader>
             <CardContent>

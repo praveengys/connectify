@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -170,6 +171,7 @@ export async function createThread(data: ThreadData): Promise<Thread> {
   
   const newThreadRef = await addDoc(threadsRef, {
     ...data,
+    authorId: data.authorId, // Ensure authorId is passed
     replyCount: 0,
     latestReplyAt: null,
     createdAt: serverTimestamp(),
@@ -227,7 +229,7 @@ export async function createReply(data: ReplyData): Promise<void> {
     const repliesRef = collection(threadRef, 'replies');
     
     await addDoc(repliesRef, {
-        authorId: data.authorId,
+        authorId: data.authorId, // Ensure authorId is passed
         body: data.body,
         parentReplyId: data.parentReplyId,
         status: 'published',
@@ -260,6 +262,7 @@ export async function createChatMessage(threadId: string, messageData: Partial<C
   const messagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
   await addDoc(messagesRef, {
       ...messageData,
+      senderId: messageData.senderId, // Ensure senderId is passed
       senderProfile: {
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
@@ -452,11 +455,12 @@ export async function sharePost(postId: string, userId: string): Promise<void> {
 
 
 // Demo Booking
-export async function createDemoSlot(slotData: { date: string, startTime: string, status: 'available' }): Promise<void> {
+export async function createDemoSlot(slotData: { date: string, startTime: string }): Promise<void> {
     const firestore = getFirestoreInstance();
     const slotsRef = collection(firestore, 'demoSlots');
     await addDoc(slotsRef, {
         ...slotData,
+        status: 'available',
         lockedByRequestId: null,
         updatedAt: serverTimestamp(),
     });
@@ -471,8 +475,7 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const q = query(
     slotsRef,
     where('date', '==', dateStr),
-    where('status', '==', 'available'),
-    orderBy('startTime', 'asc')
+    where('status', '==', 'available')
   );
   
   const snapshot = await getDocs(q);
@@ -503,6 +506,7 @@ export async function bookDemo(request: BookingRequest): Promise<void> {
         const bookingRef = doc(collection(firestore, 'demoBookings'));
         transaction.set(bookingRef, {
             ...bookingData,
+            uid: bookingData.uid, // Ensure uid is passed
             slotId: slotId,
             date: slotDoc.data().date,
             startTime: slotDoc.data().startTime,

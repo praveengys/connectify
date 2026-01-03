@@ -12,8 +12,10 @@ import { Card, CardContent } from "../ui/card";
 import { uploadPhoto } from "@/lib/actions";
 import Image from "next/image";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { useAuth } from "@/hooks/use-auth";
 
-export default function PostCreator({ user }: { user: UserProfile }) {
+export default function PostCreator({ user: initialUser }: { user: UserProfile }) {
+  const { user } = useAuth(); // Use the live user from auth context
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -56,6 +58,16 @@ export default function PostCreator({ user }: { user: UserProfile }) {
   }
 
   const handleCreatePost = async () => {
+    // CRITICAL FIX: Ensure user and user.uid are present before posting.
+    if (!user?.uid) {
+        toast({
+            title: "Authentication Error",
+            description: "Please wait a moment and try again. Your session is initializing.",
+            variant: "destructive"
+        });
+        return;
+    }
+      
     if (!content.trim() && !mediaFile) {
         toast({
             title: "Post is empty",
@@ -81,6 +93,7 @@ export default function PostCreator({ user }: { user: UserProfile }) {
             mediaUrl = result.secure_url;
         }
 
+        // Use the confirmed user.uid for the authorId
         await createPost(user.uid, content, 'active', mediaUrl ? [mediaUrl] : []);
         
         setContent('');
@@ -100,17 +113,19 @@ export default function PostCreator({ user }: { user: UserProfile }) {
         setIsPosting(false);
     }
   };
+  
+  const displayUser = user || initialUser;
 
   return (
     <Card>
       <CardContent className="p-4">
         <div className="flex gap-4">
           <Avatar>
-            <AvatarImage src={user.avatarUrl || ''} />
-            <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
+            <AvatarImage src={displayUser.avatarUrl || ''} />
+            <AvatarFallback>{displayUser.displayName.charAt(0)}</AvatarFallback>
           </Avatar>
           <Textarea 
-            placeholder={`Share what's on your mind, ${user.displayName.split(' ')[0]}...`}
+            placeholder={`Share what's on your mind, ${displayUser.displayName.split(' ')[0]}...`}
             className="flex-grow border-none focus-visible:ring-0 bg-transparent p-0" 
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -157,7 +172,7 @@ export default function PostCreator({ user }: { user: UserProfile }) {
                 </TooltipProvider>
             </div>
             <div className="flex gap-2">
-                <Button onClick={handleCreatePost} disabled={isPosting || (!content.trim() && !mediaFile)}>
+                <Button onClick={handleCreatePost} disabled={isPosting || (!user?.uid) || (!content.trim() && !mediaFile)}>
                     {isPosting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Post
                 </Button>

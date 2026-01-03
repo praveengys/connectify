@@ -1,5 +1,4 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -27,6 +26,7 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(uid())).data.role in ['admin', 'moderator'];
     }
 
+    // Users
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if isSelf(userId);
@@ -35,13 +35,16 @@ service cloud.firestore {
 
       match /notifications/{id} {
         allow read, update, delete: if isSelf(userId);
-        allow create: if false;
+        allow create: if false; // backend only
       }
     }
 
+    // Posts, Likes, Comments
     match /posts/{postId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.authorId == uid();
+      allow create: if signedIn()
+        && request.resource.data.authorId == uid()
+        && exists(/databases/$(database)/documents/users/$(uid()));
       allow update: if isAdmin() || uid() == resource.data.authorId;
       allow delete: if isAdmin() || uid() == resource.data.authorId;
 
@@ -60,15 +63,14 @@ service cloud.firestore {
       }
     }
 
+    // Groups & Group Chat
     match /groups/{groupId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.createdBy == uid();
-
+      
       allow update: if isAdmin()
-        || (request.resource.data.diff(resource.data)
-            .affectedKeys()
-            .hasOnly(['lastMessage', 'memberCount', 'activeMeeting']) && get(/databases/$(database)/documents/groups/$(groupId)).data.members[uid()] == true);
-
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'memberCount', 'members', 'memberRoles']));
+        
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
@@ -83,30 +85,30 @@ service cloud.firestore {
 
         allow update, delete: if isAdmin() || uid() == resource.data.senderId;
       }
-
-       match /typing/{userId} {
-          allow write: if isSelf(userId);
-          allow read: if get(/databases/$(database)/documents/groups/$(groupId)).data.members[uid()] == true;
+       match /typing/{typingId} {
+          allow read, write: if signedIn() && get(/databases/$(database)/documents/groups/$(groupId)).data.members[uid()] == true;
       }
     }
 
+    // Threads, Replies, and Thread Chat
     match /threads/{threadId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.authorId == uid();
-      allow update, delete: if isModerator() || uid() == resource.data.authorId;
+      allow update, delete: if isAdmin() || uid() == resource.data.authorId;
 
       match /replies/{replyId} {
         allow read: if signedIn();
         allow create: if signedIn() && request.resource.data.authorId == uid();
-        allow update, delete: if isModerator() || uid() == resource.data.authorId;
+        allow update, delete: if isAdmin() || uid() == resource.data.authorId;
       }
 
       match /chatMessages/{id} {
         allow read, create: if signedIn();
-        allow update, delete: if isModerator() || uid() == resource.data.senderId;
+        allow update, delete: if isAdmin() || uid() == resource.data.senderId;
       }
     }
 
+    // Demo Booking
     match /demoSlots/{id} {
       allow read: if signedIn();
       allow write: if isAdmin();
@@ -117,7 +119,8 @@ service cloud.firestore {
       allow read: if isAdmin() || uid() == resource.data.uid;
       allow update, delete: if isAdmin();
     }
-
+    
+    // Moderation & Forums
     match /forums/{id} {
       allow read: if signedIn();
       allow write: if isModerator();

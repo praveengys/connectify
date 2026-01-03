@@ -249,8 +249,10 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
              return (
                 <div className="flex flex-col min-h-screen bg-background">
                     <Header />
-                    <main className="flex-grow container mx-auto px-4 py-8">
-                        {children}
+                    <main className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
+                        <div className="w-full max-w-4xl">
+                           {children}
+                        </div>
                     </main>
                 </div>
             );

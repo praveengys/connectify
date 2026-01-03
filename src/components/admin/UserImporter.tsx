@@ -47,7 +47,7 @@ export default function UserImporter() {
         setResult(importResult);
         toast({
             title: 'Import Complete',
-            description: `${importResult.successCount} users imported, ${importResult.errorCount} failed.`,
+            description: `${importResult.successCount} users created, ${importResult.errorCount} failed.`,
         });
       } catch (error: any) {
         toast({
@@ -72,7 +72,7 @@ export default function UserImporter() {
                     <div className="flex items-center gap-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                         <CheckCircle className="h-8 w-8 text-green-600"/>
                         <div>
-                            <p className="font-bold text-green-800">{result.successCount} Users Imported Successfully</p>
+                            <p className="font-bold text-green-800">{result.successCount} User Authentication Profiles Created</p>
                             <p className="text-sm text-green-700">These users can now log in with the password 'password123'.</p>
                         </div>
                     </div>
@@ -91,7 +91,7 @@ export default function UserImporter() {
                             </ul>
                         </div>
                     )}
-                    <Button onClick={() => setResult(null)}>Start New Import</Button>
+                    <Button onClick={() => { setResult(null); form.reset(); }}>Start New Import</Button>
                 </div>
             </CardContent>
         </Card>
@@ -102,10 +102,9 @@ export default function UserImporter() {
     <div className="grid gap-8 md:grid-cols-2">
         <Card>
             <CardHeader>
-                <CardTitle>Upload Member Data</CardTitle>
+                <CardTitle>Import Member Logins</CardTitle>
                 <CardDescription>
-                    Select the JSON file containing the member data you want to import.
-                    The file should be an array of user objects.
+                    Upload your JSON file to create login credentials for your existing members in Firestore.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -116,7 +115,7 @@ export default function UserImporter() {
                     name="jsonFile"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>JSON File</FormLabel>
+                        <FormLabel>Members JSON File</FormLabel>
                         <FormControl>
                             <Input 
                                 type="file" 
@@ -134,7 +133,7 @@ export default function UserImporter() {
                     ) : (
                         <UploadCloud className="mr-2 h-4 w-4" />
                     )}
-                    Start Import
+                    Create Logins
                     </Button>
                 </form>
                 </Form>
@@ -148,7 +147,7 @@ export default function UserImporter() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">View the full required schema for all available fields:</p>
+                <p className="text-sm text-muted-foreground mb-2">The importer will create Firebase Auth users with a UID matching the <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code>. A default password of 'password123' will be set.</p>
                 <Button variant="outline" asChild>
                     <Link href="/docs/member-import-schema.json" target="_blank">View Schema</Link>
                 </Button>
@@ -157,3 +156,5 @@ export default function UserImporter() {
     </div>
   );
 }
+
+    

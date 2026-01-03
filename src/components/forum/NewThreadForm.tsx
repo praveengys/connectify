@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,11 +16,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { Category, Forum } from '@/lib/types';
-import { getOrCreateCategory } from '@/lib/firebase/firestore';
+import { getOrCreateCategory } from '@/lib/firebase/client-actions';
 import { createThread } from '@/lib/firebase/client-actions';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import { Combobox } from '@/components/ui/combobox';
+import { useFirebase } from '@/firebase/client-provider';
 
 const formSchema = z.object({
   forumId: z.string().min(1, { message: 'Please select a forum.' }),
@@ -31,6 +32,7 @@ const formSchema = z.object({
 });
 
 export default function NewThreadForm() {
+  const { firestore } = useFirebase();
   const [loading, setLoading] = useState(false);
   const [forums, setForums] = useState<Forum[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -40,8 +42,7 @@ export default function NewThreadForm() {
 
   useEffect(() => {
     async function fetchForumsAndCategories() {
-      if (!user) return;
-      const { firestore } = initializeFirebase();
+      if (!user || !firestore) return;
       
       const forumQuery = query(collection(firestore, 'forums'), orderBy('createdAt', 'desc'));
       const forumSnapshot = await getDocs(forumQuery);
@@ -52,7 +53,7 @@ export default function NewThreadForm() {
       setCategories(categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
     }
     fetchForumsAndCategories();
-  }, [user]);
+  }, [user, firestore]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

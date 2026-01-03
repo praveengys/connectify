@@ -1,20 +1,22 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Group } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '../ui/button';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function ActiveGroups() {
+    const { firestore } = useFirebase();
     const [groups, setGroups] = useState<Group[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const { firestore } = initializeFirebase();
+        if (!firestore) return;
         const groupsRef = collection(firestore, 'groups');
         const q = query(groupsRef, orderBy('memberCount', 'desc'), limit(5));
 
@@ -31,7 +33,7 @@ export default function ActiveGroups() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [firestore]);
 
     return (
         <Card>

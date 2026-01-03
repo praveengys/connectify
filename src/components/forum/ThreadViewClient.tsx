@@ -6,7 +6,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { onSnapshot, collection, query, orderBy, Timestamp } from 'firebase/firestore';
 import { notFound, useRouter } from 'next/navigation';
 
-import { initializeFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import type { Reply, Thread, UserProfile } from '@/lib/types';
-import { getThread, getUserProfile } from '@/lib/firebase/firestore';
+import { getUserProfile } from '@/lib/firebase/client-actions';
 import { createReply } from '@/lib/firebase/client-actions';
 import { MessageSquare, CornerDownRight, Lock, Loader2 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
@@ -22,6 +21,7 @@ import ChatRoom from './ChatRoom';
 import { Separator } from '../ui/separator';
 import { Textarea } from '../ui/textarea';
 import Link from 'next/link';
+import { useFirebase } from '@/firebase/client-provider';
 
 type ThreadViewClientProps = {
   threadId: string;
@@ -35,6 +35,7 @@ type GroupedReplies = {
 };
 
 export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
+  const { firestore } = useFirebase();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [thread, setThread] = useState<Thread | null>(null);
@@ -68,11 +69,10 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
 
   // Initial data load and real-time listeners
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !firestore) return;
     
     setPageLoading(true);
-    const { firestore } = initializeFirebase();
-
+    
     // Listener for the main thread document
     const threadRef = doc(firestore, 'threads', threadId);
     const unsubscribeThread = onSnapshot(threadRef, (docSnap) => {
@@ -134,7 +134,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
       unsubscribeThread();
       unsubscribeReplies();
     };
-  }, [threadId, authLoading]);
+  }, [threadId, authLoading, firestore, authors]);
 
   const threadAuthor = useMemo(() => thread ? authors[thread.authorId] : undefined, [authors, thread]);
   

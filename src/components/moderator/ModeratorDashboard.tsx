@@ -3,11 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Flag, MessageSquare, Users } from "lucide-react";
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
+import { useFirebase } from '@/firebase/client-provider';
 
 const StatCard = ({ title, value, icon: Icon, href }: { title: string, value: string | number, icon: React.ElementType, href: string }) => (
     <Link href={href}>
@@ -26,13 +26,13 @@ const StatCard = ({ title, value, icon: Icon, href }: { title: string, value: st
 
 
 export default function ModeratorDashboard() {
+  const { firestore } = useFirebase();
   const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState({ reports: 0, discussions: 0, users: 0 });
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading || !user || !firestore) return;
 
-    const { firestore } = initializeFirebase();
     const unsubscribes = [
       onSnapshot(query(collection(firestore, 'reports'), where('status', '==', 'open')), snapshot => 
         setStats(s => ({ ...s, reports: snapshot.size }))
@@ -46,7 +46,7 @@ export default function ModeratorDashboard() {
     ];
     
     return () => unsubscribes.forEach(unsub => unsub());
-  }, [user, authLoading]);
+  }, [user, authLoading, firestore]);
 
   return (
     <div>

@@ -1,17 +1,18 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import type { PostComment, UserProfile } from '@/lib/types';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { createComment } from '@/lib/firebase/client-actions';
-import { getUserProfile } from '@/lib/firebase/firestore';
+import { getUserProfile } from '@/lib/firebase/client-actions';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import PostCommentItem from './PostCommentItem';
+import { useFirebase } from '@/firebase/client-provider';
 
 type CommentSectionProps = {
   postId: string;
@@ -25,6 +26,7 @@ type GroupedComments = {
 };
 
 export default function CommentSection({ postId }: CommentSectionProps) {
+  const { firestore } = useFirebase();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [comments, setComments] = useState<PostComment[]>([]);
@@ -56,7 +58,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   }, [authors]);
 
   useEffect(() => {
-    const { firestore } = initializeFirebase();
+    if (!firestore) return;
     const commentsRef = collection(firestore, 'posts', postId, 'comments');
     const q = query(commentsRef, orderBy('createdAt', 'asc'));
 
@@ -80,7 +82,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     });
 
     return () => unsubscribe();
-  }, [postId, fetchAuthors]);
+  }, [postId, fetchAuthors, firestore]);
   
   const groupedComments = useMemo(() => {
     const topLevelComments = comments.filter(c => !c.parentCommentId);

@@ -5,18 +5,19 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { initializeFirebase } from '@/firebase';
 import type { ChatMessage, Thread, UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import ChatMessageItem from './ChatMessage';
 import ChatInput from './ChatInput';
-import { createChatMessage } from '@/lib/firebase/firestore';
+import { createChatMessage } from '@/lib/firebase/client-actions';
+import { useFirebase } from '@/firebase/client-provider';
 
 type ChatRoomProps = {
   thread: Thread;
 };
 
 export default function ChatRoom({ thread }: ChatRoomProps) {
+  const { firestore } = useFirebase();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -25,7 +26,7 @@ export default function ChatRoom({ thread }: ChatRoomProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !firestore) return;
 
     if (!user) {
       setLoading(false);
@@ -33,7 +34,6 @@ export default function ChatRoom({ thread }: ChatRoomProps) {
       return;
     }
     
-    const { firestore } = initializeFirebase();
     const messagesRef = collection(firestore, 'threads', thread.id, 'chatMessages');
     const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(50));
 
@@ -64,7 +64,7 @@ export default function ChatRoom({ thread }: ChatRoomProps) {
     );
 
     return () => unsubscribe();
-  }, [thread.id, user, authLoading, toast]);
+  }, [thread.id, user, authLoading, toast, firestore]);
 
   useEffect(() => {
     // Auto-scroll to bottom

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,12 +10,19 @@ import { MessageSquare, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '../ui/button';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function RecentDiscussions() {
+    const { user, loading: authLoading } = useAuth();
     const [threads, setThreads] = useState<Thread[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (authLoading || !user) {
+            if (!authLoading) setLoading(false);
+            return;
+        }
+
         const { firestore } = initializeFirebase();
         const threadsRef = collection(firestore, 'threads');
         const q = query(threadsRef, orderBy('createdAt', 'desc'), limit(5));
@@ -33,7 +41,7 @@ export default function RecentDiscussions() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [user, authLoading]);
 
     return (
         <Card>
@@ -41,12 +49,12 @@ export default function RecentDiscussions() {
                 <CardTitle className="text-lg">Recent Discussions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {loading && (
+                {(loading || authLoading) && (
                     <div className="flex justify-center items-center py-4">
                         <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
                 )}
-                {!loading && threads.map(thread => (
+                {!loading && !authLoading && user && threads.map(thread => (
                     <Link href={`/forum/threads/${thread.id}`} key={thread.id} className="block hover:bg-accent rounded-lg p-2 -m-2">
                         <div>
                             <p className="font-semibold text-sm leading-tight line-clamp-2">{thread.title}</p>
@@ -56,7 +64,7 @@ export default function RecentDiscussions() {
                         </div>
                     </Link>
                 ))}
-                {!loading && threads.length === 0 && (
+                {!loading && !authLoading && (!user || threads.length === 0) && (
                     <p className="text-sm text-center text-muted-foreground py-4">No discussions yet.</p>
                 )}
                 {!loading && (

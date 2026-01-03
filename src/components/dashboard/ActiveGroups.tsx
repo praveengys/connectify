@@ -9,12 +9,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '../ui/button';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function ActiveGroups() {
+    const { user, loading: authLoading } = useAuth();
     const [groups, setGroups] = useState<Group[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (authLoading || !user) {
+            if (!authLoading) setLoading(false);
+            return;
+        }
+
         const { firestore } = initializeFirebase();
         const groupsRef = collection(firestore, 'groups');
         const q = query(
@@ -37,7 +44,7 @@ export default function ActiveGroups() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [user, authLoading]);
 
     return (
         <Card>
@@ -45,12 +52,12 @@ export default function ActiveGroups() {
                 <CardTitle className="text-lg">Active Groups</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {loading && (
+                {(loading || authLoading) && (
                     <div className="flex justify-center items-center py-4">
                         <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
                 )}
-                {!loading && groups.map(group => (
+                {!loading && !authLoading && user && groups.map(group => (
                      <Link href={`/chat/${group.id}`} key={group.id} className="block hover:bg-accent rounded-lg p-2 -m-2">
                         <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
@@ -63,7 +70,7 @@ export default function ActiveGroups() {
                         </div>
                     </Link>
                 ))}
-                {!loading && groups.length === 0 && (
+                {!loading && !authLoading && (!user || groups.length === 0) && (
                      <p className="text-sm text-center text-muted-foreground py-4">No active groups yet.</p>
                 )}
                  {!loading && (

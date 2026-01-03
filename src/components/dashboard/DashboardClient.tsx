@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { UserProfile } from '@/hooks/use-auth';
@@ -23,7 +24,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
            <h2 className="text-2xl font-bold mb-4">Activity Feed</h2>
           <PostCreator user={user} />
           <div className="mt-8">
-            <Feed user={user} />
+            <Feed />
           </div>
         </div>
 

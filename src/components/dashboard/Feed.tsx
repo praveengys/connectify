@@ -8,20 +8,18 @@ import type { Post, UserProfile } from '@/lib/types';
 import FeedPost from './FeedPost';
 import { Loader2, ServerCrash } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
+import { useAuth } from '@/hooks/use-auth';
 
 async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
     const authorIds = new Set<string>();
     posts.forEach(post => {
         authorIds.add(post.authorId);
-        if (post.isRepost && post.originalAuthor?.displayName) { // This is wrong, originalAuthor is not an ID
-           // We need to fetch original author if not present.
-           // The data model is slightly flawed. Let's assume originalPost has author data.
-        }
     });
 
     const uniqueAuthorIds = Array.from(authorIds);
-    const authorProfiles = new Map<string, Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>>();
+    if (uniqueAuthorIds.length === 0) return posts;
 
+    const authorProfiles = new Map<string, Pick<UserProfile, 'displayName' | 'avatarUrl' | 'username'>>();
     const authorDocs = await Promise.all(
         uniqueAuthorIds.map(id => getDoc(doc(initializeFirebase().firestore, 'users', id)))
     );
@@ -37,13 +35,10 @@ async function fetchAndAttachAuthorData(posts: Post[]): Promise<Post[]> {
         }
     });
 
-    return posts.map(post => {
-        const hydratedPost = { ...post, author: authorProfiles.get(post.authorId) };
-        
-        // If it's a repost and original author data is missing, we should fetch it.
-        // For now, the repost logic in firestore.ts denormalizes it, so this should be fine.
-        return hydratedPost;
-    });
+    return posts.map(post => ({
+        ...post,
+        author: authorProfiles.get(post.authorId)
+    }));
 }
 
 const FeedSkeleton = () => (
@@ -65,17 +60,22 @@ const FeedSkeleton = () => (
     </div>
 );
 
-export default function Feed({ user }: { user: UserProfile }) {
+export default function Feed() {
+    const { user, loading: authLoading } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (authLoading || !user) {
+            if (!authLoading) setLoading(false);
+            return;
+        }
+
         const { firestore } = initializeFirebase();
         const postsRef = collection(firestore, 'posts');
         const q = query(
             postsRef,
-            where('visibility', '==', 'public'),
             orderBy('createdAt', 'desc')
         );
 
@@ -86,10 +86,8 @@ export default function Feed({ user }: { user: UserProfile }) {
                 createdAt: doc.data().createdAt?.toDate() ?? new Date(),
             } as Post));
 
-            // Fetch and attach author data
             const postsWithAuthors = await fetchAndAttachAuthorData(postsData);
             
-            // Check for likes
             const postsWithLikes = await Promise.all(postsWithAuthors.map(async (post) => {
                 const likeRef = doc(firestore, 'posts', post.id, 'likes', user.uid);
                 const likeSnap = await getDoc(likeRef);
@@ -105,9 +103,9 @@ export default function Feed({ user }: { user: UserProfile }) {
         });
 
         return () => unsubscribe();
-    }, [user.uid]);
+    }, [user, authLoading]);
 
-    if (loading) {
+    if (loading || authLoading) {
         return <FeedSkeleton />;
     }
 
@@ -118,6 +116,15 @@ export default function Feed({ user }: { user: UserProfile }) {
                 <p className="text-lg font-semibold">{error}</p>
             </div>
         );
+    }
+    
+    if (!user) {
+        return (
+            <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                <h3 className="text-lg font-semibold">Log in to see the feed</h3>
+                <p className="mt-1 text-sm">Posts from the community will appear here.</p>
+            </div>
+        )
     }
 
     if (posts.length === 0) {

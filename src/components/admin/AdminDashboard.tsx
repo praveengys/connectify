@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
 
 const StatCard = ({ title, value, icon: Icon, href }: { title: string, value: number, icon: React.ElementType, href: string }) => (
     <Link href={href}>
@@ -62,11 +63,17 @@ const RecentSignups = ({ users, loading }: { users: UserProfile[], loading: bool
 )
 
 export default function AdminDashboard() {
+    const { user, loading: authLoading } = useAuth();
     const [stats, setStats] = useState({ users: 0, groups: 0, threads: 0 });
     const [recentUsers, setRecentUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (authLoading || !user || user.role !== 'admin') {
+            if (!authLoading) setLoading(false);
+            return;
+        }
+
         const { firestore } = initializeFirebase();
         const collections = {
             users: collection(firestore, 'users'),
@@ -90,7 +97,7 @@ export default function AdminDashboard() {
         ];
 
         return () => unsubscribes.forEach(unsub => unsub());
-    }, []);
+    }, [user, authLoading]);
 
   return (
     <div>
@@ -99,7 +106,7 @@ export default function AdminDashboard() {
             <StatCard title="Total Users" value={stats.users} icon={Users} href="/admin/users" />
             <StatCard title="Total Groups" value={stats.groups} icon={MessageSquare} href="/admin/groups" />
             <StatCard title="Total Discussions" value={stats.threads} icon={BookOpen} href="/admin/discussions" />
-            <RecentSignups users={recentUsers} loading={loading} />
+            <RecentSignups users={recentUsers} loading={loading || authLoading} />
         </div>
     </div>
   );

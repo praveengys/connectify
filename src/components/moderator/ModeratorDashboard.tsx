@@ -1,9 +1,13 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Flag, MessageSquare, Users } from "lucide-react";
 import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
 
 const StatCard = ({ title, value, icon: Icon, href }: { title: string, value: string | number, icon: React.ElementType, href: string }) => (
     <Link href={href}>
@@ -22,6 +26,27 @@ const StatCard = ({ title, value, icon: Icon, href }: { title: string, value: st
 
 
 export default function ModeratorDashboard() {
+  const { user, loading: authLoading } = useAuth();
+  const [stats, setStats] = useState({ reports: 0, discussions: 0, users: 0 });
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    const { firestore } = initializeFirebase();
+    const unsubscribes = [
+      onSnapshot(query(collection(firestore, 'reports'), where('status', '==', 'open')), snapshot => 
+        setStats(s => ({ ...s, reports: snapshot.size }))
+      ),
+      onSnapshot(collection(firestore, 'threads'), snapshot => 
+        setStats(s => ({ ...s, discussions: snapshot.size }))
+      ),
+      onSnapshot(collection(firestore, 'users'), snapshot => 
+        setStats(s => ({ ...s, users: snapshot.size }))
+      ),
+    ];
+    
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [user, authLoading]);
 
   return (
     <div>
@@ -30,9 +55,9 @@ export default function ModeratorDashboard() {
             <p className="text-muted-foreground">Oversee community activity and manage content.</p>
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <StatCard title="Reported Items" value={0} icon={Flag} href="/moderator/reports" />
-            <StatCard title="Active Discussions" value={0} icon={MessageSquare} href="/moderator/discussions" />
-            <StatCard title="Monitored Users" value={0} icon={Users} href="/moderator/users" />
+            <StatCard title="Open Reports" value={stats.reports} icon={Flag} href="/moderator/reports" />
+            <StatCard title="Total Discussions" value={stats.discussions} icon={MessageSquare} href="/moderator/discussions" />
+            <StatCard title="Total Users" value={stats.users} icon={Users} href="/moderator/users" />
         </div>
         <Card className="mt-8">
             <CardHeader>

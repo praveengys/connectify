@@ -38,6 +38,36 @@ function getFirestoreInstance() {
 }
 
 // User Profile Functions
+export async function createUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
+  const firestore = getFirestoreInstance();
+  const userRef = doc(firestore, 'users', uid);
+  const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
+  
+  await setDoc(userRef, {
+    uid: uid,
+    username: username,
+    displayName: data.displayName || 'New Member',
+    email: data.email,
+    avatarUrl: data.avatarUrl || null,
+    bio: '',
+    interests: [],
+    skills: [],
+    languages: [],
+    location: '',
+    currentlyExploring: '',
+    company: '',
+    role: 'member',
+    profileVisibility: 'public',
+    emailVerified: false,
+    profileScore: 0,
+    postCount: 0,
+    commentCount: 0,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastActiveAt: serverTimestamp(),
+  }, { merge: true });
+}
+
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
@@ -57,8 +87,6 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
-
-// Forum & Thread Functions
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
     const categoriesCollection = collection(firestore, 'categories');
@@ -85,7 +113,6 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
         };
     }
 }
-
 
 export async function getThread(threadId: string): Promise<Thread | null> {
     const firestore = getFirestoreInstance();
@@ -116,7 +143,7 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
 }
 
 
-
+// Chat (Real-time) functions
 export async function createChatMessage(threadId: string, messageData: Partial<ChatMessage>): Promise<void> {
   const firestore = getFirestoreInstance();
   const user = await getUserProfile(messageData.senderId!);
@@ -134,8 +161,18 @@ export async function createChatMessage(threadId: string, messageData: Partial<C
   });
 }
 
-
 // Demo Booking
+export async function createDemoSlot(slotData: { date: string, startTime: string, status: string }): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const slotsRef = collection(firestore, 'demoSlots');
+    await addDoc(slotsRef, {
+        ...slotData,
+        lockedByRequestId: null,
+        updatedAt: serverTimestamp(),
+    });
+}
+
+
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   const firestore = getFirestoreInstance();
   const dateStr = format(date, 'yyyy-MM-dd');
@@ -149,4 +186,45 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
+}
+
+
+export async function updateBookingStatus(bookingId: string, newStatus: 'scheduled' | 'denied'): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const bookingRef = doc(firestore, 'demoBookings', bookingId);
+    
+    await runTransaction(firestore, async (transaction) => {
+        const bookingDoc = await transaction.get(bookingRef);
+        if (!bookingDoc.exists()) {
+            throw new Error("Booking request not found.");
+        }
+        
+        const bookingData = bookingDoc.data() as DemoBooking;
+        if (!bookingData.slotId) {
+            transaction.update(bookingRef, { status: newStatus, reviewedAt: serverTimestamp() });
+            return;
+        }
+
+        const slotRef = doc(firestore, 'demoSlots', bookingData.slotId);
+        
+        transaction.update(bookingRef, { 
+            status: newStatus,
+            reviewedAt: serverTimestamp(),
+        });
+
+        if (newStatus === 'scheduled') {
+            transaction.update(slotRef, { status: 'booked' });
+        } else { // 'denied'
+            transaction.update(slotRef, { 
+                status: 'available',
+                lockedByRequestId: null,
+            });
+        }
+    });
+}
+
+export async function updateReportStatus(reportId: string, status: 'resolved' | 'in_review'): Promise<void> {
+    const firestore = getFirestoreInstance();
+    const reportRef = doc(firestore, 'reports', reportId);
+    await updateDoc(reportRef, { status });
 }

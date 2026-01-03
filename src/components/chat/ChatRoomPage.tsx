@@ -75,7 +75,7 @@ export default function ChatRoomPage() {
     if (!user || !group) return;
     setJoinLoading(true);
     try {
-      await joinChatGroup(group.id, user.uid);
+      await joinChatGroup(firestore, group.id, user.uid);
       toast({
         title: 'Success!',
         description: `You have joined the group "${group.name}".`,

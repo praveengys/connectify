@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Send, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sendContactMessage } from '@/lib/firebase/client-actions';
+import { useFirebase } from '@/firebase/client-provider';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -22,6 +23,7 @@ const formSchema = z.object({
 });
 
 export default function ContactForm() {
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -38,7 +40,7 @@ export default function ContactForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await sendContactMessage(values);
+      await sendContactMessage(firestore, values);
       setIsSubmitted(true);
     } catch (error) {
       toast({

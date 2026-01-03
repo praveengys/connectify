@@ -12,19 +12,21 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/firebase/client-actions';
 import { useAuth } from '@/hooks/use-auth';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function NotificationDropdown() {
+  const { firestore } = useFirebase();
   const { user } = useAuth();
   const { notifications, loading, unreadCount } = useNotifications(user?.uid);
 
   if (!user) return null;
 
   const handleMarkAsRead = (id: string) => {
-    markNotificationAsRead(id);
+    markNotificationAsRead(firestore, id);
   };
   
   const handleMarkAllAsRead = () => {
-    markAllNotificationsAsRead(user.uid);
+    markAllNotificationsAsRead(firestore, user.uid);
   }
 
   return (

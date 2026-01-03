@@ -73,7 +73,7 @@ export default function NewThreadForm() {
     setLoading(true);
     try {
       // Get or create the category
-      const category = await getOrCreateCategory(values.categoryName);
+      const category = await getOrCreateCategory(firestore, values.categoryName);
       if (!category) {
         throw new Error('Could not create or find the specified category.');
       }
@@ -88,7 +88,7 @@ export default function NewThreadForm() {
         isPinned: false,
       };
       
-      const newThread = await createThread(threadData);
+      const newThread = await createThread(firestore, threadData);
       toast({ title: 'Success!', description: 'Your new discussion has been posted.' });
       router.push(`/forum/threads/${newThread.id}`);
 

@@ -54,7 +54,7 @@ export default function ForumClient() {
         const newAuthorIds = authorIds.filter(id => !authors[id]);
         
         if (newAuthorIds.length > 0) {
-            const authorPromises = newAuthorIds.map(id => getUserProfile(id));
+            const authorPromises = newAuthorIds.map(id => getUserProfile(firestore, id));
             const authorResults = await Promise.all(authorPromises);
             setAuthors(prev => {
                 const newAuthors = { ...prev };

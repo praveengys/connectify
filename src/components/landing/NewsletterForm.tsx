@@ -11,12 +11,14 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Mail, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { subscribeToNewsletter } from '@/lib/firebase/client-actions';
+import { useFirebase } from '@/firebase/client-provider';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
 });
 
 export default function NewsletterForm() {
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -29,7 +31,7 @@ export default function NewsletterForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await subscribeToNewsletter(values.email);
+      await subscribeToNewsletter(firestore, values.email);
       toast({
         title: 'Subscription Successful!',
         description: "Thanks for subscribing! We'll be in touch.",

@@ -89,7 +89,7 @@ export default function ChatRoom({ thread }: ChatRoomProps) {
     };
 
     try {
-      await createChatMessage(thread.id, messageData);
+      await createChatMessage(firestore, thread.id, messageData);
     } catch (e: any) {
       toast({
         title: "Error sending message",

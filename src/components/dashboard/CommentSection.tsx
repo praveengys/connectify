@@ -43,7 +43,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     const uniqueNewAuthorIds = [...new Set(newAuthorIds)];
     try {
       const fetchedAuthors = await Promise.all(
-        uniqueNewAuthorIds.map(id => getUserProfile(id))
+        uniqueNewAuthorIds.map(id => getUserProfile(firestore, id))
       );
       setAuthors(prev => {
         const updatedAuthors = { ...prev };
@@ -55,7 +55,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     } catch (err) {
       console.error("Error fetching authors:", err);
     }
-  }, [authors]);
+  }, [authors, firestore]);
 
   useEffect(() => {
     if (!firestore) return;
@@ -114,7 +114,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     }
     setSubmitting(true);
     try {
-      await createComment(postId, user.uid, content.trim(), parentId);
+      await createComment(firestore, postId, user.uid, content.trim(), parentId);
       if (!parentId) {
         setNewComment('');
       }

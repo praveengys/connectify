@@ -14,15 +14,18 @@ import { Button } from '@/components/ui/button';
 import { Check, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sharePost } from '@/lib/firebase/client-actions';
+import { useFirebase } from '@/firebase/client-provider';
+import { useAuth } from '@/hooks/use-auth';
 
 type ShareDialogProps = {
   postId: string;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  onShare: () => void;
 };
 
-export default function ShareDialog({ postId, isOpen, setIsOpen, onShare }: ShareDialogProps) {
+export default function ShareDialog({ postId, isOpen, setIsOpen }: ShareDialogProps) {
+  const { firestore } = useFirebase();
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
@@ -30,12 +33,17 @@ export default function ShareDialog({ postId, isOpen, setIsOpen, onShare }: Shar
 
   const postUrl = `${window.location.origin}/post/${postId}`;
 
+  const handleShare = () => {
+    if (!user) return;
+    sharePost(firestore, postId, user.uid);
+  }
+
   const handleCopy = () => {
     navigator.clipboard.writeText(postUrl).then(
       () => {
         setCopied(true);
         toast({ title: 'Success', description: 'Link copied to clipboard!' });
-        onShare();
+        handleShare();
         setTimeout(() => {
           setCopied(false);
           setIsOpen(false);

@@ -54,7 +54,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
 
     const uniqueNewAuthorIds = [...new Set(newAuthorIds)];
     try {
-      const fetchedAuthors = await Promise.all(uniqueNewAuthorIds.map(id => getUserProfile(id)));
+      const fetchedAuthors = await Promise.all(uniqueNewAuthorIds.map(id => getUserProfile(firestore, id)));
       setAuthors(prev => {
         const newAuthors = { ...prev };
         fetchedAuthors.forEach(author => {
@@ -65,7 +65,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
     } catch (error) {
       console.error("Error fetching authors:", error);
     }
-  }, [authors]);
+  }, [authors, firestore]);
 
   // Initial data load and real-time listeners
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
         } as Thread;
         setThread(threadData);
         if (threadData.authorId && !authors[threadData.authorId]) {
-          getUserProfile(threadData.authorId).then(author => {
+          getUserProfile(firestore, threadData.authorId).then(author => {
             if (author) setAuthors(prev => ({...prev, [author.uid]: author}));
           });
         }
@@ -118,7 +118,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
       // Fetch any authors not already in state
       const missingAuthorIds = uniqueAuthorIds.filter(id => !authors[id]);
       if (missingAuthorIds.length > 0) {
-        Promise.all(missingAuthorIds.map(id => getUserProfile(id))).then(fetchedAuthors => {
+        Promise.all(missingAuthorIds.map(id => getUserProfile(firestore, id))).then(fetchedAuthors => {
             setAuthors(prev => {
                 const updatedAuthors = {...prev};
                 fetchedAuthors.forEach(author => {
@@ -166,7 +166,7 @@ export default function ThreadViewClient({ threadId }: ThreadViewClientProps) {
 
     setSubmitting(true);
     try {
-      await createReply({
+      await createReply(firestore, {
         threadId: thread.id,
         authorId: user.uid,
         body: replyContent,

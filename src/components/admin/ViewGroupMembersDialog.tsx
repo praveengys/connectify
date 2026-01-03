@@ -221,7 +221,6 @@ export default function ViewGroupMembersDialog({ group, isOpen, setIsOpen }: Vie
           }} className="bg-destructive hover:bg-destructive/90">
               Confirm
           </AlertDialogAction>
-          </AlertDialogFooter>
       </AlertDialogContent>
      </AlertDialog>
     </>

@@ -13,6 +13,7 @@ import { Loader2 } from 'lucide-react';
 import { createChatGroup } from '@/lib/firebase/client-actions';
 import { useAuth } from '@/hooks/use-auth';
 import type { Group } from '@/lib/types';
+import { useFirebase } from '@/firebase/client-provider';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Group name must be at least 3 characters.' }).max(50, { message: 'Group name cannot be more than 50 characters.' }),
@@ -24,6 +25,7 @@ type CreateGroupFormProps = {
 };
 
 export default function CreateGroupForm({ onGroupCreated }: CreateGroupFormProps) {
+  const { firestore } = useFirebase();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -48,7 +50,7 @@ export default function CreateGroupForm({ onGroupCreated }: CreateGroupFormProps
     
     setLoading(true);
     try {
-      await createChatGroup(values.name, values.type, user.uid);
+      await createChatGroup(firestore, values.name, values.type, user.uid);
       
       toast({
         title: 'Group Created!',

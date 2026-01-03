@@ -113,7 +113,7 @@ export default function ChatRoomClient({ group }: { group: Group }) {
     e.preventDefault();
     if (!text.trim() || !user) return;
 
-    await sendChatMessage(group.id, user.uid, { type: 'text', text: text.trim() });
+    await sendChatMessage(firestore, group.id, user.uid, { type: 'text', text: text.trim() });
     setText('');
     updateTypingStatus(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -129,7 +129,7 @@ export default function ChatRoomClient({ group }: { group: Group }) {
         
         if (!result?.secure_url) throw new Error('Image upload failed.');
         
-        await sendChatMessage(group.id, user.uid, { type: 'image', imageUrl: result.secure_url });
+        await sendChatMessage(firestore, group.id, user.uid, { type: 'image', imageUrl: result.secure_url });
         toast({ title: 'Success', description: 'Image sent.' });
     } catch (error: any) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });

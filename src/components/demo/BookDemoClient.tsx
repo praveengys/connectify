@@ -18,6 +18,7 @@ import { bookDemo, getAvailableTimeSlots } from '@/lib/firebase/client-actions';
 import type { DemoSlot } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Label } from '../ui/label';
+import { useFirebase } from '@/firebase/client-provider';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Please enter your name.'),
@@ -27,6 +28,7 @@ const formSchema = z.object({
 });
 
 export default function BookDemoClient() {
+  const { firestore } = useFirebase();
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -72,7 +74,7 @@ export default function BookDemoClient() {
     setLoadingSlots(true);
     form.resetField('slotId');
     try {
-      const slots = await getAvailableTimeSlots(date);
+      const slots = await getAvailableTimeSlots(firestore, date);
       setAvailableSlots(slots);
     } catch (error) {
       toast({
@@ -95,7 +97,7 @@ export default function BookDemoClient() {
       return;
     }
     try {
-      await bookDemo({
+      await bookDemo(firestore, {
         slotId: values.slotId,
         name: values.name,
         email: values.email,

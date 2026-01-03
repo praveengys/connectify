@@ -7,6 +7,7 @@ import { toggleLikePost } from '@/lib/firebase/client-actions';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useFirebase } from '@/firebase/client-provider';
 
 type LikeButtonProps = {
   postId: string;
@@ -15,6 +16,7 @@ type LikeButtonProps = {
 };
 
 export default function LikeButton({ postId, initialLikes, initialIsLiked }: LikeButtonProps) {
+  const { firestore } = useFirebase();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
@@ -35,7 +37,7 @@ export default function LikeButton({ postId, initialLikes, initialIsLiked }: Lik
     setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
 
     try {
-      await toggleLikePost(postId, user.uid);
+      await toggleLikePost(firestore, postId, user.uid);
     } catch (error: any) {
       // Revert optimistic UI update on error
       setIsLiked(isLiked);

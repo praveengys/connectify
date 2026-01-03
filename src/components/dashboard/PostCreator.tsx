@@ -14,8 +14,10 @@ import { uploadPhoto } from "@/lib/actions";
 import Image from "next/image";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
+import { useFirebase } from "@/firebase/client-provider";
 
 export default function PostCreator({ user: initialUser }: { user: UserProfile }) {
+  const { firestore } = useFirebase();
   const { user } = useAuth(); // Use the live user from auth context
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
@@ -93,7 +95,7 @@ export default function PostCreator({ user: initialUser }: { user: UserProfile }
             mediaUrl = result.secure_url;
         }
 
-        await createPost(user.uid, content, 'public', mediaUrl ? [mediaUrl] : []);
+        await createPost(firestore, user.uid, content, 'public', mediaUrl ? [mediaUrl] : []);
         
         setContent('');
         clearMedia();

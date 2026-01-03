@@ -150,10 +150,17 @@ function HorizontalNav() {
                                 <LayoutDashboard className="mr-2 h-4 w-4" />
                                 <span>Dashboard</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                    e.preventDefault();
+                                    // We can use a custom event or a state management library to open the dialog
+                                    // For simplicity, let's use a custom event.
+                                    window.dispatchEvent(new CustomEvent('open-edit-profile'));
+                                }}
+                                >
                                 <UserIcon className="mr-2 h-4 w-4" />
                                 <span>Edit Profile</span>
-                              </DropdownMenuItem>
+                                </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={handleSignOut}>
                                 <LogOut className="mr-2 h-4 w-4" />
@@ -213,5 +220,3 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
         </div>
     );
 }
-
-    

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,7 +27,7 @@ const getProfileCompleteness = (profile: UserProfile): { score: number, steps: {
 };
 
 
-export default function ProfileCompleteness({ user }: { user: UserProfile }) {
+export default function ProfileCompleteness({ user, onEditProfile }: { user: UserProfile, onEditProfile: () => void }) {
     const { score, steps } = useMemo(() => getProfileCompleteness(user), [user]);
 
     return (
@@ -54,7 +53,7 @@ export default function ProfileCompleteness({ user }: { user: UserProfile }) {
                         </div>
                     ))}
                 </div>
-                 <Button variant="outline" size="sm" className="w-full mt-6">Edit Profile</Button>
+                 <Button variant="outline" size="sm" className="w-full mt-6" onClick={onEditProfile}>Edit Profile</Button>
             </CardContent>
         </Card>
     );

@@ -105,7 +105,7 @@ export default function UserImporter() {
                 <CardTitle>Upload Member Data</CardTitle>
                 <CardDescription>
                     Select the JSON file containing the member data you want to import.
-                    Please ensure it follows the specified format.
+                    The file should be an array of user objects.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -144,11 +144,11 @@ export default function UserImporter() {
              <CardHeader>
                 <CardTitle>JSON File Format</CardTitle>
                 <CardDescription>
-                    Your JSON file must be an array of user objects. Each object must have an <code className="font-mono bg-muted px-1 py-0.5 rounded">email</code> and <code className="font-mono bg-muted px-1 py-0.5 rounded">displayName</code>. All other fields are optional.
+                    Your JSON file must be an array of user objects. Each object must have a <code className="font-mono bg-muted px-1 py-0.5 rounded">memberId</code> and <code className="font-mono bg-muted px-1 py-0.5 rounded">memberEmailAddress</code>.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">View the full schema for all available fields:</p>
+                <p className="text-sm text-muted-foreground mb-2">View the full required schema for all available fields:</p>
                 <Button variant="outline" asChild>
                     <Link href="/docs/member-import-schema.json" target="_blank">View Schema</Link>
                 </Button>

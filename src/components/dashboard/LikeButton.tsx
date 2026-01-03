@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { ThumbsUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toggleLikePost } from '@/lib/firebase/firestore';
+import { toggleLikePost } from '@/lib/firebase/client-actions';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';

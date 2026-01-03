@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -13,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Check, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { sharePost } from '@/lib/firebase/client-actions';
 
 type ShareDialogProps = {
   postId: string;

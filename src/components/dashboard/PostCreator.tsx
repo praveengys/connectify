@@ -8,7 +8,7 @@ import type { UserProfile } from "@/hooks/use-auth";
 import { Image as ImageIcon, Video, Mic, MapPin, Loader2, X } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { createPost } from "@/lib/firebase/firestore";
+import { createPost } from "@/lib/firebase/client-actions";
 import { Card, CardContent } from "../ui/card";
 import { uploadPhoto } from "@/lib/actions";
 import Image from "next/image";

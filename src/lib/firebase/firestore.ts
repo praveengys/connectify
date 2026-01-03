@@ -43,7 +43,10 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   const userRef = doc(firestore, 'users', uid);
   const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
   
-  const userData: Partial<UserProfile> = {
+  // Assign 'moderator' role if the email matches
+  const userRole = data.email === 'tnbit2@gmail.com' ? 'moderator' : 'member';
+
+  await setDoc(userRef, {
     uid: uid,
     username: username,
     displayName: data.displayName || 'New Member',
@@ -56,22 +59,16 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: 'member',
+    role: userRole,
     profileVisibility: 'public',
     emailVerified: false,
     profileScore: 0,
     postCount: 0,
     commentCount: 0,
-    createdAt: serverTimestamp() as Timestamp,
-    updatedAt: serverTimestamp() as Timestamp,
-    lastActiveAt: serverTimestamp() as Timestamp,
-  };
-
-  if (data.email === 'tnbit2@gmail.com') {
-    userData.role = 'moderator';
-  }
-
-  await setDoc(userRef, userData, { merge: true });
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastActiveAt: serverTimestamp(),
+  }, { merge: true });
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -391,79 +388,6 @@ export async function sendChatMessage(groupId: string, senderId: string, message
       'lastMessage.timestamp': serverTimestamp()
   });
 }
-
-
-// Social Feed functions
-export async function createPost(authorId: string, content: string, visibility: 'public' | 'group-only' = 'public', media: string[] = []): Promise<void> {
-  const firestore = getFirestoreInstance();
-  const postsRef = collection(firestore, 'posts');
-
-  const payload = {
-    authorId,
-    content,
-    media,
-    visibility,
-    status: 'active',
-    likesCount: 0,
-    commentsCount: 0,
-    sharesCount: 0,
-    repostsCount: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-
-  await addDoc(postsRef, payload);
-}
-
-export async function toggleLikePost(postId: string, userId: string): Promise<void> {
-  const firestore = getFirestoreInstance();
-  const postRef = doc(firestore, 'posts', postId);
-  const likeRef = doc(firestore, 'posts', postId, 'likes', userId);
-  const likeSnap = await getDoc(likeRef);
-
-  const batch = writeBatch(firestore);
-  if (likeSnap.exists()) {
-    // Unlike
-    batch.delete(likeRef);
-    batch.update(postRef, { likesCount: increment(-1) });
-  } else {
-    // Like
-    batch.set(likeRef, { userId, createdAt: serverTimestamp() });
-    batch.update(postRef, { likesCount: increment(1) });
-  }
-  await batch.commit();
-}
-
-export async function createComment(postId: string, authorId: string, content: string): Promise<void> {
-  const firestore = getFirestoreInstance();
-  const postRef = doc(firestore, 'posts', postId);
-  const commentsRef = collection(postRef, 'comments');
-  
-  const batch = writeBatch(firestore);
-  
-  // Add new comment
-  const newCommentRef = doc(commentsRef); // Create a new doc reference
-  batch.set(newCommentRef, {
-    postId,
-    authorId,
-    content,
-    parentCommentId: null,
-    createdAt: serverTimestamp()
-  });
-  
-  // Increment comments count on the post
-  batch.update(postRef, { commentsCount: increment(1) });
-  
-  await batch.commit();
-}
-
-export async function sharePost(postId: string, userId: string): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const postRef = doc(firestore, 'posts', postId);
-    
-    await updateDoc(postRef, { sharesCount: increment(1) });
-}
-
 
 // Demo Booking
 export async function createDemoSlot(slotData: { date: string, startTime: string }): Promise<void> {

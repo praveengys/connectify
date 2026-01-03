@@ -4,7 +4,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { MoreHorizontal, MessageSquare, Share2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, MessageSquare, Share2, Trash2 } from "lucide-react";
 import Image from "next/image";
 import type { Post } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
@@ -14,9 +15,19 @@ import { useState } from "react";
 import CommentSection from "./CommentSection";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import ShareDialog from "./ShareDialog";
-import { sharePost } from "@/lib/firebase/client-actions";
+import { sharePost, deletePost } from "@/lib/firebase/client-actions";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type FeedPostProps = {
     post: Post;
@@ -34,6 +45,7 @@ export default function FeedPost({ post }: FeedPostProps) {
   const { user } = useAuth();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { toast } = useToast();
   
   if (!user) return null;
@@ -41,6 +53,22 @@ export default function FeedPost({ post }: FeedPostProps) {
   const handleShare = () => {
     sharePost(post.id, user.uid);
   }
+  
+  const handleDelete = async () => {
+    try {
+      await deletePost(post.id);
+      toast({
+        title: 'Post Deleted',
+        description: 'Your post has been successfully removed.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: `Could not delete post: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  };
 
   const author = post.author;
   const displayAuthor = author;
@@ -61,6 +89,24 @@ export default function FeedPost({ post }: FeedPostProps) {
             {formatDistanceToNow(new Date(displayDate as Date), { addSuffix: true })}
           </p>
         </div>
+        {user.uid === post.authorId && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onSelect={() => setDeleteConfirmOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Post
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
       </CardHeader>
       <CardContent>
         {post.content && (
@@ -97,6 +143,26 @@ export default function FeedPost({ post }: FeedPostProps) {
         setIsOpen={setIsShareOpen}
         onShare={handleShare}
       />
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your post
+              and remove its data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

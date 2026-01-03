@@ -186,8 +186,8 @@ export default function ChatRoomClient({ group }: { group: Group }) {
                         <div className={cn(
                           "px-4 py-2 rounded-lg relative group text-sm",
                            isCurrentUser 
-                             ? "bg-primary-chat text-primary-chat-foreground rounded-br-none" 
-                             : "bg-secondary text-secondary-foreground rounded-bl-none"
+                             ? "bg-primary text-primary-foreground" 
+                             : "bg-secondary text-secondary-foreground"
                            )}>
                             {msg.type === 'text' && <p className="whitespace-pre-wrap">{msg.text}</p>}
                             {msg.type === 'image' && msg.imageUrl && (

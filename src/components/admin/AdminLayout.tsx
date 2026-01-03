@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/card';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { signOutUser } from '@/lib/firebase/auth';
+import { signOutUser } from '@/firebase/auth';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';

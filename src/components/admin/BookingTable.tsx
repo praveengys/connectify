@@ -13,7 +13,7 @@ import { MoreHorizontal, Loader2, ServerCrash, CheckCircle, XCircle } from 'luci
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { updateBookingStatus } from '@/lib/firebase/client-actions';
+import { updateBookingStatus } from '@/lib/firebase/server-actions';
 import { useFirebase } from '@/firebase/client-provider';
 
 export default function BookingTable() {

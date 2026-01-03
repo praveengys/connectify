@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Thread, UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -30,12 +29,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { getUserProfile } from '@/lib/firebase/firestore';
-import { toggleThreadLock, toggleThreadPin, deleteThread } from '@/lib/firebase/client-actions';
+import { getUserProfile, toggleThreadLock, toggleThreadPin } from '@/lib/firebase/client-actions';
+import { deleteThread } from '@/lib/firebase/server-actions';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import ViewThreadDialog from '../admin/ViewThreadDialog';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function ModeratorDiscussionTable() {
+  const { firestore } = useFirebase();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [authors, setAuthors] = useState<Record<string, UserProfile>>({});
   const [loading, setLoading] = useState(true);
@@ -52,7 +53,6 @@ export default function ModeratorDiscussionTable() {
   const [viewingThread, setViewingThread] = useState<Thread | null>(null);
 
   useEffect(() => {
-    const { firestore } = initializeFirebase();
     const threadsRef = collection(firestore, 'threads');
     const q = query(threadsRef, orderBy('createdAt', 'desc'));
 
@@ -91,7 +91,7 @@ export default function ModeratorDiscussionTable() {
     );
 
     return () => unsubscribe();
-  }, [authors]);
+  }, [firestore, authors]);
   
   const handleAction = (thread: Thread, action: 'lock' | 'unlock' | 'pin' | 'unpin' | 'delete') => {
       setActionThread(thread);

@@ -6,9 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import NotificationDropdown from './NotificationDropdown';
 import { useNotifications } from '@/hooks/use-notifications';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function NotificationBell() {
-  const { unreadCount } = useNotifications();
+  const { user } = useAuth();
+  const { unreadCount } = useNotifications(user?.uid);
+
+  if (!user) return null;
 
   return (
     <Popover>
@@ -29,5 +33,3 @@ export default function NotificationBell() {
     </Popover>
   );
 }
-
-    

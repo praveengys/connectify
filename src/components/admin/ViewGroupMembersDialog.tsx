@@ -3,7 +3,8 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import type { Group, UserProfile } from '@/lib/types';
-import { getUserProfile, removeUserFromGroup, updateUserGroupRole } from '@/lib/firebase/client-actions';
+import { removeUserFromGroup, updateUserGroupRole } from '@/lib/firebase/server-actions';
+import { getUserProfile } from '@/lib/firebase/client-actions';
 import {
   Dialog,
   DialogContent,

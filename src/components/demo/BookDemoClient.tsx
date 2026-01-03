@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,12 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { getAvailableTimeSlots } from '@/lib/firebase/firestore';
-import { bookDemo } from '@/lib/firebase/client-actions';
+import { bookDemo, getAvailableTimeSlots } from '@/lib/firebase/client-actions';
 import type { DemoSlot } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Label } from '../ui/label';
-import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Please enter your name.'),
@@ -40,10 +38,21 @@ export default function BookDemoClient() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: user?.displayName || '',
-      email: user?.email || '',
+      email: user?.memberEmailAddress || '',
       notes: '',
     },
   });
+
+  useEffect(() => {
+    if (user) {
+        form.reset({
+            name: user.displayName || '',
+            email: user.memberEmailAddress || '',
+            notes: '',
+        });
+    }
+  }, [user, form]);
+
 
   const handleDateSelect = async (date: Date | undefined) => {
     if (!date) return;

@@ -1,91 +1,74 @@
-// src/lib/firebase/auth.ts
 'use client';
-
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut,
   sendPasswordResetEmail,
-  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  type AuthError,
 } from 'firebase/auth';
-import { auth } from '@/firebase/client';
-import { createUserProfile } from './client-actions';
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+
+const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
 
-// Sign up with email and password
-export async function signUpWithEmail(email: string, password: string, firstName: string, lastName: string) {
+async function handleAuthError(error: unknown) {
+  const authError = error as AuthError;
+  console.error('Firebase Auth Error:', authError.code, authError.message);
+  return { error: { message: authError.message } };
+}
+
+export async function signUpWithEmail(email: string, password: string,firstName: string, lastName: string) {
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    
-    // Update Firebase Auth profile
-    const displayName = `${firstName} ${lastName}`.trim();
-    await updateProfile(user, { displayName });
-
-    // Create user profile document in Firestore
-    await createUserProfile(user.uid, { 
-      displayName,
-      memberFirstName: firstName,
-      memberLastName: lastName,
-      memberEmailAddress: email,
-    });
-    
-    return { user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
+    await createUserWithEmailAndPassword(auth, email, password);
+    // Profile creation is now handled by a server-side function triggered on user creation
+    return { error: null };
+  } catch (error) {
+    return handleAuthError(error);
   }
 }
 
-// Sign in with email and password
 export async function signInWithEmail(email: string, password: string) {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
+    await signInWithEmailAndPassword(auth, email, password);
+    return { error: null };
+  } catch (error) {
+    return handleAuthError(error);
   }
 }
 
-// Sign in with Google
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    
-    // Check if a user profile already exists. If not, create one.
-    // This handles both new sign-ups and returning users.
-    await createUserProfile(user.uid, {
-        displayName: user.displayName || 'New Member',
-        memberEmailAddress: user.email!,
-        avatarUrl: user.photoURL,
-    });
-
-    return { user, error: null };
-  } catch (error: any) {
-    return { user: null, error };
-  }
-}
-
-// Sign out
-export async function signOutUser() {
-  try {
-    await signOut(auth);
+    await signInWithPopup(auth, provider);
     return { error: null };
-  } catch (error: any) {
-    return { error };
+  } catch (error) {
+    return handleAuthError(error);
   }
 }
 
-
-// Password Reset
 export async function sendPasswordReset(email: string) {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      return { error: null };
-    } catch (error: any) {
-      return { error };
-    }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return null;
+  } catch (error) {
+    const authError = error as AuthError;
+    return { message: authError.message };
+  }
+}
+
+export async function signOutUser() {
+  await signOut(auth);
 }

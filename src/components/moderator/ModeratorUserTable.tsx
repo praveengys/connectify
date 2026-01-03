@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,7 +19,7 @@ import {
 import { Search, MoreHorizontal, Loader2, ServerCrash, MicOff, UserCheck, UserX, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { toggleBanUser, toggleMuteUser } from '@/lib/firebase/client-actions';
+import { toggleBanUser, toggleMuteUser } from '@/lib/firebase/server-actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,8 +32,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import ViewUserProfileDialog from '../admin/ViewUserProfileDialog';
 import { useAuth } from '@/hooks/use-auth';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function ModeratorUserTable() {
+  const { firestore } = useFirebase();
   const { user: moderatorUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +54,6 @@ export default function ModeratorUserTable() {
 
 
   useEffect(() => {
-    const { firestore } = initializeFirebase();
     const usersRef = collection(firestore, 'users');
     const q = query(usersRef, orderBy('createdAt', 'desc'));
 
@@ -75,7 +75,7 @@ export default function ModeratorUserTable() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [firestore]);
 
   const handleAction = (user: UserProfile, action: 'mute' | 'unmute' | 'ban' | 'unban') => {
     setActionUser(user);

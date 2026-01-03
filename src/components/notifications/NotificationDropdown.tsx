@@ -11,16 +11,20 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/firebase/client-actions';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function NotificationDropdown() {
-  const { notifications, loading, unreadCount } = useNotifications();
+  const { user } = useAuth();
+  const { notifications, loading, unreadCount } = useNotifications(user?.uid);
+
+  if (!user) return null;
 
   const handleMarkAsRead = (id: string) => {
     markNotificationAsRead(id);
   };
   
   const handleMarkAllAsRead = () => {
-    markAllNotificationsAsRead();
+    markAllNotificationsAsRead(user.uid);
   }
 
   return (
@@ -80,5 +84,3 @@ export default function NotificationDropdown() {
     </Card>
   );
 }
-
-    

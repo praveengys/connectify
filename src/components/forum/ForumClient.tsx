@@ -15,11 +15,12 @@ import CreateForumForm from './CreateForumForm';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
-import { getUserProfile } from '@/lib/firebase/firestore';
+import { getUserProfile } from '@/lib/firebase/client-actions';
+import { useFirebase } from '@/firebase/client-provider';
 
 
 export default function ForumClient() {
+  const { firestore } = useFirebase();
   const [forums, setForums] = useState<Forum[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -39,7 +40,6 @@ export default function ForumClient() {
         return;
     }
     
-    const { firestore } = initializeFirebase();
     setLoading(true);
 
     const unsubscribes: (() => void)[] = [];
@@ -99,7 +99,7 @@ export default function ForumClient() {
 
     return () => unsubscribes.forEach(unsub => unsub());
 
-  }, [authLoading, user]);
+  }, [authLoading, user, firestore, authors]);
 
   const handleForumCreated = (newForum: Forum) => {
     // The real-time listener will add the new forum, so we just need to close the dialog.

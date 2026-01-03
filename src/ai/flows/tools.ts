@@ -1,144 +1,94 @@
-
 'use server';
 
 import { ai } from '@/ai/genkit';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { z } from 'zod';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import type { SecurityRuleContext } from '@/firebase/errors';
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { adminDb } from '@/firebase/server';
 
-const SearchInputSchema = z.object({
-  query: z.string().describe('The search query provided by the user.'),
-});
-
-const SearchOutputSchema = z.array(
-  z.object({
-    name: z.string().describe('The name of the item found.'),
-    path: z.string().describe('The URL path to access the item.'),
-  })
-);
-
-export const searchGroupsTool = ai.defineTool(
+// Example Tool: Get Stock Price
+export const getStockPrice = ai.defineTool(
   {
-    name: 'searchGroups',
-    description: 'Search for public chat groups by name.',
-    inputSchema: SearchInputSchema,
-    outputSchema: SearchOutputSchema,
+    name: 'getStockPrice',
+    description: 'Returns the current market value of a stock.',
+    inputSchema: z.object({
+      ticker: z.string().describe('The ticker symbol of the stock.'),
+    }),
+    outputSchema: z.number(),
   },
-  async ({ query: searchQuery }) => {
-    console.log(`[Tool] Searching groups for: ${searchQuery}`);
-    const { firestore } = initializeFirebase();
-    const groupsRef = collection(firestore, 'groups');
-    const q = query(
-      groupsRef,
-      where('type', '==', 'public'),
-      where('name', '>=', searchQuery),
-      where('name', '<=', searchQuery + '\uf8ff'),
-      limit(5)
-    );
-
-    try {
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) {
-        return [];
-      }
-      return snapshot.docs.map(doc => ({
-        name: doc.data().name,
-        path: `/chat/${doc.id}`,
-      }));
-    } catch (serverError: any) {
-        console.error("Error in searchGroupsTool", serverError.message);
-        const permissionError = new FirestorePermissionError({
-            path: groupsRef.path,
-            operation: 'list',
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
-        // Return empty or throw, depending on how you want the AI to handle it.
-        // For now, returning empty is safer for the user experience.
-        return [];
-    }
-  }
-);
-
-export const searchMembersTool = ai.defineTool(
-  {
-    name: 'searchMembers',
-    description: 'Search for community members by their display name.',
-    inputSchema: SearchInputSchema,
-    outputSchema: SearchOutputSchema,
-  },
-  async ({ query: searchQuery }) => {
-    console.log(`[Tool] Searching members for: ${searchQuery}`);
-    const { firestore } = initializeFirebase();
-    const usersRef = collection(firestore, 'users');
-    const q = query(
-      usersRef,
-      where('profileVisibility', '==', 'public'),
-      where('displayName', '>=', searchQuery),
-      where('displayName', '<=', searchQuery + '\uf8ff'),
-      limit(5)
-    );
-
-    try {
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) {
-        return [];
-      }
-      return snapshot.docs.map(doc => ({
-        name: doc.data().displayName,
-        path: `/members`, // No individual member page yet, so link to the main list
-      }));
-    } catch (serverError: any) {
-      console.error("Error in searchMembersTool", serverError.message);
-      const permissionError = new FirestorePermissionError({
-          path: usersRef.path,
-          operation: 'list',
-      } satisfies SecurityRuleContext);
-      errorEmitter.emit('permission-error', permissionError);
-      return [];
-    }
+  async (input) => {
+    // This is a mock. In a real app, you'd call a financial API.
+    return Math.random() * 1000;
   }
 );
 
 
-export const searchDiscussionsTool = ai.defineTool(
+export const searchDiscussions = ai.defineTool(
   {
     name: 'searchDiscussions',
-    description: 'Search for discussion threads by title.',
-    inputSchema: SearchInputSchema,
-    outputSchema: SearchOutputSchema,
+    description: 'Search for discussions (threads) in the community forum.',
+    inputSchema: z.object({
+      searchTerm: z.string().describe('The term to search for in discussion titles.'),
+    }),
+    outputSchema: z.array(z.object({
+        id: z.string(),
+        title: z.string(),
+        url: z.string(),
+    })),
   },
-  async ({ query: searchQuery }) => {
-    console.log(`[Tool] Searching discussions for: ${searchQuery}`);
-    const { firestore } = initializeFirebase();
-    const threadsRef = collection(firestore, 'threads');
-    const q = query(
-      threadsRef,
-      where('status', '==', 'published'),
-      where('title', '>=', searchQuery),
-      where('title', '<=', searchQuery + '\uf8ff'),
-      limit(5)
-    );
-    
-    try {
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) {
-        return [];
-      }
-      return snapshot.docs.map(doc => ({
-        name: doc.data().title,
-        path: `/forum/threads/${doc.id}`,
-      }));
-    } catch (serverError: any) {
-        console.error("Error in searchDiscussionsTool", serverError.message);
-        const permissionError = new FirestorePermissionError({
-            path: threadsRef.path,
-            operation: 'list',
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
-        return [];
+  async (input) => {
+    if (!adminDb) {
+      throw new Error("Firestore not initialized for search.");
     }
+    const threadsRef = collection(adminDb, 'threads');
+    // Firestore does not support full-text search, this is a basic prefix match.
+    // For a real app, use a dedicated search service like Algolia.
+    const q = query(
+        threadsRef, 
+        where('title', '>=', input.searchTerm),
+        where('title', '<=', input.searchTerm + '\uf8ff'),
+        orderBy('title'),
+        limit(5)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title,
+        url: `/forum/threads/${doc.id}`,
+    }));
+  }
+);
+
+
+export const searchGroups = ai.defineTool(
+  {
+    name: 'searchGroups',
+    description: 'Search for chat groups in the community.',
+    inputSchema: z.object({
+      searchTerm: z.string().describe('The term to search for in group names.'),
+    }),
+    outputSchema: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        url: z.string(),
+    })),
+  },
+  async (input) => {
+     if (!adminDb) {
+      throw new Error("Firestore not initialized for search.");
+    }
+    const groupsRef = collection(adminDb, 'groups');
+    const q = query(
+        groupsRef, 
+        where('name', '>=', input.searchTerm),
+        where('name', '<=', input.searchTerm + '\uf8ff'),
+        orderBy('name'),
+        limit(5)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        url: `/chat/${doc.id}`,
+    }));
   }
 );

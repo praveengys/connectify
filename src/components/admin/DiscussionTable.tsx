@@ -29,9 +29,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { getUserProfile, toggleThreadLock, toggleThreadPin, deleteThread } from '@/lib/firebase/client-actions';
+import { toggleThreadLock, toggleThreadPin, getUserProfile } from '@/lib/firebase/client-actions';
+import { deleteThread } from '@/lib/firebase/server-actions';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import Link from 'next/link';
 import ViewThreadDialog from './ViewThreadDialog';
 import { useFirebase } from '@/firebase/client-provider';
 

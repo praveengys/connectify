@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, AlertTriangle, Trash2 } from 'lucide-react';
-import { clearDatabase } from '@/lib/firebase/client-actions';
+import { clearDatabase } from '@/lib/firebase/server-actions';
 import {
   AlertDialog,
   AlertDialogAction,

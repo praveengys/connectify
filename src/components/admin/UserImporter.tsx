@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, UploadCloud, CheckCircle, AlertTriangle } from 'lucide-react';
-import { importUsers } from '@/lib/firebase/client-actions';
+import { importUsers } from '@/lib/firebase/server-actions';
 import Link from 'next/link';
 
 const formSchema = z.object({

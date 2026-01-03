@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -6,8 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { collection, onSnapshot, query, orderBy, where, getDocs } from 'firebase/firestore';
 import { add, format, startOfDay } from 'date-fns';
-import { initializeFirebase } from '@/firebase';
-import { createDemoSlot } from '@/lib/firebase/client-actions';
+import { createDemoSlot } from '@/lib/firebase/server-actions';
 import type { DemoSlot } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, PlusCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '../ui/badge';
+import { useFirebase } from '@/firebase/client-provider';
 
 const formSchema = z.object({
   date: z.date({ required_error: 'A date is required.' }),
@@ -27,6 +28,7 @@ const formSchema = z.object({
 });
 
 export default function SlotManager() {
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [slots, setSlots] = useState<DemoSlot[]>([]);
@@ -49,7 +51,6 @@ export default function SlotManager() {
   }, []);
 
   useEffect(() => {
-    const { firestore } = initializeFirebase();
     const slotsRef = collection(firestore, 'demoSlots');
     const q = query(slotsRef, orderBy('date', 'desc'), orderBy('startTime', 'asc'));
 
@@ -60,14 +61,13 @@ export default function SlotManager() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [firestore]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     const dateStr = format(values.date, 'yyyy-MM-dd');
     
     try {
-        const { firestore } = initializeFirebase();
         const slotsRef = collection(firestore, 'demoSlots');
         const q = query(slotsRef, where('date', '==', dateStr), where('startTime', 'in', values.timeSlots));
         const existingSlotsSnap = await getDocs(q);

@@ -22,7 +22,7 @@ import {
 import { Search, MoreHorizontal, Loader2, ServerCrash, MicOff, UserCheck, UserX, ShieldCheck, ShieldOff, Edit, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { toggleBanUser, toggleMuteUser, updateUserRole } from '@/lib/firebase/client-actions';
+import { updateUserRole, toggleBanUser, toggleMuteUser } from '@/lib/firebase/server-actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +37,6 @@ import ViewUserProfileDialog from './ViewUserProfileDialog';
 import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import ProfileForm from '../dashboard/ProfileForm';
-import { updateUserProfile } from '@/lib/firebase/user-actions';
 import { useFirebase } from '@/firebase/client-provider';
 
 export default function UserTable() {

@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useMemo, useTransition } from 'react';
 import { collection, onSnapshot, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 import type { Report, UserProfile, Thread, Reply } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,10 +13,11 @@ import { MoreHorizontal, Loader2, ServerCrash, Eye, Check, Trash2 } from 'lucide
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { updateReportStatus, getUserProfile } from '@/lib/firebase/firestore';
-import { deleteThread, deleteReply } from '@/lib/firebase/client-actions'; // Assuming deleteReply exists
+import { getUserProfile } from '@/lib/firebase/client-actions';
+import { updateReportStatus, deleteThread, deleteReply } from '@/lib/firebase/server-actions';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import ViewThreadDialog from '../admin/ViewThreadDialog';
+import { useFirebase } from '@/firebase/client-provider';
 
 type AugmentedReport = Report & {
   reporter?: UserProfile;
@@ -26,6 +26,7 @@ type AugmentedReport = Report & {
 };
 
 export default function ReportedContentTable() {
+  const { firestore } = useFirebase();
   const [reports, setReports] = useState<AugmentedReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,6 @@ export default function ReportedContentTable() {
 
 
   useEffect(() => {
-    const { firestore } = initializeFirebase();
     const reportsRef = collection(firestore, 'reports');
     const q = query(reportsRef, orderBy('createdAt', 'desc'));
 
@@ -77,7 +77,7 @@ export default function ReportedContentTable() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [firestore]);
 
   const handleAction = (title: string, description: string, onConfirm: () => void) => {
     setConfirmState({ isOpen: true, title, description, onConfirm });

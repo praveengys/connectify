@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -8,89 +7,108 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { useFirebase } from '@/firebase/client-provider';
+import type { User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import type { UserProfile } from '@/lib/types';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
-
-export type UserState = UserProfile | null;
+import { useFirebase } from '@/firebase/client-provider';
 
 interface AuthContextType {
-  user: UserState;
+  user: UserProfile | null;
   loading: boolean;
+  error: Error | null;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const { auth, firestore } = useFirebase();
-  const [user, setUser] = useState<UserState>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-      if (firebaseUser) {
-        // User is signed in, listen to their profile document
-        const userRef = doc(firestore, 'users', firebaseUser.uid);
-        const unsubProfile = onSnapshot(userRef, (doc) => {
-          if (doc.exists()) {
-            const profileData = doc.data() as Omit<UserProfile, 'uid' | 'emailVerified'>;
-            
-            let displayName = profileData.displayName;
-            if (!displayName && profileData.memberFirstName) {
-                displayName = `${profileData.memberFirstName} ${profileData.memberLastName || ''}`.trim();
+    let unsubscribeProfile: () => void = () => {};
+
+    const unsubscribeAuth = onAuthStateChanged(
+      auth,
+      (firebaseUser: FirebaseUser | null) => {
+        // Unsubscribe from any previous profile listener
+        unsubscribeProfile();
+
+        if (firebaseUser) {
+          const profileRef = doc(firestore, 'users', firebaseUser.uid);
+          unsubscribeProfile = onSnapshot(
+            profileRef,
+            (docSnap) => {
+              if (docSnap.exists()) {
+                const profileData = docSnap.data();
+                const displayName = profileData.displayName || `${profileData.memberFirstName || ''} ${profileData.memberLastName || ''}`.trim();
+
+                setUser({
+                  ...profileData,
+                  uid: firebaseUser.uid,
+                  emailVerified: firebaseUser.emailVerified,
+                  displayName: displayName,
+                  createdAt: profileData.createdAt?.toDate() ?? new Date(),
+                } as UserProfile);
+              } else {
+                 // This can happen briefly during sign-up. 
+                 // We set a minimal user object and wait for the profile to be created.
+                setUser({
+                  uid: firebaseUser.uid,
+                  emailVerified: firebaseUser.emailVerified,
+                  displayName: firebaseUser.displayName || 'New Member',
+                  role: 'member',
+                } as UserProfile)
+              }
+              setLoading(false);
+            },
+            (profileError) => {
+              console.error('Error fetching user profile:', profileError);
+              setError(profileError);
+              setLoading(false);
+              signOut(auth); // Sign out on profile error
             }
-
-            setUser({
-              ...profileData,
-              displayName,
-              uid: firebaseUser.uid,
-              emailVerified: firebaseUser.emailVerified,
-            });
-          } else {
-            // Profile doesn't exist yet, which might be a transitional state during sign-up.
-            // For now, we can set a minimal user object or null.
-             setUser({
-              uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName || 'New Member',
-              avatarUrl: firebaseUser.photoURL,
-              role: 'member',
-              emailVerified: firebaseUser.emailVerified,
-             } as UserProfile);
-          }
+          );
+        } else {
+          setUser(null);
           setLoading(false);
-        });
-
-        return () => unsubProfile();
-      } else {
-        // User is signed out
-        setUser(null);
+        }
+      },
+      (authError) => {
+        console.error('Authentication error:', authError);
+        setError(authError);
         setLoading(false);
       }
-    });
+    );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      unsubscribeProfile();
+    };
   }, [auth, firestore]);
 
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
-      {loading ? (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : children}
+    <AuthContext.Provider value={{ user, loading, error }}>
+      {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}

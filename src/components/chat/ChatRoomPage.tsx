@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import ChatRoomClient from '@/components/chat/ChatRoomClient';
 import { doc, onSnapshot } from 'firebase/firestore';
 import type { Group } from '@/lib/types';
-import { notFound, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2, ServerCrash, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';

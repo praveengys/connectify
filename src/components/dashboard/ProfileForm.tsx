@@ -21,10 +21,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
-  displayName: z.string().min(2, { message: 'Display Name must be at least 2 characters.' }),
   username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.'),
-  memberFirstName: z.string().optional(),
-  memberLastName: z.string().optional(),
+  memberFirstName: z.string().min(1, 'First name is required.'),
+  memberLastName: z.string().min(1, 'Last name is required.'),
   memberEmailAddress: z.string().optional(),
   memberMobileNumber: z.string().optional(),
   memberExperience: z.string().optional(),
@@ -57,7 +56,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      displayName: user.displayName ?? '',
       username: user.username ?? '',
       memberFirstName: user.memberFirstName ?? '',
       memberLastName: user.memberLastName ?? '',
@@ -71,7 +69,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
   useEffect(() => {
     form.reset({
-      displayName: user.displayName ?? '',
       username: user.username ?? '',
       memberFirstName: user.memberFirstName ?? '',
       memberLastName: user.memberLastName ?? '',
@@ -87,7 +84,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     setLoading(true);
     try {
       const updatedData: Partial<UserProfile> = {
-        displayName: values.displayName,
+        displayName: `${values.memberFirstName} ${values.memberLastName}`.trim(),
         memberFirstName: values.memberFirstName,
         memberLastName: values.memberLastName,
         memberEmailAddress: values.memberEmailAddress,
@@ -229,17 +226,30 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
           <h4 className="text-lg font-semibold">Editable Profile</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
-              control={form.control}
-              name="displayName"
-              render={({ field }) => (
+                control={form.control}
+                name="memberFirstName"
+                render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Your Name" {...field} />
-                  </FormControl>
-                  <FormMessage />
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                    <Input placeholder="Your first name" {...field} />
+                    </FormControl>
+                    <FormMessage />
                 </FormItem>
-              )}
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="memberLastName"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                    <Input placeholder="Your last name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
             />
              <FormField
                 control={form.control}
@@ -258,38 +268,14 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
           <Separator className="my-8" />
           
-          <h4 className="text-lg font-semibold">Imported Member Data</h4>
+          <h4 className="text-lg font-semibold">Imported Member Data (Editable)</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <FormField
-                control={form.control}
-                name="memberFirstName"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>First Name (from import)</FormLabel>
-                    <FormControl>
-                    <Input {...field} />
-                    </FormControl>
-                </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="memberLastName"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Last Name (from import)</FormLabel>
-                    <FormControl>
-                    <Input {...field} />
-                    </FormControl>
-                </FormItem>
-                )}
-            />
              <FormField
                 control={form.control}
                 name="memberEmailAddress"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Email (from import)</FormLabel>
+                    <FormLabel>Member Email</FormLabel>
                     <FormControl>
                     <Input {...field} />
                     </FormControl>
@@ -301,7 +287,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 name="memberMobileNumber"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Mobile (from import)</FormLabel>
+                    <FormLabel>Mobile Number</FormLabel>
                     <FormControl>
                     <Input {...field} />
                     </FormControl>
@@ -313,7 +299,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 name="memberExperience"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Experience (from import)</FormLabel>
+                    <FormLabel>Experience</FormLabel>
                     <FormControl>
                     <Input {...field} />
                     </FormControl>
@@ -325,7 +311,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 name="memberType"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Member Type (from import)</FormLabel>
+                    <FormLabel>Member Type</FormLabel>
                     <FormControl>
                     <Input {...field} />
                     </FormControl>
@@ -337,7 +323,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 name="memberStatus"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Member Status (from import)</FormLabel>
+                    <FormLabel>Member Status</FormLabel>
                     <FormControl>
                     <Input {...field} />
                     </FormControl>

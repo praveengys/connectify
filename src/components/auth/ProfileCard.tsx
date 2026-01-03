@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { UserProfile } from '@/hooks/use-auth';
@@ -14,26 +15,20 @@ const getProfileCompleteness = (profile: UserProfile): number => {
     let score = 0;
     const fields = [
         { value: profile.username, weight: 15 },
-        { value: profile.bio, weight: 20 },
         { value: profile.avatarUrl, weight: 15 },
-        { value: profile.interests, weight: 10, isArray: true },
-        { value: profile.skills, weight: 10, isArray: true },
-        { value: profile.location, weight: 10 },
-        { value: profile.languages, weight: 5, isArray: true },
-        { value: profile.currentlyExploring, weight: 10 }
+        { value: profile.memberFirstName, weight: 20 },
+        { value: profile.memberLastName, weight: 10 },
+        { value: profile.memberMobileNumber, weight: 10 },
+        { value: profile.memberExperience, weight: 10 },
+        { value: profile.memberType, weight: 5 },
+        { value: profile.memberStatus, weight: 10 }
     ];
 
     fields.forEach(field => {
-        if (field.isArray) {
-            if (field.value && (field.value as string[]).length > 0) score += field.weight;
-        } else {
-            if (field.value) score += field.weight;
-        }
+        if (field.value) score += field.weight;
     });
 
-    // A base score for just having an account
     score += 5; 
-
     return Math.min(score, 100);
   };
 
@@ -56,17 +51,15 @@ export default function ProfileCard({ user }: ProfileCardProps) {
           <p className="text-sm text-muted-foreground">@{user.username || 'username_not_set'}</p>
         </div>
       </div>
-
-      <p className="mt-3 text-sm text-muted-foreground">{user.bio || 'No bio yet.'}</p>
       
       <div className="mt-4 space-y-3 text-sm">
         <div className="flex items-center gap-2 text-muted-foreground">
             <Mail size={14} />
-            <span className="text-foreground">{user.email}</span>
+            <span className="text-foreground">{user.memberEmailAddress}</span>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar size={14} />
-            <span>Joined {user.createdAt ? formatDistanceToNow(user.createdAt, { addSuffix: true }) : 'N/A'}</span>
+            <span>Joined {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : 'N/A'}</span>
         </div>
       </div>
     </div>

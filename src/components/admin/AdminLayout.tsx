@@ -148,7 +148,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </Avatar>
                     <div>
                         <p className="text-sm font-medium">{user.displayName}</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                        <p className="text-xs text-muted-foreground">{user.memberEmailAddress}</p>
                     </div>
                     <Button variant="ghost" size="icon" onClick={handleSignOut}><LogOut className="h-4 w-4"/></Button>
                 </div>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -8,7 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, Trash2 } from 'lucide-react';
@@ -31,7 +29,6 @@ const formSchema = z.object({
   memberStatus: z.string().optional(),
 });
 
-
 type ProfileFormProps = {
   user: UserProfile;
   onUpdate: (user: UserProfile) => void;
@@ -47,7 +44,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
   const { toast } = useToast();
   
   const isAdminEditing = currentUser?.role === 'admin' && currentUser.uid !== user.uid;
-
 
   useEffect(() => {
     setPreviewUrl(user.avatarUrl);
@@ -94,7 +90,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         memberStatus: values.memberStatus,
       };
 
-      // Only include username if admin is editing or if the user is setting it for the first time
       if (isAdminEditing || !user.username) {
         updatedData.username = values.username;
       }
@@ -102,7 +97,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       await updateUserProfile(user.uid, updatedData);
       
       const updatedUser: UserProfile = { ...user, ...updatedData };
-
       onUpdate(updatedUser);
       
       toast({
@@ -204,7 +198,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
             </div>
             <div className="flex-1">
                 <h3 className="text-xl font-bold">{user.displayName}</h3>
-                <p className="text-sm text-muted-foreground">{user.email}</p>
+                <p className="text-sm text-muted-foreground">{user.memberEmailAddress}</p>
                  {previewUrl && (
                     <Button
                         variant="link"
@@ -264,24 +258,24 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 </FormItem>
                 )}
             />
-          </div>
-
-          <Separator className="my-8" />
-          
-          <h4 className="text-lg font-semibold">Imported Member Data (Editable)</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <FormField
                 control={form.control}
                 name="memberEmailAddress"
                 render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Member Email</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
                     <Input {...field} />
                     </FormControl>
                 </FormItem>
                 )}
             />
+          </div>
+
+          <Separator className="my-8" />
+          
+          <h4 className="text-lg font-semibold">Imported Member Data (Editable)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <FormField
                 control={form.control}
                 name="memberMobileNumber"

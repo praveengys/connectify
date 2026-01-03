@@ -124,7 +124,7 @@ export default function ModeratorUserTable() {
   const filteredUsers = useMemo(() => {
     return users.filter(user =>
       user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      user.memberEmailAddress?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm]);
 
@@ -171,7 +171,7 @@ export default function ModeratorUserTable() {
                       </Avatar>
                       <div>
                         <p className="font-medium">{user.displayName}</p>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                        <p className="text-sm text-muted-foreground">{user.memberEmailAddress}</p>
                       </div>
                     </div>
                   </TableCell>
@@ -182,7 +182,7 @@ export default function ModeratorUserTable() {
                         {user.isBanned && <Badge variant="destructive" className="capitalize w-fit"><ShieldAlert className="mr-1 h-3 w-3"/> Banned</Badge>}
                     </div>
                   </TableCell>
-                  <TableCell>{user.createdAt ? format(user.createdAt, 'PP') : 'N/A'}</TableCell>
+                  <TableCell>{user.createdAt ? format(new Date(user.createdAt), 'PP') : 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

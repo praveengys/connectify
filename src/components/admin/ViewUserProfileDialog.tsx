@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { UserProfile } from '@/lib/types';
@@ -12,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { Mail, Calendar, User, Briefcase, MapPin, Languages, Sparkles, PencilRuler, Phone, Star, Key, Clock, AlertTriangle, Hash, Shield } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
@@ -66,7 +65,7 @@ export default function ViewUserProfileDialog({ user, isOpen, setIsOpen }: ViewU
                 <Separator />
                 <h4 className="font-semibold text-lg">General Information</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <DetailItem icon={Mail} label="Email" value={user.email} />
+                    <DetailItem icon={Mail} label="Email" value={user.memberEmailAddress} />
                     {user.createdAt && (
                         <DetailItem 
                             icon={Calendar} 

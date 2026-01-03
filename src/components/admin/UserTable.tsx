@@ -157,7 +157,7 @@ export default function UserTable() {
   const filteredUsers = useMemo(() => {
     return users.filter(user =>
       user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.memberEmailAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.username?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm]);
@@ -221,7 +221,7 @@ export default function UserTable() {
                       </Avatar>
                       <div>
                         <p className="font-medium">{user.displayName}</p>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                        <p className="text-sm text-muted-foreground">{user.memberEmailAddress}</p>
                       </div>
                     </div>
                   </TableCell>
@@ -237,7 +237,7 @@ export default function UserTable() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {user.createdAt ? format(user.createdAt, 'PP') : 'N/A'}
+                    {user.createdAt ? format(new Date(user.createdAt), 'PP') : 'N/A'}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>

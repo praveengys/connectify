@@ -24,12 +24,11 @@ const formSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.'),
   bio: z.string().max(160, 'Bio cannot be more than 160 characters.').optional().default(''),
   company: z.string().max(50, 'Company name cannot be more than 50 characters.').optional().default(''),
-  interests: z.string().optional().default(''),
   skills: z.string().optional().default(''),
   location: z.string().optional().default(''),
   currentlyExploring: z.string().max(60, 'Cannot be more than 60 characters.').optional().default(''),
   languages: z.string().optional().default(''),
-  // Add member fields for display, but they won't be part of the submitted data
+  // Member fields are now part of the form
   memberFirstName: z.string().optional(),
   memberLastName: z.string().optional(),
   memberEmailAddress: z.string().optional(),
@@ -68,7 +67,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       username: user.username ?? '',
       bio: user.bio ?? '',
       company: user.company ?? '',
-      interests: user.interests?.join(', ') ?? '',
       skills: user.skills?.join(', ') ?? '',
       location: user.location ?? '',
       currentlyExploring: user.currentlyExploring ?? '',
@@ -89,7 +87,6 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
       username: user.username ?? '',
       bio: user.bio ?? '',
       company: user.company ?? '',
-      interests: user.interests?.join(', ') ?? '',
       skills: user.skills?.join(', ') ?? '',
       location: user.location ?? '',
       currentlyExploring: user.currentlyExploring ?? '',
@@ -113,9 +110,16 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
         company: values.company,
         location: values.location,
         currentlyExploring: values.currentlyExploring,
-        interests: values.interests ? values.interests.split(',').map(s => s.trim()).filter(Boolean) : [],
         skills: values.skills ? values.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
         languages: values.languages ? values.languages.split(',').map(s => s.trim()).filter(Boolean) : [],
+        // Include member fields in the update
+        memberFirstName: values.memberFirstName,
+        memberLastName: values.memberLastName,
+        memberEmailAddress: values.memberEmailAddress,
+        memberMobileNumber: values.memberMobileNumber,
+        memberExperience: values.memberExperience,
+        memberType: values.memberType,
+        memberStatus: values.memberStatus,
       };
 
       // Only include username if admin is editing or if the user is setting it for the first time
@@ -247,7 +251,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <h4 className="text-lg font-semibold">Editable Profile</h4>
+          <h4 className="text-lg font-semibold">Profile Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
@@ -359,24 +363,11 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                     </FormItem>
                     )}
                 />
-                <FormField
-                    control={form.control}
-                    name="interests"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Interests / Topics</FormLabel>
-                        <FormControl>
-                        <Input placeholder="Technology, Startups, Design" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
            </div>
 
           <Separator className="my-8" />
           
-          <h4 className="text-lg font-semibold">Imported Member Data (Read-Only)</h4>
+          <h4 className="text-lg font-semibold">Imported Member Data</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <FormField
                 control={form.control}
@@ -385,7 +376,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 <FormItem>
                     <FormLabel>First Name (from import)</FormLabel>
                     <FormControl>
-                    <Input {...field} disabled />
+                    <Input {...field} />
                     </FormControl>
                 </FormItem>
                 )}
@@ -397,7 +388,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 <FormItem>
                     <FormLabel>Last Name (from import)</FormLabel>
                     <FormControl>
-                    <Input {...field} disabled />
+                    <Input {...field} />
                     </FormControl>
                 </FormItem>
                 )}
@@ -409,7 +400,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 <FormItem>
                     <FormLabel>Email (from import)</FormLabel>
                     <FormControl>
-                    <Input {...field} disabled />
+                    <Input {...field} />
                     </FormControl>
                 </FormItem>
                 )}
@@ -421,7 +412,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 <FormItem>
                     <FormLabel>Mobile (from import)</FormLabel>
                     <FormControl>
-                    <Input {...field} disabled />
+                    <Input {...field} />
                     </FormControl>
                 </FormItem>
                 )}
@@ -433,7 +424,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 <FormItem>
                     <FormLabel>Experience (from import)</FormLabel>
                     <FormControl>
-                    <Input {...field} disabled />
+                    <Input {...field} />
                     </FormControl>
                 </FormItem>
                 )}
@@ -445,7 +436,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 <FormItem>
                     <FormLabel>Member Type (from import)</FormLabel>
                     <FormControl>
-                    <Input {...field} disabled />
+                    <Input {...field} />
                     </FormControl>
                 </FormItem>
                 )}
@@ -457,7 +448,7 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
                 <FormItem>
                     <FormLabel>Member Status (from import)</FormLabel>
                     <FormControl>
-                    <Input {...field} disabled />
+                    <Input {...field} />
                     </FormControl>
                 </FormItem>
                 )}
@@ -477,5 +468,3 @@ export default function ProfileForm({ user, onUpdate, closeDialog }: ProfileForm
     </div>
   );
 }
-
-    

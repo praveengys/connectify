@@ -19,35 +19,41 @@ import {
   orderBy,
   deleteDoc,
   limit,
+  Firestore,
 } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import type { UserProfile, Thread, Reply, Group, Forum, Category, ChatMessage, DemoSlot, DemoBooking, Notification } from '@/lib/types';
+import type { UserProfile, Thread, Reply, Group, Forum, Category, DemoSlot, DemoBooking, Notification } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { format } from 'date-fns';
 
-// Helper to get Firestore instance
-function getFirestoreInstance() {
-  try {
-    return initializeFirebase().firestore;
-  } catch (error: any) {
-    if (error.code === 'permission-denied') {
-      errorEmitter.emit('permission-error', error);
+let db: Firestore | null = null;
+
+async function getFirestoreInstance(): Promise<Firestore> {
+    if (!db) {
+        try {
+            db = initializeFirebase().firestore;
+        } catch (error: any) {
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', error);
+            }
+            throw error;
+        }
     }
-    throw error;
-  }
+    return db;
 }
+
 
 // User Profile Functions
 export async function createUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
-  const firestore = getFirestoreInstance();
+  const firestore = await getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
-  const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
+  const username = data.email ? data.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : `user_${uid.substring(0, 6)}`;
   
-  await setDoc(userRef, {
+  const userData: UserProfile = {
     uid: uid,
     username: username,
     displayName: data.displayName || 'New Member',
-    email: data.email,
+    email: data.email || null,
     avatarUrl: data.avatarUrl || null,
     bio: '',
     interests: [],
@@ -56,12 +62,19 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: 'member',
+    role: data.role || 'member',
     profileVisibility: 'public',
-    emailVerified: false,
+    emailVerified: data.emailVerified || false,
     profileScore: 0,
     postCount: 0,
     commentCount: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastActiveAt: new Date(),
+  };
+
+  await setDoc(userRef, {
+    ...userData,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     lastActiveAt: serverTimestamp(),
@@ -69,7 +82,8 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  const firestore = getFirestoreInstance();
+  if (!uid) return null;
+  const firestore = await getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
   const docSnap = await getDoc(userRef);
 
@@ -87,10 +101,9 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
-// Forum & Thread Functions
-
+// Forum & Category Functions
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
-    const firestore = getFirestoreInstance();
+    const firestore = await getFirestoreInstance();
     const categoriesCollection = collection(firestore, 'categories');
     const slug = name.toLowerCase().replace(/\s+/g, '-');
     const q = query(categoriesCollection, where('slug', '==', slug));
@@ -116,37 +129,9 @@ export async function getOrCreateCategory(name: string): Promise<Category | null
     }
 }
 
-export async function getThread(threadId: string): Promise<Thread | null> {
-    const firestore = getFirestoreInstance();
-    const threadRef = doc(firestore, 'threads', threadId);
-    const docSnap = await getDoc(threadRef);
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        return {
-            id: docSnap.id,
-            ...data,
-            createdAt: data.createdAt?.toDate() ?? new Date(),
-            updatedAt: data.updatedAt?.toDate() ?? new Date(),
-        } as Thread;
-    }
-    return null;
-}
-
-export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
-    const firestore = getFirestoreInstance();
-    const repliesRef = collection(firestore, 'threads', threadId, 'replies');
-    const q = query(repliesRef, where('status', '==', 'published'), orderBy('createdAt', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() ?? new Date(),
-    } as Reply));
-}
-
-// Demo Booking
+// Demo Booking Functions
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
-  const firestore = getFirestoreInstance();
+  const firestore = await getFirestoreInstance();
   const dateStr = format(date, 'yyyy-MM-dd');
   const slotsRef = collection(firestore, 'demoSlots');
   
@@ -160,9 +145,13 @@ export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DemoSlot));
 }
 
-
-export async function updateReportStatus(reportId: string, status: 'resolved' | 'in_review'): Promise<void> {
-    const firestore = getFirestoreInstance();
-    const reportRef = doc(firestore, 'reports', reportId);
-    await updateDoc(reportRef, { status });
+// Notification Functions
+export async function createNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>): Promise<void> {
+  const firestore = await getFirestoreInstance();
+  const notifRef = collection(firestore, 'users', notification.recipientId, 'notifications');
+  await addDoc(notifRef, {
+      ...notification,
+      isRead: false,
+      createdAt: serverTimestamp(),
+  });
 }

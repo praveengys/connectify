@@ -1,3 +1,5 @@
+
+
 'use server';
 
 import {
@@ -36,7 +38,6 @@ function getFirestoreInstance() {
   }
 }
 
-// User Profile Functions
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const firestore = getFirestoreInstance();
   const userRef = doc(firestore, 'users', uid);
@@ -56,8 +57,6 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
-
-// Forum & Thread Functions
 export async function getOrCreateCategory(name: string): Promise<Category | null> {
     const firestore = getFirestoreInstance();
     const categoriesCollection = collection(firestore, 'categories');
@@ -113,7 +112,6 @@ export async function getRepliesForThread(threadId: string): Promise<Reply[]> {
     } as Reply));
 }
 
-
 // Chat (Real-time) functions
 export async function createChatMessage(threadId: string, messageData: Partial<ChatMessage>): Promise<void> {
   const firestore = getFirestoreInstance();
@@ -130,38 +128,6 @@ export async function createChatMessage(threadId: string, messageData: Partial<C
       createdAt: serverTimestamp(),
       status: 'visible'
   });
-}
-
-
-// Group Chat functions
-export async function createChatGroup(name: string, type: 'public' | 'private', ownerId: string): Promise<Group> {
-  const firestore = getFirestoreInstance();
-  const groupsCollection = collection(firestore, 'groups');
-
-  const newGroupRef = await addDoc(groupsCollection, {
-    name,
-    type,
-    createdBy: ownerId,
-    createdAt: serverTimestamp(),
-    memberCount: 1,
-    members: {
-      [ownerId]: true // Use boolean for security rules
-    },
-    memberRoles: {
-        [ownerId]: 'owner'
-    }
-  });
-
-  return {
-    id: newGroupRef.id,
-    name,
-    type,
-    createdBy: ownerId,
-    createdAt: new Date(),
-    memberCount: 1,
-    members: { [ownerId]: true },
-    memberRoles: { [ownerId]: 'owner' },
-  };
 }
 
 export async function getAvailableTimeSlots(date: Date): Promise<DemoSlot[]> {

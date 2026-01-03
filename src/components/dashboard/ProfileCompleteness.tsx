@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -33,7 +34,7 @@ export default function ProfileCompleteness({ user, onEditProfile }: { user: Use
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Welcome, {user.displayName.split(' ')[0]} 👋</CardTitle>
+                <CardTitle className="text-lg">Welcome, {user.displayName ? user.displayName.split(' ')[0] : 'Member'} 👋</CardTitle>
                 <CardDescription>Complete your profile to get the most out of the community.</CardDescription>
             </CardHeader>
             <CardContent>

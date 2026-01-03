@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -44,6 +43,9 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
   const userRef = doc(firestore, 'users', uid);
   const username = data.email ? data.email.split('@')[0] : `user_${uid.substring(0, 6)}`;
   
+  // Assign 'moderator' role if the email matches
+  const userRole = data.email === 'tnbit2@gmail.com' ? 'moderator' : 'member';
+
   await setDoc(userRef, {
     uid: uid,
     username: username,
@@ -57,7 +59,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     location: '',
     currentlyExploring: '',
     company: '',
-    role: 'member',
+    role: userRole,
     profileVisibility: 'public',
     emailVerified: false,
     profileScore: 0,
@@ -68,6 +70,7 @@ export async function createUserProfile(uid: string, data: Partial<UserProfile>)
     lastActiveAt: serverTimestamp(),
   }, { merge: true });
 }
+
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const firestore = getFirestoreInstance();
@@ -97,7 +100,7 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
   });
 }
 
-export async function updateUserRole(uid: string, role: 'member' | 'admin'): Promise<void> {
+export async function updateUserRole(uid: string, role: 'member' | 'admin' | 'moderator'): Promise<void> {
   const firestore = getFirestoreInstance();
   await updateDoc(doc(firestore, 'users', uid), { role });
 }
@@ -171,7 +174,6 @@ export async function createThread(data: ThreadData): Promise<Thread> {
   
   const newThreadRef = await addDoc(threadsRef, {
     ...data,
-    authorId: data.authorId, // Ensure authorId is passed
     replyCount: 0,
     latestReplyAt: null,
     createdAt: serverTimestamp(),
@@ -229,7 +231,7 @@ export async function createReply(data: ReplyData): Promise<void> {
     const repliesRef = collection(threadRef, 'replies');
     
     await addDoc(repliesRef, {
-        authorId: data.authorId, // Ensure authorId is passed
+        authorId: data.authorId,
         body: data.body,
         parentReplyId: data.parentReplyId,
         status: 'published',
@@ -262,7 +264,6 @@ export async function createChatMessage(threadId: string, messageData: Partial<C
   const messagesRef = collection(firestore, 'threads', threadId, 'chatMessages');
   await addDoc(messagesRef, {
       ...messageData,
-      senderId: messageData.senderId, // Ensure senderId is passed
       senderProfile: {
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
@@ -487,7 +488,7 @@ type BookingRequest = {
   name: string;
   email: string;
   notes: string;
-  uid?: string; // UID of the logged-in user
+  uid: string;
 };
 
 export async function bookDemo(request: BookingRequest): Promise<void> {
@@ -506,7 +507,6 @@ export async function bookDemo(request: BookingRequest): Promise<void> {
         const bookingRef = doc(collection(firestore, 'demoBookings'));
         transaction.set(bookingRef, {
             ...bookingData,
-            uid: bookingData.uid, // Ensure uid is passed
             slotId: slotId,
             date: slotDoc.data().date,
             startTime: slotDoc.data().startTime,

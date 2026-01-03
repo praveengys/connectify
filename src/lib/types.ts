@@ -196,7 +196,7 @@ export type DemoBooking = {
     date: string; // YYYY-MM-DD
     startTime: string; // HH:mm
     slotId: string;
-    uid?: string;
+    uid: string;
     notes?: string;
     status: 'pending' | 'scheduled' | 'denied';
     createdAt: Date | Timestamp;
